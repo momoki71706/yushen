@@ -1,5 +1,5 @@
 import { useStore } from '../state/store';
-import { HamburgerIcon, HeartIcon, PencilIcon, CheckIcon } from './Icons';
+import { HamburgerIcon, HeartIcon } from './Icons';
 
 const TITLE_MAP = { home: '首页', manage: '管理', calendar: '日历', play: '娱乐' };
 
@@ -7,12 +7,7 @@ export default function Header() {
   const activeTab = useStore((s) => s.activeTab);
   const homeMode = useStore((s) => s.homeMode);
   const nickname = useStore((s) => s.nickname);
-  const nicknameEditing = useStore((s) => s.nicknameEditing);
-  const nicknameDraft = useStore((s) => s.nicknameDraft);
   const toggleSidebar = useStore((s) => s.toggleSidebar);
-  const startEditNickname = useStore((s) => s.startEditNickname);
-  const onNicknameChange = useStore((s) => s.onNicknameChange);
-  const saveNickname = useStore((s) => s.saveNickname);
 
   const isHome = activeTab === 'home';
   const subtitleMap = {
@@ -30,31 +25,8 @@ export default function Header() {
         </button>
 
         {isHome ? (
-          <div className="nickname-row">
-            {nicknameEditing ? (
-              <>
-                <div className="nickname-spacer" />
-                <input
-                  className="nickname-input"
-                  value={nicknameDraft}
-                  onChange={(e) => onNicknameChange(e.target.value)}
-                  onBlur={saveNickname}
-                  onKeyDown={(e) => e.key === 'Enter' && saveNickname()}
-                  autoFocus
-                />
-                <button className="nickname-icon-btn nickname-icon-btn--confirm" onClick={saveNickname}>
-                  <CheckIcon />
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="nickname-spacer" />
-                <div className="nickname-text">{nickname}</div>
-                <button className="nickname-icon-btn" onClick={startEditNickname}>
-                  <PencilIcon />
-                </button>
-              </>
-            )}
+          <div className="header-titles">
+            <div className="header-titles__main">{nickname}</div>
           </div>
         ) : (
           <div className="header-titles">

@@ -89,8 +89,9 @@ export async function testServer(id) {
   return { ok: true, toolCount: tools.length, toolNames: tools.map((t) => t.name) };
 }
 
-// Aggregate tools across all enabled MCP servers, prefixed for uniqueness and
-// mapped back to their originating server for dispatch during the tool-use loop.
+// Aggregate tools across all enabled MCP servers into a provider-agnostic
+// shape, prefixed for uniqueness and mapped back to their originating
+// server for dispatch during the tool-use loop.
 export async function getEnabledTools() {
   const servers = listServers().filter((s) => s.enabled);
   const tools = [];
@@ -101,11 +102,9 @@ export async function getEnabledTools() {
         const prefix = slugify(server.name);
         for (const t of serverTools) {
           tools.push({
-            anthropicTool: {
-              name: `${prefix}__${t.name}`,
-              description: t.description || '',
-              input_schema: t.inputSchema || { type: 'object', properties: {} },
-            },
+            qualifiedName: `${prefix}__${t.name}`,
+            description: t.description || '',
+            inputSchema: t.inputSchema || { type: 'object', properties: {} },
             serverId: server.id,
             toolName: t.name,
           });
@@ -118,8 +117,14 @@ export async function getEnabledTools() {
   return tools;
 }
 
+const toAnthropicTool = (t) => ({ name: t.qualifiedName, description: t.description, input_schema: t.inputSchema });
+const toOpenAiTool = (t) => ({
+  type: 'function',
+  function: { name: t.qualifiedName, description: t.description, parameters: t.inputSchema },
+});
+
 async function callTool(tools, qualifiedName, input) {
-  const match = tools.find((t) => t.anthropicTool.name === qualifiedName);
+  const match = tools.find((t) => t.qualifiedName === qualifiedName);
   if (!match) return { content: [{ type: 'text', text: `未知工具: ${qualifiedName}` }], isError: true };
   const server = getServer(match.serverId);
   if (!server) return { content: [{ type: 'text', text: '工具所属的 MCP 服务已被删除' }], isError: true };
@@ -135,14 +140,20 @@ async function callTool(tools, qualifiedName, input) {
   }
 }
 
-// Agentic loop: call Claude with MCP tools attached, execute any tool_use
-// blocks against the originating MCP server, feed results back, and repeat
-// until Claude returns a plain text reply or the iteration cap is hit.
-export async function runToolLoop(history, apiKey, model, baseURL, tools) {
+function mcpContentToText(content) {
+  if (!Array.isArray(content)) return JSON.stringify(content ?? '');
+  return content.map((c) => (c.type === 'text' ? c.text : JSON.stringify(c))).join('\n');
+}
+
+// Agentic loop for Anthropic-format providers: call Claude with MCP tools
+// attached, execute any tool_use blocks against the originating MCP
+// server, feed results back, and repeat until Claude returns a plain
+// text reply or the iteration cap is hit.
+export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tools) {
   if (!apiKey) return { text: FALLBACK_REPLY, tokens: estimateTokens(FALLBACK_REPLY) };
 
   const anthropic = new Anthropic({ apiKey, ...(baseURL ? { baseURL } : {}) });
-  const anthropicTools = tools.map((t) => t.anthropicTool);
+  const anthropicTools = tools.map(toAnthropicTool);
   const messages = history.map((m) => ({
     role: m.from === 'me' ? 'user' : 'assistant',
     content: m.text,
@@ -184,4 +195,71 @@ export async function runToolLoop(history, apiKey, model, baseURL, tools) {
 
   const text = finalText || FALLBACK_REPLY;
   return { text, tokens: totalOutputTokens || estimateTokens(text) };
+}
+
+function joinUrl(base, path) {
+  return `${(base || '').replace(/\/+$/, '')}${path}`;
+}
+
+// Same agentic loop, but speaking OpenAI's function-calling format
+// (tools/tool_calls/role:"tool") for OpenAI-compatible relay providers.
+export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools) {
+  if (!apiKey) return { text: FALLBACK_REPLY, tokens: estimateTokens(FALLBACK_REPLY) };
+
+  const openAiTools = tools.map(toOpenAiTool);
+  const messages = [
+    { role: 'system', content: getComposedSystemPrompt() },
+    ...history.map((m) => ({ role: m.from === 'me' ? 'user' : 'assistant', content: m.text })),
+  ];
+
+  let finalText = '';
+  let totalTokens = 0;
+
+  for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+    const res = await fetch(joinUrl(baseUrl, '/chat/completions'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: model || 'claude-sonnet-5',
+        max_tokens: 400,
+        messages,
+        tools: openAiTools,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`);
+    }
+    const json = await res.json();
+    totalTokens += json.usage?.completion_tokens || 0;
+
+    const message = json.choices?.[0]?.message;
+    if (!message) break;
+    finalText = (message.content || '').trim();
+
+    const toolCalls = message.tool_calls || [];
+    if (!toolCalls.length) break;
+
+    messages.push({ role: 'assistant', content: message.content || null, tool_calls: toolCalls });
+    const toolResults = await Promise.all(
+      toolCalls.map(async (tc) => {
+        let args = {};
+        try {
+          args = JSON.parse(tc.function.arguments || '{}');
+        } catch {
+          // leave args as {} if the model produced malformed JSON
+        }
+        const result = await callTool(tools, tc.function.name, args);
+        return {
+          role: 'tool',
+          tool_call_id: tc.id,
+          content: mcpContentToText(result.content) || JSON.stringify(result),
+        };
+      })
+    );
+    messages.push(...toolResults);
+  }
+
+  const text = finalText || FALLBACK_REPLY;
+  return { text, tokens: totalTokens || estimateTokens(text) };
 }

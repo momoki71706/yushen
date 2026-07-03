@@ -1,5 +1,5 @@
 import { useStore } from '../state/store';
-import { EnvelopeOutlineIcon } from './Icons';
+import { EnvelopeOutlineIcon, PencilIcon, CheckIcon } from './Icons';
 
 function SparkIcon() {
   return (
@@ -50,6 +50,12 @@ export default function Sidebar() {
   const openAiSettings = useStore((s) => s.openAiSettings);
   const openMcpPanel = useStore((s) => s.openMcpPanel);
   const openPresetPanel = useStore((s) => s.openPresetPanel);
+  const nickname = useStore((s) => s.nickname);
+  const nicknameEditing = useStore((s) => s.nicknameEditing);
+  const nicknameDraft = useStore((s) => s.nicknameDraft);
+  const startEditNickname = useStore((s) => s.startEditNickname);
+  const onNicknameChange = useStore((s) => s.onNicknameChange);
+  const saveNickname = useStore((s) => s.saveNickname);
 
   if (!sidebarOpen) return null;
 
@@ -74,6 +80,33 @@ export default function Sidebar() {
         </div>
 
         <div className="sidebar-divider" />
+        {nicknameEditing ? (
+          <div className="sidebar-menu-item" style={{ cursor: 'default' }}>
+            <div className="sidebar-menu-icon" style={{ background: '#EDD9E1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <PencilIcon />
+            </div>
+            <input
+              className="nickname-input"
+              style={{ flex: 1, textAlign: 'left', fontSize: 15 }}
+              value={nicknameDraft}
+              onChange={(e) => onNicknameChange(e.target.value)}
+              onBlur={saveNickname}
+              onKeyDown={(e) => e.key === 'Enter' && saveNickname()}
+              autoFocus
+            />
+            <button className="nickname-icon-btn nickname-icon-btn--confirm" onClick={saveNickname}>
+              <CheckIcon />
+            </button>
+          </div>
+        ) : (
+          <button className="sidebar-menu-item" onClick={startEditNickname}>
+            <div className="sidebar-menu-icon" style={{ background: '#EDD9E1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <PencilIcon />
+            </div>
+            <div className="sidebar-menu-label">备注名 · {nickname}</div>
+            <ChevronRight />
+          </button>
+        )}
         {MENU_ITEMS.map((item) => (
           <button key={item.label} className="sidebar-menu-item">
             <div className="sidebar-menu-icon" style={{ background: item.bg }} />

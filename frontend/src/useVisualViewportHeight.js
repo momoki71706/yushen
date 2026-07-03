@@ -24,6 +24,14 @@ export function useVisualViewportHeight() {
     const applyKeyboardHeight = () => {
       if (!focused) return;
       document.documentElement.style.setProperty('--vvh', `${vv.height}px`);
+      // iOS's own "scroll focused input into view" runs against the old
+      // layout and our resize runs against the new one — the two races
+      // can leave the field scrolled out of view entirely. Re-center it
+      // ourselves once the real keyboard-aware height is in place.
+      const active = document.activeElement;
+      if (active?.matches?.(FIELD_SELECTOR)) {
+        active.scrollIntoView({ block: 'center', behavior: 'instant' });
+      }
     };
 
     const restoreFullHeight = () => {

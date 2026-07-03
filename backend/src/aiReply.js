@@ -2,7 +2,7 @@ import { getSetting } from './db.js';
 import { getProviderWithKeys, getReplyViaProvider, pickKey } from './providers.js';
 import { getReplyViaClaudeCode } from './claudeCode.js';
 import { FALLBACK_REPLY, estimateTokens } from './persona.js';
-import { getEnabledTools, runToolLoop } from './mcp.js';
+import { getEnabledTools, runAnthropicToolLoop, runOpenAiToolLoop } from './mcp.js';
 
 export async function getYushenReply(history) {
   const aiMode = getSetting('aiMode', 'provider');
@@ -18,11 +18,14 @@ export async function getYushenReply(history) {
     const provider = providerId ? getProviderWithKeys(providerId) : null;
     if (!provider) return { text: FALLBACK_REPLY, tokens: estimateTokens(FALLBACK_REPLY) };
 
-    if (mcpEnabled && provider.type === 'anthropic') {
+    if (mcpEnabled) {
       const tools = await getEnabledTools();
       if (tools.length) {
         const apiKey = pickKey(provider.keys, provider.multiKeyEnabled);
-        return await runToolLoop(history, apiKey, provider.selectedModel, provider.baseUrl || undefined, tools);
+        if (provider.type === 'openai') {
+          return await runOpenAiToolLoop(history, apiKey, provider.baseUrl, provider.selectedModel, tools);
+        }
+        return await runAnthropicToolLoop(history, apiKey, provider.selectedModel, provider.baseUrl || undefined, tools);
       }
     }
     return await getReplyViaProvider(history, provider);

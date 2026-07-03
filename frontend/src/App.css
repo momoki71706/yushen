@@ -102,22 +102,6 @@
   font-weight: 500;
   margin-top: 1px;
 }
-.nickname-row {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-.nickname-text {
-  font-size: 18px;
-  color: var(--color-text);
-  font-weight: 500;
-}
-.nickname-spacer {
-  width: 24px;
-  flex-shrink: 0;
-}
 .nickname-icon-btn {
   width: 24px;
   height: 24px;
