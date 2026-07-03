@@ -1,4 +1,4 @@
-export const FALLBACK_REPLY = '嗯嗯在听～';
+export const FALLBACK_REPLY = '爸比现在不在线哦';
 
 export function estimateTokens(text) {
   const t = (text || '').trim();
