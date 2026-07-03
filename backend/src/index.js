@@ -7,6 +7,7 @@ import lettersRouter from './routes/letters.js';
 import settingsRouter from './routes/settings.js';
 import pushRouter from './routes/push.js';
 import { startProactiveScheduler } from './proactive.js';
+import { startScheduledMessageChecker } from './scheduledMessages.js';
 
 const app = express();
 app.use(cors());
@@ -27,4 +28,5 @@ app.listen(port, () => {
     console.warn('ANTHROPIC_API_KEY is not set — chat will use a fallback canned reply instead of real AI.');
   }
   startProactiveScheduler();
+  startScheduledMessageChecker();
 });

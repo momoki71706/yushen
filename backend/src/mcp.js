@@ -6,6 +6,7 @@ import { db } from './db.js';
 import { FALLBACK_REPLY, estimateTokens } from './persona.js';
 import { getComposedSystemPrompt } from './presets.js';
 import { THINKING_BUDGET_TOKENS, extractThinking, extractOpenAiThinking } from './providers.js';
+import { isLocalTool, executeLocalTool } from './localTools.js';
 
 const MAX_TOOL_ITERATIONS = 5;
 const CLIENT_INFO = { name: 'xiaoqing-yushen-app', version: '1.0.0' };
@@ -141,6 +142,7 @@ function buildToolAwareSystemPrompt(tools) {
 async function callTool(tools, qualifiedName, input) {
   const match = tools.find((t) => t.qualifiedName === qualifiedName);
   if (!match) return { content: [{ type: 'text', text: `未知工具: ${qualifiedName}` }], isError: true };
+  if (isLocalTool(match)) return executeLocalTool(match.toolName, input);
   const server = getServer(match.serverId);
   if (!server) return { content: [{ type: 'text', text: '工具所属的 MCP 服务已被删除' }], isError: true };
 

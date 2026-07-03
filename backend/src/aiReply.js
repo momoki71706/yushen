@@ -3,6 +3,7 @@ import { getProviderWithKeys, getReplyViaProvider, pickKey } from './providers.j
 import { getReplyViaClaudeCode } from './claudeCode.js';
 import { FALLBACK_REPLY, classifyAiError, estimateTokens } from './persona.js';
 import { getEnabledTools, runAnthropicToolLoop, runOpenAiToolLoop } from './mcp.js';
+import { getLocalTools } from './localTools.js';
 
 export async function getYushenReply(history) {
   const aiMode = getSetting('aiMode', 'provider');
@@ -18,16 +19,29 @@ export async function getYushenReply(history) {
     const provider = providerId ? getProviderWithKeys(providerId) : null;
     if (!provider) return { text: FALLBACK_REPLY, tokens: estimateTokens(FALLBACK_REPLY) };
 
-    if (mcpEnabled) {
-      const tools = await getEnabledTools();
-      if (tools.length) {
+    // Local tools (e.g. schedule_message) are always available — they're
+    // core app behavior, not an external integration, so they shouldn't
+    // depend on the MCP toggle. MCP-server tools are added on top of that
+    // only when the user has actually turned MCP on.
+    const tools = [...getLocalTools(), ...(mcpEnabled ? await getEnabledTools() : [])];
+
+    if (tools.length) {
+      try {
         const apiKey = pickKey(provider.keys);
         if (provider.type === 'openai') {
           return await runOpenAiToolLoop(history, apiKey, provider.baseUrl, provider.selectedModel, tools);
         }
         return await runAnthropicToolLoop(history, apiKey, provider.selectedModel, provider.baseUrl || undefined, tools);
+      } catch (err) {
+        // Some relays choke specifically on requests carrying a tools[]
+        // parameter (poor/no function-calling support) — since tools are
+        // now attached to every message by default via the local
+        // schedule_message tool, that would otherwise break plain chat
+        // entirely for those providers. Falling back to the tool-less
+        // path keeps normal conversation working even when tool use
+        // itself isn't usable.
+        console.error('[tools] tool-enabled call failed, falling back to plain reply:', err.message);
       }
-      console.log('[mcp] tools enabled but getEnabledTools() returned 0 tools — falling back to plain reply');
     }
     return await getReplyViaProvider(history, provider);
   } catch (err) {
