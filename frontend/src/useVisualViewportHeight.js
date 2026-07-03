@@ -24,6 +24,14 @@ export function useVisualViewportHeight() {
     const applyKeyboardHeight = () => {
       if (!focused) return;
       document.documentElement.style.setProperty('--vvh', `${vv.height}px`);
+      // position:fixed elements are anchored to the layout viewport, not
+      // the visual one. When iOS shifts the visual viewport down (e.g. to
+      // keep the focused field clear of the keyboard), offsetTop becomes
+      // non-zero — if we don't shift our fixed shell by the same amount,
+      // its top:0 no longer lines up with what's actually visible, and the
+      // uncovered strip at the bottom reads as a solid-colour gap even
+      // though the height itself is correct.
+      document.documentElement.style.setProperty('--vvt', `${vv.offsetTop}px`);
       // iOS's own "scroll focused input into view" runs against the old
       // layout and our resize runs against the new one — the two races
       // can leave the field scrolled out of view entirely. Re-center it
@@ -41,9 +49,11 @@ export function useVisualViewportHeight() {
       // visually stuck at the old, smaller height until something
       // unrelated forces a re-render.
       document.documentElement.style.setProperty('--vvh', `${window.innerHeight}px`);
+      document.documentElement.style.setProperty('--vvt', '0px');
       void document.documentElement.offsetHeight;
       requestAnimationFrame(() => {
         document.documentElement.style.removeProperty('--vvh');
+        document.documentElement.style.removeProperty('--vvt');
         void document.documentElement.offsetHeight;
       });
     };
