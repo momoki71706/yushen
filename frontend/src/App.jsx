@@ -16,6 +16,7 @@ import PlaceholderTab from './components/PlaceholderTab';
 import ChatMode from './modes/ChatMode';
 import DiaryMode from './modes/DiaryMode';
 import LetterMode from './modes/LetterMode';
+import ManageMode from './modes/manage/ManageMode';
 
 function App() {
   const init = useStore((s) => s.init);
@@ -50,7 +51,7 @@ function App() {
           {isHome && homeMode === 'chat' && <ChatMode />}
           {isHome && homeMode === 'diary' && <DiaryMode />}
           {isHome && homeMode === 'letter' && <LetterMode />}
-          {activeTab === 'manage' && <PlaceholderTab tab="manage" />}
+          {activeTab === 'manage' && <ManageMode />}
           {activeTab === 'calendar' && <PlaceholderTab tab="calendar" />}
           {activeTab === 'play' && <PlaceholderTab tab="play" />}
         </div>

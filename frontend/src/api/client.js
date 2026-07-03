@@ -71,4 +71,13 @@ export const api = {
   setProactiveStatus: (enabled) => request('/push/proactive-status', { method: 'PATCH', body: JSON.stringify({ enabled }) }),
 
   exportMemories: () => request('/export', { method: 'POST' }),
+
+  getLedgerEntries: () => request('/ledger'),
+  addLedgerEntry: (payload) => request('/ledger', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteLedgerEntry: (id) => request(`/ledger/${id}`, { method: 'DELETE' }),
+
+  getHabits: () => request('/habits'),
+  addHabit: (payload) => request('/habits', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteHabit: (id) => request(`/habits/${id}`, { method: 'DELETE' }),
+  toggleHabitCheckin: (id, dateISO) => request(`/habits/${id}/checkin`, { method: 'POST', body: JSON.stringify({ dateISO }) }),
 };

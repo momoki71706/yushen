@@ -96,6 +96,32 @@ CREATE TABLE IF NOT EXISTS scheduled_messages (
   sent INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS ledger_entries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  date_iso TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'expense',
+  category TEXT NOT NULL,
+  amount REAL NOT NULL,
+  note TEXT,
+  time_label TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS habits (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  color TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS habit_checkins (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  habit_id INTEGER NOT NULL,
+  date_iso TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(habit_id, date_iso)
+);
 `);
 
 // Additive column migrations — CREATE TABLE IF NOT EXISTS above doesn't

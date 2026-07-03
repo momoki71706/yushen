@@ -25,6 +25,38 @@ function isDateDue(iso) {
   return d <= today;
 }
 
+function todayISOLocal() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+const EXPENSE_CATEGORIES = [
+  { key: '餐饮', color: '#EDD9E1' }, { key: '交通', color: '#D9CBD3' },
+  { key: '购物', color: '#E7D6CE' }, { key: '娱乐', color: '#CBB9C0' },
+  { key: '居家', color: '#D6C4CB' }, { key: '医疗', color: '#C9AEB9' },
+  { key: '其他', color: '#DED3D8' },
+];
+const INCOME_CATEGORIES = [
+  { key: '工资', color: '#E0D2D9' }, { key: '红包', color: '#F1E0E8' }, { key: '其他', color: '#DED3D8' },
+];
+const ALL_CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
+const HABIT_COLORS = ['#D9CBD3', '#CBB9C0', '#E7D6CE', '#EDD9E1', '#D6C4CB'];
+const LEDGER_MESSAGES = ['今天的咖啡花了多少？', '这个月还剩不到一半啦，省着点花', '钱包瘦了没关系，晚点我请你', '今天有没有乱花钱呀，如实交代', '记账这件事，坚持一下下就好'];
+const HABIT_MESSAGES = ['喝水了吗baby？', '已经连续这么多天了，继续保持呀', '今天的小习惯，打卡了吗', '别偷懒，我在看着呢', '坚持一下，明天的你会谢谢今天的自己'];
+
+function dayOfYear() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  return Math.floor((now - start) / 86400000);
+}
+
+function pickDaily(arr) {
+  return arr[dayOfYear() % arr.length];
+}
+
 export const useStore = create(
   persist(
     (set, get) => ({
@@ -125,6 +157,94 @@ export const useStore = create(
       set({ exportBusy: false });
     }
   },
+
+  // ---- manage: ledger + habits ----
+  expenseCategories: EXPENSE_CATEGORIES,
+  incomeCategories: INCOME_CATEGORIES,
+  categoryColor: (key) => (ALL_CATEGORIES.find((c) => c.key === key) || { color: '#DED3D8' }).color,
+  habitColors: HABIT_COLORS,
+  todayISOLocal,
+
+  manageView: 'home', // 'home' | 'ledger' | 'habits'
+  openLedger: () => {
+    set({ manageView: 'ledger' });
+    if (!get().ledgerLoaded) get().loadLedgerEntries();
+  },
+  openHabits: () => {
+    set({ manageView: 'habits' });
+    if (!get().habitsLoaded) get().loadHabits();
+  },
+  closeManageSubview: () => set({ manageView: 'home' }),
+
+  ledgerEntries: [],
+  ledgerLoaded: false,
+  ledgerMonthOffset: 0,
+  ledgerChartMode: 'pie',
+  ledgerShowAdd: false,
+  ledgerDraft: null,
+  ledgerCardMessage: pickDaily(LEDGER_MESSAGES),
+  loadLedgerEntries: async () => {
+    const ledgerEntries = await api.getLedgerEntries();
+    set({ ledgerEntries, ledgerLoaded: true });
+  },
+  ledgerPrevMonth: () => set((s) => ({ ledgerMonthOffset: s.ledgerMonthOffset - 1 })),
+  ledgerNextMonth: () => set((s) => ({ ledgerMonthOffset: Math.min(0, s.ledgerMonthOffset + 1) })),
+  setLedgerChartMode: (mode) => set({ ledgerChartMode: mode }),
+  openLedgerAdd: () =>
+    set({
+      ledgerShowAdd: true,
+      ledgerDraft: { type: 'expense', category: '餐饮', amount: '', note: '', dateISO: todayISOLocal() },
+    }),
+  closeLedgerAdd: () => set({ ledgerShowAdd: false, ledgerDraft: null }),
+  onLedgerDraftChange: (field, value) =>
+    set((s) => ({
+      ledgerDraft: {
+        ...s.ledgerDraft,
+        [field]: value,
+        ...(field === 'type' ? { category: value === 'income' ? '工资' : '餐饮' } : {}),
+      },
+    })),
+  saveLedgerEntry: async () => {
+    const { ledgerDraft } = get();
+    const amount = parseFloat(ledgerDraft.amount);
+    if (!amount || amount <= 0) return;
+    const entry = await api.addLedgerEntry({ ...ledgerDraft, amount });
+    set((s) => ({ ledgerEntries: [entry, ...s.ledgerEntries], ledgerShowAdd: false, ledgerDraft: null }));
+  },
+  deleteLedgerEntryAction: async (id) => {
+    await api.deleteLedgerEntry(id);
+    set((s) => ({ ledgerEntries: s.ledgerEntries.filter((e) => e.id !== id) }));
+  },
+
+  habits: [],
+  habitsLoaded: false,
+  habitsShowAdd: false,
+  habitsDraft: null,
+  habitsDayDetailDate: null,
+  habitCardMessage: pickDaily(HABIT_MESSAGES),
+  loadHabits: async () => {
+    const habits = await api.getHabits();
+    set({ habits, habitsLoaded: true });
+  },
+  openHabitsAdd: () => set({ habitsShowAdd: true, habitsDraft: { name: '', color: HABIT_COLORS[0] } }),
+  closeHabitsAdd: () => set({ habitsShowAdd: false, habitsDraft: null }),
+  onHabitsDraftChange: (field, value) => set((s) => ({ habitsDraft: { ...s.habitsDraft, [field]: value } })),
+  saveHabit: async () => {
+    const { habitsDraft } = get();
+    if (!habitsDraft.name.trim()) return;
+    const habit = await api.addHabit({ name: habitsDraft.name.trim(), color: habitsDraft.color });
+    set((s) => ({ habits: [...s.habits, habit], habitsShowAdd: false, habitsDraft: null }));
+  },
+  deleteHabitAction: async (id) => {
+    await api.deleteHabit(id);
+    set((s) => ({ habits: s.habits.filter((h) => h.id !== id) }));
+  },
+  toggleHabitCheckin: async (id, dateISO) => {
+    const { checkins } = await api.toggleHabitCheckin(id, dateISO);
+    set((s) => ({ habits: s.habits.map((h) => (h.id === id ? { ...h, checkins } : h)) }));
+  },
+  openHabitsDayDetail: (iso) => set({ habitsDayDetailDate: iso }),
+  closeHabitsDayDetail: () => set({ habitsDayDetailDate: null }),
 
   // ---- chat ----
   messages: [],
@@ -631,6 +751,8 @@ export const useStore = create(
       get().loadMessages(),
       get().loadDiaryEntries(),
       get().loadLetters(),
+      get().loadLedgerEntries(),
+      get().loadHabits(),
     ]);
     get().checkLetterReminder();
     api.getAiMode().then((s) => set({ mcpToolsEnabled: !!s.mcpToolsEnabled })).catch(() => {});

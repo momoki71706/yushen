@@ -7,6 +7,8 @@ import lettersRouter from './routes/letters.js';
 import settingsRouter from './routes/settings.js';
 import pushRouter from './routes/push.js';
 import exportRouter from './routes/export.js';
+import ledgerRouter from './routes/ledger.js';
+import habitsRouter from './routes/habits.js';
 import { startProactiveScheduler } from './proactive.js';
 import { startScheduledMessageChecker } from './scheduledMessages.js';
 
@@ -20,6 +22,8 @@ app.use('/api/letters', lettersRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/push', pushRouter);
 app.use('/api/export', exportRouter);
+app.use('/api/ledger', ledgerRouter);
+app.use('/api/habits', habitsRouter);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
