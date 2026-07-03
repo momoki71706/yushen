@@ -60,7 +60,7 @@ export async function maybeCompressChatHistory() {
     const providerId = getSetting('activeProviderId', '');
     const provider = providerId ? getProviderWithKeys(providerId) : null;
     if (!provider) return;
-    const apiKey = pickKey(provider.keys, provider.multiKeyEnabled);
+    const apiKey = pickKey(provider.keys);
     if (!apiKey) return;
 
     const chunkText = toCompress.map((m) => `${m.from_who === 'me' ? '小晴' : '屿深'}: ${m.text}`).join('\n');

@@ -141,37 +141,16 @@ function ProviderEditor() {
         placeholder="随便起，比如「我的中转站」"
       />
 
-      <div className="provider-form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span>启用多 Key 模式（多个 Key 随机轮换使用）</span>
-        <button
-          className="toggle-switch"
-          style={{ background: providerDraft.multiKeyEnabled ? '#C8899E' : '#DCD4D8' }}
-          onClick={() => onProviderDraftChange('multiKeyEnabled', !providerDraft.multiKeyEnabled)}
-        >
-          <div className="toggle-switch__knob" style={{ left: providerDraft.multiKeyEnabled ? 20 : 2 }} />
-        </button>
-      </div>
-
       <div className="provider-form-label">
-        API Key{providerDraft.multiKeyEnabled ? '（每行一个）' : ''}
-        {!isNew && providerDraft.keyCount > 0 ? ` · 当前已存 ${providerDraft.keyCount} 个，留空则不改` : ''}
+        API Key{!isNew && providerDraft.keyCount > 0 ? ' · 已保存，留空则不改' : ''}
       </div>
-      {providerDraft.multiKeyEnabled ? (
-        <textarea
-          className="provider-form-textarea"
-          value={providerDraft.keysText}
-          onChange={(e) => onProviderDraftChange('keysText', e.target.value)}
-          placeholder="sk-xxx&#10;sk-yyy"
-        />
-      ) : (
-        <input
-          className="provider-form-input"
-          type="password"
-          value={providerDraft.keysText}
-          onChange={(e) => onProviderDraftChange('keysText', e.target.value)}
-          placeholder="sk-..."
-        />
-      )}
+      <input
+        className="provider-form-input"
+        type="password"
+        value={providerDraft.keysText}
+        onChange={(e) => onProviderDraftChange('keysText', e.target.value)}
+        placeholder="sk-..."
+      />
 
       <div className="provider-form-label">API Base URL{providerDraft.type === 'anthropic' ? '（留空用官方地址）' : ''}</div>
       <input

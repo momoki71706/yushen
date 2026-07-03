@@ -21,7 +21,7 @@ export async function getYushenReply(history) {
     if (mcpEnabled) {
       const tools = await getEnabledTools();
       if (tools.length) {
-        const apiKey = pickKey(provider.keys, provider.multiKeyEnabled);
+        const apiKey = pickKey(provider.keys);
         if (provider.type === 'openai') {
           return await runOpenAiToolLoop(history, apiKey, provider.baseUrl, provider.selectedModel, tools);
         }

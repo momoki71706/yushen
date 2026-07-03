@@ -9,6 +9,8 @@ const ERROR_REPLIES = [
   { test: (status, msg) => status === 401 || msg.includes('authentication') || msg.includes('invalid x-api-key') || msg.includes('invalid_api_key') || msg.includes('unauthorized'), text: '钥匙好像失效了，我这边进不去' },
   { test: (status, msg) => status === 402 || msg.includes('insufficient') || msg.includes('quota') || msg.includes('balance') || msg.includes('余额'), text: '小晴，余额不足了' },
   { test: (status, msg) => status === 429 || msg.includes('rate limit') || msg.includes('too many requests'), text: '太多人找我说话啦，等会儿再试试' },
+  { test: (status, msg) => status === 404 || msg.includes('model_not_found') || msg.includes('no available channel'), text: '这个模型好像连不上，你检查下模型名对不对' },
+  { test: (status, msg) => status === 400 || msg.includes('bad request') || msg.includes('invalid_request') || msg.includes('unsupported'), text: '这个我好像还处理不了，可能是工具那部分格式不支持' },
   { test: (status) => status >= 500 && status < 600, text: '那边服务器好像卡住了，等会再找我' },
   { test: (status, msg) => msg.includes('econnrefused') || msg.includes('enotfound') || msg.includes('fetch failed') || msg.includes('timeout') || msg.includes('etimedout'), text: '线路好像断了，我这边收不到消息' },
 ];

@@ -96,10 +96,11 @@ export function deleteProvider(id) {
   }
 }
 
-function pickKey(keys, multiKeyEnabled) {
-  if (!keys.length) return '';
-  if (!multiKeyEnabled || keys.length === 1) return keys[0];
-  return keys[Math.floor(Math.random() * keys.length)];
+// Multi-key rotation was removed — it complicated debugging (every failed
+// request could've come from a different key with different quota/status)
+// without a clear enough benefit to keep. Always use the first stored key.
+function pickKey(keys) {
+  return keys[0] || '';
 }
 
 function joinUrl(base, path) {
@@ -141,7 +142,7 @@ async function callOpenAiCompatible({ apiKey, baseUrl, model, system, messages, 
 // and OpenAI-compatible providers get the full recent conversation, not
 // just the latest message.
 export async function getReplyViaProvider(history, provider) {
-  const apiKey = pickKey(provider.keys, provider.multiKeyEnabled);
+  const apiKey = pickKey(provider.keys);
   if (!apiKey) return { text: FALLBACK_REPLY, tokens: estimateTokens(FALLBACK_REPLY) };
   const systemPrompt = getComposedSystemPrompt();
   const messages = history.map((m) => ({ role: m.from === 'me' ? 'user' : 'assistant', content: m.text }));
@@ -174,7 +175,7 @@ export async function getReplyViaProvider(history, provider) {
 export async function testProvider(id) {
   const provider = getProviderWithKeys(id);
   if (!provider) throw new Error('未找到这个供应商');
-  const apiKey = pickKey(provider.keys, provider.multiKeyEnabled);
+  const apiKey = pickKey(provider.keys);
   if (!apiKey) throw new Error('还没有设置 API Key');
   if (!provider.selectedModel) throw new Error('还没有选择模型');
 

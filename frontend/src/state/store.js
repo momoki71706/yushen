@@ -362,7 +362,7 @@ export const useStore = create(
     if (id === 'new') {
       set({
         providerEditId: 'new',
-        providerDraft: { name: '', type: 'anthropic', baseUrl: '', multiKeyEnabled: false, keysText: '', models: [], selectedModel: '', newModelDraft: '' },
+        providerDraft: { name: '', type: 'anthropic', baseUrl: '', keysText: '', models: [], selectedModel: '', newModelDraft: '' },
       });
       return;
     }
@@ -374,7 +374,6 @@ export const useStore = create(
         name: p.name,
         type: p.type,
         baseUrl: p.baseUrl,
-        multiKeyEnabled: p.multiKeyEnabled,
         keysText: '',
         keyCount: p.keyCount,
         models: [...p.models],
@@ -421,7 +420,7 @@ export const useStore = create(
       name: providerDraft.name.trim(),
       type: providerDraft.type,
       baseUrl: providerDraft.baseUrl.trim(),
-      multiKeyEnabled: providerDraft.multiKeyEnabled,
+      multiKeyEnabled: false,
       models: providerDraft.models,
       selectedModel: providerDraft.selectedModel,
     };
