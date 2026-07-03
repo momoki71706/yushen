@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style data-omelette-print-defaults>
+@media print {
+  @page { margin: 0.5in; }
+  h1, h2, h3, h4, h5, h6 { break-after: avoid; }
+  figure, table, pre, blockquote, img, svg, tr, [class~="card" i] { break-inside: avoid; }
+  img, svg { max-width: 100%; }
+  p { orphans: 3; widows: 3; }
+}
+</style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+</helmet>
+<div style="min-height:100vh;width:100%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 30% 15%, #F8EEF1 0%, #EFE6EE 45%, #E3DBE5 100%);padding:56px 20px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif">
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+
+<div style="height:100%;width:100%;display:flex;flex-direction:column;position:relative;overflow:hidden;background:linear-gradient(180deg,#F8EEF2 0%,#F2E8EE 45%,#ECE2EA 100%)">
+
+  <div style="height:56px;flex-shrink:0"></div>
+
+  <div style="padding:2px 20px 14px;flex-shrink:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <button onClick="{{ toggleSidebar }}" style="width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,0.6);border:none;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(74,59,69,0.08)">
+        <svg width="17" height="13" viewBox="0 0 17 13" fill="none"><path d="M1 1H16" stroke="#6B5B6E" stroke-width="1.8" stroke-linecap="round"/><path d="M1 6.5H16" stroke="#6B5B6E" stroke-width="1.8" stroke-linecap="round"/><path d="M1 12H16" stroke="#6B5B6E" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <div style="text-align:center">
+        <div style="font-size:12.5px;color:#AF9AA9;font-weight:500;letter-spacing:0.2px">{{ headerSubtitle }}</div>
+        <div style="font-size:18px;color:#4A3B45;font-weight:700;margin-top:2px">{{ headerTitle }}</div>
+      </div>
+      <div style="width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,0.6);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(74,59,69,0.08)">
+        <svg width="17" height="15" viewBox="0 0 18 16" fill="none"><path d="M9 15C9 15 1 10.5 1 5.2C1 2.6 3 1 5.2 1C6.9 1 8.3 2 9 3.3C9.7 2 11.1 1 12.8 1C15 1 17 2.6 17 5.2C17 10.5 9 15 9 15Z" fill="#E8B4C8"/></svg>
+      </div>
+    </div>
+    <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;background:rgba(255,255,255,0.5);border-radius:16px;padding:4px;gap:4px">
+        <sc-for list="{{ modes }}" as="m" hint-placeholder-count="3">
+          <button onClick="{{ m.onClick }}" style="flex:1;padding:9px 0;border:none;border-radius:13px;font-size:14px;font-weight:600;background:{{ m.bg }};color:{{ m.color }};box-shadow:{{ m.shadow }}">{{ m.label }}</button>
+        </sc-for>
+      </div>
+    </sc-if>
+  </div>
+
+  <div style="flex:1;display:flex;flex-direction:column;min-height:0;position:relative">
+
+    <sc-if value="{{ isChatMode }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+        <div style="flex:1;overflow-y:auto;padding:6px 16px 10px;display:flex;flex-direction:column;gap:11px">
+          <sc-for list="{{ messages }}" as="msg" hint-placeholder-count="4">
+            <div style="display:flex;justify-content:{{ msg.justify }}">
+              <div style="max-width:74%;display:flex;flex-direction:column;align-items:{{ msg.align }}">
+                <div style="background:{{ msg.bubbleBg }};color:{{ msg.bubbleColor }};padding:10px 14px;border-radius:{{ msg.radius }};font-size:15px;line-height:1.45;box-shadow:0 1px 3px rgba(74,59,69,0.05)">{{ msg.text }}</div>
+                <div style="font-size:11px;color:#BBA9B5;margin-top:3px;padding:0 4px">{{ msg.time }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="flex-shrink:0;padding:8px 14px 16px;display:flex;gap:8px;align-items:center">
+          <input value="{{ chatDraft }}" onChange="{{ onChatChange }}" placeholder="说点什么…" style="flex:1;height:40px;border-radius:20px;border:none;background:rgba(255,255,255,0.7);padding:0 16px;font-size:15px;color:#4A3B45;outline:none;box-shadow:inset 0 1px 2px rgba(74,59,69,0.06)"/>
+          <button onClick="{{ sendChat }}" style="width:40px;height:40px;border-radius:50%;border:none;background:#E893B3;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 8px rgba(232,147,179,0.4)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8L15 1L10 15L7 9L1 8Z" fill="#fff"/></svg>
+          </button>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isDiaryMode }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:2px 20px 20px">
+        <button onClick="{{ openDiaryComposer }}" style="width:100%;background:linear-gradient(135deg,#F3D9E3,#E8B4C8);border:none;border-radius:20px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;box-shadow:0 6px 16px rgba(232,180,200,0.35);cursor:pointer">
+          <div style="text-align:left">
+            <div style="font-size:12.5px;color:#8B5C71">今天想记录点什么</div>
+            <div style="font-size:16px;color:#5A2F42;font-weight:700;margin-top:2px">写一篇日记</div>
+          </div>
+          <div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.55);display:flex;align-items:center;justify-content:center">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1V14M1 7.5H14" stroke="#8B5C71" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+        </button>
+        <sc-for list="{{ diaryEntries }}" as="d" hint-placeholder-count="3">
+          <div style="background:rgba(255,255,255,0.6);border-radius:18px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(74,59,69,0.05)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+              <div style="width:9px;height:9px;border-radius:50%;background:{{ d.moodColor }};flex-shrink:0"></div>
+              <div style="font-size:12.5px;color:#8B7D95;font-weight:600">{{ d.mood }}</div>
+              <div style="font-size:12.5px;color:#C4B8C8">·</div>
+              <div style="font-size:12.5px;color:#8B7D95">{{ d.weather }}</div>
+              <div style="flex:1"></div>
+              <div style="font-size:11.5px;color:#B3A3AE">{{ d.date }}</div>
+            </div>
+            <div style="font-size:14px;color:#4A3B45;line-height:1.55">{{ d.excerpt }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isLetterMode }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:2px 20px 20px">
+        <button onClick="{{ openLetterComposer }}" style="width:100%;background:linear-gradient(135deg,#D9CFE0,#C9C2D0);border:none;border-radius:20px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;box-shadow:0 6px 16px rgba(201,194,208,0.4);cursor:pointer">
+          <div style="text-align:left">
+            <div style="font-size:12.5px;color:#5E5468">时间信箱</div>
+            <div style="font-size:16px;color:#3E3646;font-weight:700;margin-top:2px">写一封信给未来</div>
+          </div>
+          <div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.5);display:flex;align-items:center;justify-content:center">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1V14M1 7.5H14" stroke="#3E3646" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+        </button>
+        <sc-for list="{{ letters }}" as="l" hint-placeholder-count="3">
+          <div style="background:{{ l.cardBg }};border-radius:18px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(74,59,69,0.05)">
+            <div style="display:flex;gap:12px;align-items:center">
+              <svg width="26" height="20" viewBox="0 0 26 20" fill="none" style="flex-shrink:0">
+                <rect x="1" y="1" width="24" height="18" rx="4" fill="{{ l.envelopeFill }}"/>
+                <path d="M2 3l11 8 11-8" stroke="{{ l.envelopeStroke }}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              </svg>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:15px;font-weight:600;color:#4A3B45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ l.title }}</div>
+                <div style="font-size:12px;color:{{ l.statusColor }};margin-top:2px">{{ l.unlockLabel }} · {{ l.from }}</div>
+              </div>
+              <sc-if value="{{ l.canOpen }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ l.onOpen }}" style="flex-shrink:0;border:none;background:rgba(184,87,122,0.12);color:#B8577A;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:12px">{{ l.toggleLabel }}</button>
+              </sc-if>
+            </div>
+            <sc-if value="{{ l.expanded }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(74,59,69,0.08);font-size:14px;color:#4A3B45;line-height:1.6">{{ l.body }}</div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isManage }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;overflow-y:auto;padding:6px 20px 20px;display:flex;flex-direction:column">
+      <div style="background:rgba(255,255,255,0.55);border-radius:22px;padding:26px 20px;text-align:center;margin-bottom:16px">
+        <div style="width:54px;height:54px;border-radius:50%;background:#E8B4C8;margin:0 auto 14px;display:flex;align-items:center;justify-content:center">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="4" height="10" rx="1.5" fill="#fff"/><rect x="10" y="5" width="4" height="15" rx="1.5" fill="#fff"/><rect x="16" y="13" width="4" height="7" rx="1.5" fill="#fff"/></svg>
+        </div>
+        <div style="font-size:16px;font-weight:700;color:#4A3B45;margin-bottom:6px">敬请期待</div>
+        <div style="font-size:13.5px;color:#9C8B96;line-height:1.6">记账、习惯打卡、手表数据和屏幕时长，都会汇总在这里，一起变得更好。</div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">
+        <sc-for list="{{ manageTeasers }}" as="t" hint-placeholder-count="4">
+          <div style="background:rgba(255,255,255,0.5);color:#8B7D95;font-size:12.5px;padding:8px 14px;border-radius:14px">{{ t.label }}</div>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ isCalendar }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;overflow-y:auto;padding:6px 20px 20px;display:flex;flex-direction:column">
+      <div style="background:rgba(255,255,255,0.55);border-radius:22px;padding:26px 20px;text-align:center;margin-bottom:16px">
+        <div style="width:54px;height:54px;border-radius:50%;background:#C9C2D0;margin:0 auto 14px;display:flex;align-items:center;justify-content:center">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3" stroke="#fff" stroke-width="1.8"/><path d="M3 10H21" stroke="#fff" stroke-width="1.8"/><path d="M8 3V7M16 3V7" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <div style="font-size:16px;font-weight:700;color:#4A3B45;margin-bottom:6px">敬请期待</div>
+        <div style="font-size:13.5px;color:#9C8B96;line-height:1.6">生理期、锻炼、聊天热度、倒数日和恋爱大事件，会统一汇总成一条时间线。</div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">
+        <sc-for list="{{ calendarTeasers }}" as="t" hint-placeholder-count="6">
+          <div style="background:rgba(255,255,255,0.5);color:#8B7D95;font-size:12.5px;padding:8px 14px;border-radius:14px">{{ t.label }}</div>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ isPlay }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;overflow-y:auto;padding:6px 20px 20px;display:flex;flex-direction:column">
+      <div style="background:rgba(255,255,255,0.55);border-radius:22px;padding:26px 20px;text-align:center;margin-bottom:16px">
+        <div style="width:54px;height:54px;border-radius:50%;background:#D8C7D6;margin:0 auto 14px;display:flex;align-items:center;justify-content:center">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M5 3L19 11L5 19V3Z" fill="#fff"/></svg>
+        </div>
+        <div style="font-size:16px;font-weight:700;color:#4A3B45;margin-bottom:6px">敬请期待</div>
+        <div style="font-size:13.5px;color:#9C8B96;line-height:1.6">一起读的书、单曲循环的歌、英语角打卡和小游戏，都会放进这里。</div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">
+        <sc-for list="{{ playTeasers }}" as="t" hint-placeholder-count="4">
+          <div style="background:rgba(255,255,255,0.5);color:#8B7D95;font-size:12.5px;padding:8px 14px;border-radius:14px">{{ t.label }}</div>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+
+  </div>
+
+  <div style="flex-shrink:0;display:flex;padding:6px 8px 0;background:rgba(255,255,255,0.5);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:0.5px solid rgba(74,59,69,0.08);position:relative;z-index:5">
+    <button onClick="{{ goHome }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0 22px;background:none;border:none">
+      <svg width="20" height="19" viewBox="0 0 20 19" fill="none"><path d="M2 9L10 2L18 9V17H12V11H8V17H2V9Z" stroke="{{ homeIconColor }}" stroke-width="1.7" stroke-linejoin="round" fill="none"/></svg>
+      <div style="font-size:10.5px;font-weight:{{ homeIconWeight }};color:{{ homeIconColor }}">首页</div>
+    </button>
+    <button onClick="{{ goManage }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0 22px;background:none;border:none">
+      <svg width="20" height="19" viewBox="0 0 20 19" fill="none"><rect x="2" y="9" width="4" height="8" rx="1.2" stroke="{{ manageIconColor }}" stroke-width="1.7"/><rect x="8" y="4" width="4" height="13" rx="1.2" stroke="{{ manageIconColor }}" stroke-width="1.7"/><rect x="14" y="12" width="4" height="5" rx="1.2" stroke="{{ manageIconColor }}" stroke-width="1.7"/></svg>
+      <div style="font-size:10.5px;font-weight:{{ manageIconWeight }};color:{{ manageIconColor }}">管理</div>
+    </button>
+    <button onClick="{{ goCalendar }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0 22px;background:none;border:none">
+      <svg width="20" height="19" viewBox="0 0 20 19" fill="none"><rect x="1.5" y="4" width="17" height="14" rx="2.5" stroke="{{ calendarIconColor }}" stroke-width="1.7"/><path d="M1.5 8.5H18.5" stroke="{{ calendarIconColor }}" stroke-width="1.7"/><path d="M6 1.5V5.5M14 1.5V5.5" stroke="{{ calendarIconColor }}" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <div style="font-size:10.5px;font-weight:{{ calendarIconWeight }};color:{{ calendarIconColor }}">日历</div>
+    </button>
+    <button onClick="{{ goPlay }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0 22px;background:none;border:none">
+      <svg width="19" height="19" viewBox="0 0 19 19" fill="none"><circle cx="9.5" cy="9.5" r="8.3" stroke="{{ playIconColor }}" stroke-width="1.7"/><path d="M7.7 6.3L13 9.5L7.7 12.7V6.3Z" fill="{{ playIconColor }}"/></svg>
+      <div style="font-size:10.5px;font-weight:{{ playIconWeight }};color:{{ playIconColor }}">娱乐</div>
+    </button>
+  </div>
+
+  <sc-if value="{{ sidebarOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;z-index:45;display:flex;opacity:1">
+      <div style="width:76%;max-width:290px;height:100%;background:#FBF3F6;box-shadow:6px 0 30px rgba(74,59,69,0.18);display:flex;flex-direction:column;padding:58px 20px 24px;box-sizing:border-box">
+        <div style="display:flex;align-items:center;justify-content:center;margin-bottom:8px">
+          <div style="width:46px;height:46px;border-radius:50%;background:#E8B4C8;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;box-shadow:0 2px 6px rgba(74,59,69,0.12)">晴</div>
+          <svg width="16" height="14" viewBox="0 0 18 16" fill="none" style="margin:0 -6px;position:relative;z-index:2"><path d="M9 15C9 15 1 10.5 1 5.2C1 2.6 3 1 5.2 1C6.9 1 8.3 2 9 3.3C9.7 2 11.1 1 12.8 1C15 1 17 2.6 17 5.2C17 10.5 9 15 9 15Z" fill="#D4779E"/></svg>
+          <div style="width:46px;height:46px;border-radius:50%;background:#C9C2D0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;box-shadow:0 2px 6px rgba(74,59,69,0.12)">深</div>
+        </div>
+        <div style="text-align:center;font-size:13px;color:#9C8B96;margin-bottom:22px">在一起 {{ daysTogether }} 天</div>
+        <div style="height:1px;background:rgba(74,59,69,0.08);margin-bottom:8px"></div>
+        <sc-for list="{{ sidebarMenu }}" as="item" hint-placeholder-count="5">
+          <button style="display:flex;align-items:center;gap:12px;padding:13px 4px;background:none;border:none;text-align:left;border-bottom:1px solid rgba(74,59,69,0.06)">
+            <div style="width:30px;height:30px;border-radius:9px;background:{{ item.bg }};flex-shrink:0"></div>
+            <div style="flex:1;font-size:15px;color:#4A3B45">{{ item.label }}</div>
+            <svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1L6 6L1 11" stroke="#C4B8C8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </sc-for>
+      </div>
+      <div style="flex:1;background:rgba(74,59,69,0.3)" onClick="{{ closeSidebar }}"></div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ diaryComposerOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:rgba(74,59,69,0.32);z-index:48;display:flex;align-items:flex-end;opacity:1" onClick="{{ closeDiaryComposer }}">
+      <div style="background:#FBF3F6;width:100%;border-radius:26px 26px 0 0;padding:14px 20px 28px;max-height:82%;overflow-y:auto;box-sizing:border-box;transform:translateY(0)" onClick="{{ stop }}">
+        <div style="width:36px;height:4px;border-radius:2px;background:rgba(74,59,69,0.15);margin:0 auto 16px"></div>
+        <div style="font-size:17px;font-weight:700;color:#4A3B45;margin-bottom:16px">写日记</div>
+        <div style="font-size:12.5px;color:#9C8B96;margin-bottom:8px">今天的心情</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+          <sc-for list="{{ moodOptions }}" as="m" hint-placeholder-count="5">
+            <button onClick="{{ m.onClick }}" style="padding:8px 14px;border-radius:14px;font-size:13.5px;font-weight:600;background:{{ m.bg }};color:#5A4A56;border:{{ m.ring }}">{{ m.label }}</button>
+          </sc-for>
+        </div>
+        <div style="font-size:12.5px;color:#9C8B96;margin-bottom:8px">今天的天气</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px">
+          <sc-for list="{{ weatherOptions }}" as="w" hint-placeholder-count="5">
+            <button onClick="{{ w.onClick }}" style="padding:8px 14px;border-radius:14px;font-size:13.5px;font-weight:600;background:{{ w.bg }};color:#5A4A56;border:{{ w.ring }}">{{ w.label }}</button>
+          </sc-for>
+        </div>
+        <textarea value="{{ diaryText }}" onChange="{{ onDiaryTextChange }}" placeholder="写下今天想留住的一点点…" style="width:100%;height:110px;border-radius:16px;border:none;background:rgba(255,255,255,0.7);padding:12px 14px;font-size:14.5px;color:#4A3B45;box-sizing:border-box;resize:none;outline:none;font-family:inherit;box-shadow:inset 0 1px 3px rgba(74,59,69,0.06)"></textarea>
+        <button onClick="{{ saveDiaryEntry }}" style="width:100%;margin-top:16px;padding:14px 0;border:none;border-radius:16px;background:#E893B3;color:#fff;font-size:15px;font-weight:700;box-shadow:0 6px 16px rgba(232,147,179,0.4)">保存这一天</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ letterComposerOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:rgba(74,59,69,0.32);z-index:48;display:flex;align-items:flex-end;opacity:1" onClick="{{ closeLetterComposer }}">
+      <div style="background:#FBF3F6;width:100%;border-radius:26px 26px 0 0;padding:14px 20px 28px;max-height:82%;overflow-y:auto;box-sizing:border-box;transform:translateY(0)" onClick="{{ stop }}">
+        <div style="width:36px;height:4px;border-radius:2px;background:rgba(74,59,69,0.15);margin:0 auto 16px"></div>
+        <div style="font-size:17px;font-weight:700;color:#4A3B45;margin-bottom:4px">写一封信</div>
+        <div style="font-size:12.5px;color:#9C8B96;margin-bottom:16px">锁进时间信箱，到了日子才能拆开</div>
+        <textarea value="{{ letterText }}" onChange="{{ onLetterTextChange }}" placeholder="想对未来的ta，或者未来的自己说些什么…" style="width:100%;height:120px;border-radius:16px;border:none;background:rgba(255,255,255,0.7);padding:12px 14px;font-size:14.5px;color:#4A3B45;box-sizing:border-box;resize:none;outline:none;font-family:inherit;box-shadow:inset 0 1px 3px rgba(74,59,69,0.06)"></textarea>
+        <div style="font-size:12.5px;color:#9C8B96;margin:16px 0 8px">什么时候解锁</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px">
+          <sc-for list="{{ deliveryOptions }}" as="d" hint-placeholder-count="4">
+            <button onClick="{{ d.onClick }}" style="padding:9px 15px;border-radius:14px;font-size:13.5px;font-weight:600;background:{{ d.bg }};color:{{ d.color }}">{{ d.label }}</button>
+          </sc-for>
+        </div>
+        <button onClick="{{ sendLetter }}" style="width:100%;padding:14px 0;border:none;border-radius:16px;background:#8E7F97;color:#fff;font-size:15px;font-weight:700;box-shadow:0 6px 16px rgba(142,127,151,0.35)">封上，寄往未来</button>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+
+</x-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    sidebarOpen: false,
+    activeTab: 'home',
+    homeMode: 'chat',
+    chatDraft: '',
+    messages: [
+      { id: 1, from: 'them', text: '今天下班早，路上看到晚霞了', time: '18:42' },
+      { id: 2, from: 'me', text: '好好看…而且今天风也变凉了', time: '18:44' },
+      { id: 3, from: 'me', text: '有点想你了，不知道为什么', time: '18:45' },
+      { id: 4, from: 'them', text: '我也是，等我下班视频', time: '18:47' },
+    ],
+    diaryComposerOpen: false,
+    selectedMood: null,
+    selectedWeather: null,
+    diaryText: '',
+    diaryEntries: [
+      { id: 1, date: '6月29日 · 周一', mood: '平静', moodColor: '#C9C2D0', weather: '多云', excerpt: '没什么特别的事，只是想把这种安稳的感觉记下来。' },
+      { id: 2, date: '6月24日 · 周三', mood: '难过', moodColor: '#9E94A8', weather: '雨', excerpt: '有点emo，可能是换季，也可能只是想被抱一下。' },
+      { id: 3, date: '6月18日 · 周四', mood: '开心', moodColor: '#E8B4C8', weather: '晴', excerpt: '收到了一个小惊喜，眼睛笑成了一条缝。' },
+    ],
+    letterComposerOpen: false,
+    letterText: '',
+    letterDelivery: 'tomorrow',
+    letters: [
+      { id: 1, title: '写给一年后的我们', from: '小晴', locked: true, unlockLabel: '2026年12月25日解锁', body: '', expanded: false },
+      { id: 2, title: '生日快乐，提前藏起来的话', from: '小晴', locked: true, unlockLabel: '9月10日解锁', body: '', expanded: false },
+      { id: 3, title: '吵架后没说出口的话', from: '屿深', locked: false, unlockLabel: '已解锁 · 6月20日', body: '对不起，那天不该那么说话。其实我一直都记得你怕黑，以后我尽量早点回家。', expanded: false },
+    ],
+  };
+
+  toggleSidebar = () => this.setState(s => ({ sidebarOpen: !s.sidebarOpen }));
+  closeSidebar = () => this.setState({ sidebarOpen: false });
+  stop = (e) => e.stopPropagation();
+
+  setActiveTab = (tab) => this.setState({ activeTab: tab, sidebarOpen: false });
+  goHome = () => this.setActiveTab('home');
+  goManage = () => this.setActiveTab('manage');
+  goCalendar = () => this.setActiveTab('calendar');
+  goPlay = () => this.setActiveTab('play');
+  setHomeMode = (mode) => this.setState({ homeMode: mode });
+
+  onChatChange = (e) => this.setState({ chatDraft: e.target.value });
+  sendChat = () => {
+    const text = (this.state.chatDraft || '').trim();
+    if (!text) return;
+    const now = new Date();
+    const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    const id = Date.now();
+    this.setState(s => ({ messages: [...s.messages, { id, from: 'me', text, time }], chatDraft: '' }));
+    const replies = ['嗯嗯在听', '抱抱', '等我一下马上回你', '哈哈哈是这样嘛', '好想快点见到你'];
+    setTimeout(() => {
+      const r = replies[Math.floor(Math.random() * replies.length)];
+      this.setState(s => ({ messages: [...s.messages, { id: id + 1, from: 'them', text: r, time } ] }));
+    }, 1300);
+  };
+
+  openDiaryComposer = () => this.setState({ diaryComposerOpen: true, selectedMood: null, selectedWeather: null, diaryText: '' });
+  closeDiaryComposer = () => this.setState({ diaryComposerOpen: false });
+  selectMood = (m) => this.setState({ selectedMood: m });
+  selectWeather = (w) => this.setState({ selectedWeather: w });
+  onDiaryTextChange = (e) => this.setState({ diaryText: e.target.value });
+  saveDiaryEntry = () => {
+    const { diaryText, selectedMood, selectedWeather, diaryEntries } = this.state;
+    if (!(diaryText || '').trim()) return;
+    const moodColors = { 开心: '#E8B4C8', 平静: '#C9C2D0', 难过: '#9E94A8', 兴奋: '#EAC9C9', 疲惫: '#B7ADC6' };
+    const entry = {
+      id: Date.now(), date: '今天',
+      mood: selectedMood || '平静', moodColor: moodColors[selectedMood] || '#C9C2D0',
+      weather: selectedWeather || '晴', excerpt: diaryText.trim(),
+    };
+    this.setState({ diaryEntries: [entry, ...diaryEntries], diaryComposerOpen: false });
+  };
+
+  openLetterComposer = () => this.setState({ letterComposerOpen: true, letterText: '', letterDelivery: 'tomorrow' });
+  closeLetterComposer = () => this.setState({ letterComposerOpen: false });
+  setLetterDelivery = (key) => this.setState({ letterDelivery: key });
+  onLetterTextChange = (e) => this.setState({ letterText: e.target.value });
+  sendLetter = () => {
+    const { letterText, letterDelivery, letters } = this.state;
+    const trimmed = (letterText || '').trim();
+    if (!trimmed) return;
+    const labels = { tomorrow: '明天解锁', week: '一周后解锁', month: '一个月后解锁', anniversary: '下一个纪念日解锁' };
+    const letter = {
+      id: Date.now(), title: trimmed.slice(0, 14) + (trimmed.length > 14 ? '…' : ''),
+      from: '小晴', locked: true, unlockLabel: labels[letterDelivery] || '明天解锁', body: trimmed, expanded: false,
+    };
+    this.setState({ letters: [letter, ...letters], letterComposerOpen: false });
+  };
+  toggleLetter = (id) => {
+    this.setState(s => ({ letters: s.letters.map(l => (l.id === id && !l.locked) ? { ...l, expanded: !l.expanded } : l) }));
+  };
+
+  renderVals() {
+    const s = this.state;
+    const start = new Date(2024, 7, 16);
+    const today = new Date();
+    const daysTogether = Math.floor((today - start) / 86400000);
+
+    const isHome = s.activeTab === 'home';
+    const isManage = s.activeTab === 'manage';
+    const isCalendar = s.activeTab === 'calendar';
+    const isPlay = s.activeTab === 'play';
+    const isChatMode = isHome && s.homeMode === 'chat';
+    const isDiaryMode = isHome && s.homeMode === 'diary';
+    const isLetterMode = isHome && s.homeMode === 'letter';
+
+    const modes = [
+      { key: 'chat', label: '聊天' },
+      { key: 'diary', label: '日记' },
+      { key: 'letter', label: '写信' },
+    ].map(m => ({
+      ...m,
+      onClick: () => this.setHomeMode(m.key),
+      bg: s.homeMode === m.key ? '#fff' : 'transparent',
+      color: s.homeMode === m.key ? '#5A2F42' : '#9C8B96',
+      shadow: s.homeMode === m.key ? '0 1px 4px rgba(74,59,69,0.1)' : 'none',
+    }));
+
+    const headerTitleMap = { home: '首页', manage: '管理', calendar: '日历', play: '娱乐' };
+    const headerSubtitleMap = {
+      home: isChatMode ? '和屿深' : isDiaryMode ? '写给自己' : '时间信箱',
+      manage: '一起变好', calendar: '我们的时间线', play: '一起做的小事',
+    };
+
+    const messages = s.messages.map(m => ({
+      ...m,
+      justify: m.from === 'me' ? 'flex-end' : 'flex-start',
+      align: m.from === 'me' ? 'flex-end' : 'flex-start',
+      bubbleBg: m.from === 'me' ? '#E893B3' : 'rgba(255,255,255,0.75)',
+      bubbleColor: m.from === 'me' ? '#fff' : '#4A3B45',
+      radius: m.from === 'me' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+    }));
+
+    const moodPalette = { 开心: '#F3D0DE', 平静: '#DAD3E0', 难过: '#C7B9C9', 兴奋: '#F0D6C9', 疲惫: '#C9CDD6' };
+    const moodOptions = ['开心', '平静', '难过', '兴奋', '疲惫'].map(m => ({
+      key: m, label: m, bg: moodPalette[m],
+      ring: s.selectedMood === m ? '2px solid #8B5C71' : '2px solid transparent',
+      onClick: () => this.selectMood(m),
+    }));
+    const weatherPalette = { 晴: '#F3E0C9', 多云: '#D9D3DC', 雨: '#C3CBD6', 雪: '#E8E6ED', 风: '#D6D0DA' };
+    const weatherOptions = ['晴', '多云', '雨', '雪', '风'].map(w => ({
+      key: w, label: w, bg: weatherPalette[w],
+      ring: s.selectedWeather === w ? '2px solid #8B5C71' : '2px solid transparent',
+      onClick: () => this.selectWeather(w),
+    }));
+
+    const deliveryOptions = [
+      { key: 'tomorrow', label: '明天' },
+      { key: 'week', label: '一周后' },
+      { key: 'month', label: '一个月后' },
+      { key: 'anniversary', label: '下个纪念日' },
+    ].map(d => ({
+      ...d,
+      bg: s.letterDelivery === d.key ? '#8E7F97' : 'rgba(255,255,255,0.6)',
+      color: s.letterDelivery === d.key ? '#fff' : '#4A3B45',
+      onClick: () => this.setLetterDelivery(d.key),
+    }));
+
+    const letters = s.letters.map(l => ({
+      ...l,
+      canOpen: !l.locked,
+      toggleLabel: l.expanded ? '收起' : '拆开',
+      onOpen: () => this.toggleLetter(l.id),
+      cardBg: l.locked ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.75)',
+      envelopeFill: l.locked ? '#E4DEE6' : '#F3D9E3',
+      envelopeStroke: l.locked ? '#B7ADC6' : '#D4779E',
+      statusColor: l.locked ? '#9C8B96' : '#B8577A',
+    }));
+
+    const sidebarMenu = [
+      { label: '主题装扮', bg: '#F3D0DE' },
+      { label: '纪念日管理', bg: '#DAD3E0' },
+      { label: '通知提醒', bg: '#F0D6C9' },
+      { label: '导出回忆', bg: '#C9CDD6' },
+      { label: '设置', bg: '#D8C7D6' },
+    ];
+
+    const manageTeasers = ['记账', '习惯追踪', '手表监测', '应用时长'].map(label => ({ label }));
+    const calendarTeasers = ['生理期', 'Sex', '锻炼', '聊天热度', '倒数日', '恋爱大事件'].map(label => ({ label }));
+    const playTeasers = ['读书', '音乐', '英语角', '游戏'].map(label => ({ label }));
+
+    const activeColor = '#D4779E', inactiveColor = '#B3A3AE';
+    const homeIconColor = isHome ? activeColor : inactiveColor;
+    const manageIconColor = isManage ? activeColor : inactiveColor;
+    const calendarIconColor = isCalendar ? activeColor : inactiveColor;
+    const playIconColor = isPlay ? activeColor : inactiveColor;
+
+    return {
+      sidebarOpen: s.sidebarOpen, chatDraft: s.chatDraft, diaryComposerOpen: s.diaryComposerOpen,
+      selectedMood: s.selectedMood, selectedWeather: s.selectedWeather, diaryText: s.diaryText,
+      diaryEntries: s.diaryEntries, letterComposerOpen: s.letterComposerOpen, letterText: s.letterText,
+      isHome, isManage, isCalendar, isPlay, isChatMode, isDiaryMode, isLetterMode,
+      modes, headerTitle: headerTitleMap[s.activeTab], headerSubtitle: headerSubtitleMap[s.activeTab],
+      messages, moodOptions, weatherOptions, deliveryOptions, letters, sidebarMenu,
+      manageTeasers, calendarTeasers, playTeasers,
+      daysTogether,
+      homeIconColor, manageIconColor, calendarIconColor, playIconColor,
+      homeIconWeight: isHome ? 700 : 500, manageIconWeight: isManage ? 700 : 500,
+      calendarIconWeight: isCalendar ? 700 : 500, playIconWeight: isPlay ? 700 : 500,
+      toggleSidebar: this.toggleSidebar, closeSidebar: this.closeSidebar, stop: this.stop,
+      goHome: this.goHome, goManage: this.goManage, goCalendar: this.goCalendar, goPlay: this.goPlay,
+      onChatChange: this.onChatChange, sendChat: this.sendChat,
+      openDiaryComposer: this.openDiaryComposer, closeDiaryComposer: this.closeDiaryComposer,
+      onDiaryTextChange: this.onDiaryTextChange, saveDiaryEntry: this.saveDiaryEntry,
+      openLetterComposer: this.openLetterComposer, closeLetterComposer: this.closeLetterComposer,
+      onLetterTextChange: this.onLetterTextChange, sendLetter: this.sendLetter,
+    };
+  }
+}
+
+</script>
+<script>
+(async () => {
+  if (!document.title || !document.title.trim()) document.title = "小晴与屿深的App";
+  // Prepend so page-supplied @page / break rules (deck-stage's margin:0,
+  // author CSS) keep source-order precedence over the baseline.
+  const baseCss = document.createElement('style');
+  baseCss.textContent = "@media print {\n  figure, table { break-inside: avoid; }\n  *, *::before, *::after {\n    print-color-adjust: exact; -webkit-print-color-adjust: exact;\n    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;\n    animation-delay: -99s !important; animation-duration: .001s !important;\n    animation-iteration-count: 1 !important; animation-fill-mode: both !important;\n    animation-play-state: running !important; transition-duration: 0s !important;\n  }\n}";
+  document.head.prepend(baseCss);
+  if (document.readyState === 'loading') {
+    await new Promise((r) => document.addEventListener('DOMContentLoaded', r, { once: true }));
+  }
+  let ds = document.querySelector('deck-stage');
+  // whenDefined never resolves when nothing registers the element, so only
+  // await it when a <deck-stage> tag exists (and race a timeout regardless).
+  if (ds && !customElements.get('deck-stage')) {
+    try {
+      await Promise.race([
+        customElements.whenDefined('deck-stage'),
+        new Promise((r) => setTimeout(r, 3000)),
+      ]);
+    } catch (e) {}
+    ds = document.querySelector('deck-stage');
+  }
+  // dc-runtime assigns window.DCLogic at init and mounts into #dc-root on
+  // DOMContentLoaded; settle on that subtree so React has rendered before
+  // print(). Non-DC pages fall through to weighing body.
+  const isDc = !ds && 'DCLogic' in window;
+  const settleRoot = ds || (isDc ? document.getElementById('dc-root') : null) || document.body;
+  if (settleRoot) {
+    // Weigh only content children — skip script/style/template so inline
+    // Babel/CSS doesn't register as stable "content" before the framework
+    // has mounted anything.
+    const MEDIA = 'img,svg,canvas,video,picture,iframe,embed,object';
+    const weigh = () => {
+      let text = 0, media = 0;
+      for (const c of settleRoot.children) {
+        const t = c.tagName;
+        if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEMPLATE') continue;
+        text += (c.textContent || '').trim().length;
+        media += c.querySelectorAll(MEDIA).length + (c.matches(MEDIA) ? 1 : 0);
+      }
+      return text + media * 100;
+    };
+    // "Non-zero and stable" alone is not sufficient to mean rendered: generic
+    // body can carry a static shell while async main content is pending, and
+    // #dc-root can carry the root DC's static text while child refs are still
+    // .sc-placeholder boxes. Gate generic on readyState 'complete', and never
+    // accept stability while a dc-runtime placeholder is present.
+    const isGeneric = settleRoot === document.body;
+    const deadline = Date.now() + 15000;
+    let last = -1, stable = 0;
+    while (Date.now() < deadline) {
+      const n = weigh();
+      const ready =
+        (!isGeneric || document.readyState === 'complete') &&
+        !settleRoot.querySelector('.sc-placeholder');
+      if (n > 0 && n === last && ready) { if (++stable >= 2) break; } else { stable = 0; }
+      last = n;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  }
+  // Project support.js may predate runtime default-seeding; push via bridge.
+  if (isDc && window.__dcSetProps && window.__dcRootName) {
+    try {
+      const dpEl = document.querySelector('script[data-dc-script]');
+      const meta = JSON.parse((dpEl && dpEl.getAttribute('data-props')) || '{}');
+      const bag = {};
+      for (const k in meta)
+        if (k[0] !== '$' && meta[k] && meta[k].default !== undefined)
+          bag[k] = meta[k].default;
+      if (Object.keys(bag).length) {
+        window.__dcSetProps(window.__dcRootName(), bag);
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    } catch (e) {}
+  }
+  // Reveal content gated on scroll or visibility before printing. Lazy <img>,
+  // IntersectionObserver fade-ins, and collapsed <details> don't render while
+  // off-screen, so a long page would print with them blank or closed. Open
+  // every <details>, force native-lazy images eager, and scroll the document
+  // through its full height to trip lazy-load + IO; then wait (bounded) for the
+  // newly-triggered images. Inert for deck-stage (slides aren't scroll-gated).
+  try {
+    for (const d of document.querySelectorAll('details')) d.open = true;
+    for (const img of document.querySelectorAll('img[loading="lazy"]'))
+      img.loading = 'eager';
+    const scroller = document.scrollingElement || document.documentElement;
+    const full = Math.max(scroller.scrollHeight, document.body.scrollHeight);
+    const step = window.innerHeight || 800;
+    for (let y = 0; y <= full; y += step) {
+      window.scrollTo(0, y);
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    window.scrollTo(0, 0);
+    await Promise.race([
+      Promise.all(
+        [...document.images].map((img) =>
+          img.complete
+            ? null
+            : new Promise((res) => {
+                img.addEventListener('load', res, { once: true });
+                img.addEventListener('error', res, { once: true });
+              })
+        )
+      ),
+      new Promise((r) => setTimeout(r, 4000)),
+    ]);
+  } catch (e) {}
+  try { await document.fonts.ready; } catch (e) {}
+  // Jump every animation to its end state so print() never captures a slide
+  // mid-entrance. Ordering matters: the 0s-transition style must be live
+  // BEFORE data-deck-active is set so attribute-keyed transitions don't
+  // start a (now-0s) run from the pre-active base.
+  const st = document.createElement('style');
+  st.textContent = '*,*::before,*::after{animation-delay:-99s !important;animation-duration:.001s !important;animation-iteration-count:1 !important;animation-fill-mode:both !important;animation-play-state:running !important;transition-duration:0s !important}';
+  document.head.appendChild(st);
+  for (const d of document.querySelectorAll('deck-stage')) {
+    for (const c of d.children) {
+      const t = c.tagName;
+      if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEMPLATE') continue;
+      c.setAttribute('data-deck-active', '');
+    }
+  }
+  // Re-append deck-stage's @page last so no author @page can add a margin and
+  // spill each full-bleed slide onto two sheets. Backstop for old copies.
+  if (ds) {
+    let pg = document.getElementById('deck-stage-print-page');
+    if (!pg) {
+      pg = document.createElement('style');
+      pg.textContent = '@page{size:' + (+ds.getAttribute('width') || 1920) +
+        'px ' + (+ds.getAttribute('height') || 1080) + 'px;margin:0}';
+    }
+    document.body.appendChild(pg);
+  }
+  try {
+    const sweep = () => {
+      for (const a of document.getAnimations()) {
+        try { a.finish(); } catch (e) {
+          try { a.currentTime = (a.effect && a.effect.getComputedTiming().duration) || 0; a.pause(); } catch (e2) {}
+        }
+      }
+    };
+    sweep();
+    await new Promise((r) => requestAnimationFrame(r));
+    sweep();
+    await new Promise((r) => requestAnimationFrame(r));
+  } catch (e) {}
+  // Size the PDF page to the rendered design unless the file opted into
+  // standard paper via @page{size:letter|A4|…}. Decks own their own @page.
+  // Wrappers (body, …) lose padding+margin so the frame sits at (0,0); the
+  // frame itself loses only margin — its padding is INSIDE the measured
+  // rect and must stay, or content shifts and leaves a gap at bottom/right.
+  var __m = null;
+  try { __m = (() => {
+  var STAMP = true;
+  var docEl = document.documentElement;
+  var doc = { width: docEl.scrollWidth, height: docEl.scrollHeight };
+
+  var ds = document.querySelector('deck-stage');
+  if (ds) {
+    var dw = Number(ds.getAttribute('width')) || 1920;
+    var dh = Number(ds.getAttribute('height')) || 1080;
+    var n = typeof ds.length === 'number' ? ds.length : ds.children.length;
+    var idx = typeof ds.index === 'number' ? ds.index : 0;
+    var frames = [];
+    for (var i = 0; i < n; i++) frames.push({ left: 0, top: 0, width: dw, height: dh });
+    return { kind: 'deck', source: 'declared', doc: doc, frames: frames,
+      authored: frames.map(function(){return{width:true,height:true}}),
+      deck: { width: dw, height: dh, slideCount: n, index: idx },
+      signals: { paperPage: false, pxPage: false } };
+  }
+
+  // Declared kind: a doc-page tag names the kind outright, so no signal
+  // heuristics run (like the deck branch above, signals report false —
+  // they describe inferred classifications only). The tag alone is not
+  // trusted: the element must have upgraded (shadowRoot present), so a
+  // leftover tag whose script was deleted falls through to the heuristics
+  // that handle plain markup.
+  var stageSx = window.scrollX || 0, stageSy = window.scrollY || 0;
+  var dp = document.querySelector('doc-page');
+  if (dp && dp.shadowRoot) {
+    // Crop to the sheet, not the host — the desk around it is screen-only
+    // chrome that must not land in PNG exports.
+    var sheet = dp.shadowRoot.querySelector('.sheet');
+    var sr = (sheet || dp).getBoundingClientRect();
+    return { kind: 'paper-doc', source: 'declared', doc: doc,
+      frames: [{ left: sr.left + stageSx, top: sr.top + stageSy,
+        width: sr.width, height: sr.height }],
+      authored: [{ width: false, height: false }],
+      signals: { paperPage: false, pxPage: false } };
+  }
+  var paperPage = false, pxPage = false;
+  var eachRule = function (fn) {
+    for (var s = 0; s < document.styleSheets.length; s++) {
+      var rs; try { rs = document.styleSheets[s].cssRules; } catch (e) { continue; }
+      for (var r = 0; r < rs.length; r++) {
+        fn(rs[r]);
+        if (rs[r].cssRules) for (var n = 0; n < rs[r].cssRules.length; n++) fn(rs[r].cssRules[n]);
+      }
+    }
+  };
+  eachRule(function (r) {
+    if (r.type !== 6) return;
+    var m = /\bsize\s*:\s*([^;}]+)/i.exec(r.cssText || '');
+    if (!m) return;
+    if (/\b(letter|a[3-5]|legal|ledger)\b/i.test(m[1])) paperPage = true;
+    if (/\d+(?:\.\d+)?px\b/i.test(m[1])) pxPage = true;
+  });
+  var signals = { paperPage: paperPage, pxPage: pxPage };
+
+  var pxVal = function (v) {
+    var m = /^(\d+(?:\.\d+)?)px$/.exec(v || ''); return m ? +m[1] : 0;
+  };
+  var authoredPx = function (el, prop) {
+    if (pxVal(el.style[prop])) return true;
+    var attr = el.getAttribute(prop);
+    if (attr && /^\d+$/.test(attr)) return true;
+    var hit = false;
+    eachRule(function (r) {
+      if (hit || r.type !== 1 || !r.style) return;
+      try { if (el.matches(r.selectorText) && pxVal(r.style[prop])) hit = true; } catch (e) {}
+    });
+    return hit;
+  };
+
+  var el = document.body, rootPxW = false;
+  for (;;) {
+    var kids = [];
+    for (var c = 0; c < el.children.length; c++) {
+      var t = el.children[c].tagName;
+      if (t !== 'SCRIPT' && t !== 'STYLE' && t !== 'TEMPLATE') kids.push(el.children[c]);
+    }
+    if (kids.length !== 1 || !(kids[0] instanceof HTMLElement)) break;
+    if (STAMP) el.setAttribute('data-om-frame-wrap', '');
+    el = kids[0];
+    rootPxW = authoredPx(el, 'width');
+    if (rootPxW) break;
+  }
+  if (!rootPxW) rootPxW = authoredPx(el, 'width');
+
+  // @page{size:letter} alone is a flowing doc; with a px-width root it's a
+  // fixed sheet pretending to be paper — fall through and size to render.
+  if (paperPage && !rootPxW) {
+    return { kind: 'paper-doc', source: 'inferred', doc: doc, signals: signals,
+      frames: [{ left: 0, top: 0, width: doc.width, height: doc.height }],
+      authored: [{ width: false, height: false }] };
+  }
+
+  var sx = window.scrollX || 0, sy = window.scrollY || 0;
+  var rectOf = function (e) {
+    var r = e.getBoundingClientRect();
+    var oy; try { oy = getComputedStyle(e).overflowY; } catch (err) {}
+    var h = oy === 'visible' ? Math.max(r.height, e.scrollHeight || 0) : r.height;
+    return { left: r.left + sx, top: r.top + sy, width: r.width, height: h };
+  };
+
+  // Multi-frame: ≥2 visible non-fixed children, each with authored px width
+  // AND height, all within ±2px of each other. Off unless the page opts in
+  // via data-om-multi-frame on the stop element — guards against card grids
+  // and pricing tables that match the geometry but aren't separate canvases.
+  if (el.hasAttribute('data-om-multi-frame')) {
+    var cands = [];
+    for (var k = 0; k < el.children.length; k++) {
+      var ch = el.children[k];
+      var cs; try { cs = getComputedStyle(ch); } catch (e) { continue; }
+      if (cs.display === 'none' || cs.visibility === 'hidden' || cs.position === 'fixed') continue;
+      var rc = rectOf(ch);
+      if (rc.width < 2 || rc.height < 2) continue;
+      if (!authoredPx(ch, 'width') || !authoredPx(ch, 'height')) continue;
+      cands.push(rc);
+    }
+    if (cands.length >= 2) {
+      var w0 = cands[0].width, h0 = cands[0].height, ok = true;
+      for (var q = 1; q < cands.length; q++)
+        if (Math.abs(cands[q].width - w0) > 2 || Math.abs(cands[q].height - h0) > 2) ok = false;
+      if (ok) return { kind: 'multi-frame', source: 'inferred', doc: doc, signals: signals,
+        frames: cands, authored: cands.map(function(){return{width:true,height:true}}) };
+    }
+  }
+
+  if (STAMP) el.setAttribute('data-om-frame', '');
+  return { kind: 'single-canvas', source: 'inferred', doc: doc, signals: signals,
+    frames: [rectOf(el)],
+    authored: [{ width: rootPxW, height: authoredPx(el, 'height') }] };
+})(); } catch (e) {}
+  var frame = null;
+  if (__m && __m.kind === 'single-canvas') {
+    var f = __m.frames && __m.frames[0];
+    if (f && f.width >= 200 && f.height >= 200) {
+      frame = f;
+      var fst = document.createElement('style');
+      fst.textContent = '@media print{@page{size:' + Math.ceil(f.width) + 'px ' +
+        Math.ceil(f.height) + 'px;margin:0}' +
+        'html,body,[data-om-frame-wrap]{padding:0!important;margin:0!important;background:none!important}' +
+        '[data-om-frame]{margin:0!important}}';
+      document.body.appendChild(fst);
+    }
+  }
+  // Relax break-inside on oversized elements. An element taller than a
+  // printable page can't honor break-inside: avoid — browsers either overflow
+  // it or push it whole to the next page, leaving a blank gap, then break it
+  // anyway at an arbitrary point. After the final layout (content revealed,
+  // animations jumped), find elements taller than a page that still compute
+  // break-inside: avoid and reset them to auto, so the browser breaks them at
+  // their children's boundaries instead (children keep their own avoid). PAGE_PX
+  // is a conservative portrait estimate at 96 CSS px/in — Letter/A4 usable
+  // height minus our 0.5in margins — so only clearly-oversized elements are
+  // touched and under-page elements still stay whole. Skipped for decks (slides
+  // are sized to the page) and for fixed-size canvases (frame set, or an author
+  // px-based @page) — runs as before for flowing docs on letter/A4.
+  try {
+    if (!ds && !frame && !(__m && __m.signals && __m.signals.pxPage)) {
+      const PAGE_PX = 1024;
+      // Our print defaults add a real @page margin only when the source has
+      // no @page of its own; computed style can't tell us (it reports screen
+      // media), so read the injected rule directly.
+      const defaults = document.querySelector('style[data-omelette-print-defaults]');
+      const pageInset = /@page\s*\{[^}]*margin/.test(defaults ? defaults.textContent || '' : '');
+      const SEL = 'section,article,figure,table,pre,blockquote,[class~="card" i],[class~="page" i],[class~="sheet" i]';
+      for (const el of document.body.querySelectorAll(SEL)) {
+        if (el instanceof HTMLElement && el.offsetHeight > PAGE_PX) {
+          el.setAttribute('data-om-oversized', '');
+          // Fake-paged docs simulate sheets with over-tall break-after:page
+          // boxes; honoring the break spills half-blank pages and ends a
+          // colored box mid-sheet. Flow them, and (only when we own the page
+          // inset) drop the redundant padding/background via the rule below.
+          const cs = getComputedStyle(el);
+          if (cs.breakAfter === 'page' || cs.pageBreakAfter === 'always') {
+            el.setAttribute('data-om-fakepage', '');
+          }
+        }
+      }
+      const ost = document.createElement('style');
+      ost.textContent = '@media print{' +
+        '[data-om-oversized]{break-inside:auto !important;page-break-inside:auto !important}' +
+        '[data-om-fakepage]{break-after:auto !important;page-break-after:auto !important}' +
+        (pageInset ? '[data-om-fakepage]{padding:0 !important;background:none !important}' : '') +
+        '}';
+      document.head.appendChild(ost);
+    }
+  } catch (e) {}
+  // macOS Preview renders Skia-PDF Luminosity soft-masks as opaque grey boxes;
+  // swap the CSS that triggers them for Preview-safe forms.
+  try {
+    for (const el of document.body.querySelectorAll('*')) {
+      const cs = getComputedStyle(el);
+
+      if (cs.boxShadow !== 'none' && cs.filter === 'none') {
+        const outs = [], kept = [];
+        for (const s of cs.boxShadow.split(/,(?![^(]*[)])/)) {
+          const t = s.trim();
+          const m = t.match(/^(rgba?[(][^)]+[)]) (-?[0-9.]+px) (-?[0-9.]+px) ([0-9.]+px) -?[0-9.]+px$/);
+          if (m && parseFloat(m[4]) > 0) outs.push('drop-shadow(' + m[2] + ' ' + m[3] + ' ' + m[4] + ' ' + m[1] + ')');
+          else kept.push(t);
+        }
+        if (outs.length) {
+          el.style.setProperty('filter', outs.join(' '), 'important');
+          el.style.setProperty('box-shadow', kept.join(', ') || 'none', 'important');
+        }
+      }
+
+      const mask = cs.maskImage && cs.maskImage !== 'none' ? cs.maskImage : cs.webkitMaskImage;
+      if (mask && mask !== 'none' && cs.filter === 'none') el.style.setProperty('filter', 'opacity(1)', 'important');
+    }
+  } catch (e) {}
+  setTimeout(() => { try { window.print(); } catch (e) {} }, 200);
+})();
+</script>
+</body>
+</html>
