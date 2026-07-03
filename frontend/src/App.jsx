@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import './App.css';
 import { useStore } from './state/store';
+import { useVisualViewportHeight } from './useVisualViewportHeight';
 import Header from './components/Header';
 import BottomNav from './components/BottomNav';
 import Sidebar from './components/Sidebar';
@@ -19,6 +20,8 @@ function App() {
   const homeMode = useStore((s) => s.homeMode);
   const diaryView = useStore((s) => s.diaryView);
   const letterView = useStore((s) => s.letterView);
+
+  useVisualViewportHeight();
 
   useEffect(() => {
     init();
