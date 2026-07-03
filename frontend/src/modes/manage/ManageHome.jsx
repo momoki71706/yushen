@@ -1,4 +1,5 @@
 import { useStore } from '../../state/store';
+import { mockWatchDay, mockScreenApps } from './mock';
 
 function LedgerGlyph() {
   return (
@@ -68,8 +69,15 @@ export default function ManageHome() {
   const habitCardMessage = useStore((s) => s.habitCardMessage);
   const openLedger = useStore((s) => s.openLedger);
   const openHabits = useStore((s) => s.openHabits);
+  const openWatch = useStore((s) => s.openWatch);
+  const openScreentime = useStore((s) => s.openScreentime);
+  const watchConnected = useStore((s) => s.watchConnected);
 
   const today = todayISOLocal();
+  const watchToday = watchConnected ? mockWatchDay(today) : null;
+  const screenApps = mockScreenApps(today);
+  const screenTotal = screenApps.reduce((sum, a) => sum + a.hours, 0);
+  const screenTotalLabel = `${Math.floor(screenTotal)}小时${Math.round((screenTotal % 1) * 60)}分`;
 
   // Ledger card: today's expenses grouped by category, top 3 by amount.
   const todayExpenses = ledgerEntries.filter((e) => e.dateISO === today && e.type === 'expense');
@@ -142,27 +150,27 @@ export default function ManageHome() {
         <div className="manage-card__message">{habitCardMessage}</div>
       </button>
 
-      <div className="manage-card">
+      <button className="manage-card manage-card--clickable" onClick={openWatch}>
         <CardHead icon={<WatchGlyph />} title="手表监测" />
         <div className="manage-card__body">
           <div className="manage-card__stat">
-            <div className="manage-card__stat-value">—</div>
+            <div className="manage-card__stat-value">{watchToday ? `${watchToday.sleepHours.toFixed(1)} 小时` : '—'}</div>
             <div className="manage-card__stat-label">睡眠时长</div>
           </div>
         </div>
-        <div className="manage-card__message">敬请期待</div>
-      </div>
+        <div className="manage-card__message">{watchConnected ? '记得看看今天的身体数据呀' : '还没连接 HealthKit，点击去连接'}</div>
+      </button>
 
-      <div className="manage-card">
+      <button className="manage-card manage-card--clickable" onClick={openScreentime}>
         <CardHead icon={<ScreenGlyph />} title="屏幕时间" />
         <div className="manage-card__body">
           <div className="manage-card__stat">
-            <div className="manage-card__stat-value">—</div>
+            <div className="manage-card__stat-value">{screenTotalLabel}</div>
             <div className="manage-card__stat-label">今日总时长</div>
           </div>
         </div>
-        <div className="manage-card__message">敬请期待</div>
-      </div>
+        <div className="manage-card__message">少看点手机，多看看我</div>
+      </button>
     </div>
   );
 }

@@ -1348,3 +1348,54 @@
 .amount-input-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 16px; padding: 0 4px; }
 .amount-input-prefix { font-size: 22px; color: #8C7A82; font-weight: 600; }
 .amount-input { flex: 1; border: none; background: transparent; outline: none; font-size: 28px; font-weight: 700; color: var(--color-text); min-width: 0; }
+
+/* ---------- watch (mock HealthKit) + screentime (mock) ---------- */
+.watch-card { background: rgba(255,255,255,0.4); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--glass-border); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+.watch-card-title { font-size: 13.5px; font-weight: 500; color: var(--color-text); margin-bottom: 14px; }
+.watch-card-sub { font-size: 12px; color: var(--color-text-faint); margin-top: -10px; margin-bottom: 12px; }
+.watch-metric-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.watch-metric-row:last-child { margin-bottom: 0; }
+.watch-metric-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.watch-metric-body { flex: 1; min-width: 0; }
+.watch-metric-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.watch-metric-label { font-size: 13px; font-weight: 600; color: var(--color-text); }
+.watch-metric-value { font-size: 12.5px; color: var(--color-text); font-family: 'Montserrat', sans-serif; font-weight: 600; }
+.watch-metric-track { height: 9px; border-radius: 999px; background: rgba(58,50,54,0.06); overflow: hidden; }
+.watch-metric-fill { height: 100%; border-radius: 999px; }
+.watch-bar-row { display: flex; align-items: flex-end; gap: 8px; height: 90px; }
+.watch-bar-col { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; user-select: none; }
+.watch-bar-fill { width: 100%; max-width: 20px; border-radius: 6px; }
+.watch-bar-label { font-size: 10px; color: var(--color-text-faint); }
+.watch-bar-tooltip { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--glass-border); color: var(--color-text-soft); font-size: 11px; font-weight: 600; padding: 5px 9px; border-radius: 8px; white-space: nowrap; z-index: 20; box-shadow: 0 4px 10px rgba(58,50,54,0.1); pointer-events: none; }
+
+.watch-connect-card { background: rgba(255,255,255,0.45); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border); border-radius: 20px; padding: 34px 20px; text-align: center; margin-top: 20px; }
+.watch-connect-icon { width: 56px; height: 56px; border-radius: 50%; background: #CBB9C0; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; }
+.watch-connect-title { font-size: 15px; font-weight: 500; color: var(--color-text); margin-bottom: 8px; }
+.watch-connect-desc { font-size: 13px; color: var(--color-text-soft); line-height: 1.6; margin-bottom: 18px; }
+.watch-connect-btn { border: none; background: var(--color-accent); color: #fff; font-size: 14px; font-weight: 700; padding: 12px 32px; border-radius: 999px; }
+
+.screen-total-card { background: rgba(255,255,255,0.45); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; text-align: center; margin: 12px 0 14px; }
+.screen-total-label { font-size: 12px; color: var(--color-text-faint); margin-bottom: 6px; }
+.screen-total-value { font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 28px; color: var(--color-text); }
+.screen-warning-banner { background: rgba(255,255,255,0.35); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+.screen-warning-icon { width: 28px; height: 28px; border-radius: 50%; background: #F6E2E8; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.screen-warning-text { font-size: 13px; color: #B87A90; font-weight: 600; }
+.screen-app-avatar { width: 28px; height: 28px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; font-weight: 700; color: #fff; }
+.screen-threshold-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.screen-threshold-sub { font-size: 12px; color: var(--color-text-faint); margin-bottom: 12px; }
+.screen-threshold-stepper { display: flex; align-items: center; gap: 14px; }
+.screen-step-btn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.32); font-size: 16px; color: var(--color-text); }
+.screen-step-btn--sm { width: 22px; height: 22px; font-size: 12px; }
+.screen-threshold-value { font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 15px; color: var(--color-text); min-width: 60px; text-align: center; }
+.screen-expand-btn { width: 24px; height: 24px; border: none; background: transparent; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.screen-switch { width: 44px; height: 26px; border-radius: 13px; border: none; position: relative; flex-shrink: 0; padding: 0; }
+.screen-switch-knob { width: 22px; height: 22px; border-radius: 50%; background: #fff; position: absolute; top: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: left 0.15s ease; }
+.screen-switch--sm { width: 32px; height: 19px; border-radius: 10px; }
+.screen-switch-knob--sm { width: 15px; height: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+.screen-app-settings { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.4); }
+.screen-app-settings-hint { font-size: 12px; color: var(--color-text-faint); margin-bottom: 10px; }
+.screen-app-settings-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.screen-app-settings-row:last-child { margin-bottom: 0; }
+.screen-app-settings-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.screen-app-settings-name { flex: 1; font-size: 12.5px; color: var(--color-text); font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.screen-app-settings-threshold { font-size: 11.5px; color: var(--color-text); min-width: 32px; text-align: center; flex-shrink: 0; }

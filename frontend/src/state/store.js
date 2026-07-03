@@ -165,7 +165,7 @@ export const useStore = create(
   habitColors: HABIT_COLORS,
   todayISOLocal,
 
-  manageView: 'home', // 'home' | 'ledger' | 'habits'
+  manageView: 'home', // 'home' | 'ledger' | 'habits' | 'watch' | 'screentime'
   openLedger: () => {
     set({ manageView: 'ledger' });
     if (!get().ledgerLoaded) get().loadLedgerEntries();
@@ -245,6 +245,34 @@ export const useStore = create(
   },
   openHabitsDayDetail: (iso) => set({ habitsDayDetailDate: iso }),
   closeHabitsDayDetail: () => set({ habitsDayDetailDate: null }),
+
+  // ---- manage: watch (mock HealthKit) + screentime (mock) ----
+  openWatch: () => set({ manageView: 'watch' }),
+  openScreentime: () => set({ manageView: 'screentime' }),
+
+  watchConnected: false,
+  connectWatch: () => set({ watchConnected: true }),
+
+  screenReminderEnabled: true,
+  toggleScreenReminder: () => set((s) => ({ screenReminderEnabled: !s.screenReminderEnabled })),
+  screenThreshold: 4,
+  incThreshold: () => set((s) => ({ screenThreshold: Math.min(12, s.screenThreshold + 0.5) })),
+  decThreshold: () => set((s) => ({ screenThreshold: Math.max(0.5, s.screenThreshold - 0.5) })),
+
+  screenAppSettingsOpen: false,
+  toggleScreenAppSettings: () => set((s) => ({ screenAppSettingsOpen: !s.screenAppSettingsOpen })),
+  screenAppThresholds: {},
+  screenAppReminders: {},
+  adjustScreenAppThreshold: (name, delta) =>
+    set((s) => {
+      const current = s.screenAppThresholds[name] ?? 2;
+      const next = Math.max(0.5, Math.min(12, current + delta));
+      return { screenAppThresholds: { ...s.screenAppThresholds, [name]: next } };
+    }),
+  toggleScreenAppReminder: (name) =>
+    set((s) => ({
+      screenAppReminders: { ...s.screenAppReminders, [name]: !(s.screenAppReminders[name] ?? true) },
+    })),
 
   // ---- chat ----
   messages: [],
@@ -767,6 +795,11 @@ export const useStore = create(
         letterView: s.letterView,
         letterMailboxTab: s.letterMailboxTab,
         diaryView: s.diaryView === 'detail' ? 'list' : s.diaryView,
+        watchConnected: s.watchConnected,
+        screenReminderEnabled: s.screenReminderEnabled,
+        screenThreshold: s.screenThreshold,
+        screenAppThresholds: s.screenAppThresholds,
+        screenAppReminders: s.screenAppReminders,
       }),
     }
   )
