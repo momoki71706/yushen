@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
-import { YUSHEN_SYSTEM_PROMPT, FALLBACK_REPLY, estimateTokens } from './persona.js';
+import { FALLBACK_REPLY, estimateTokens } from './persona.js';
 import { listServers } from './mcp.js';
+import { getComposedSystemPrompt } from './presets.js';
 
 const CLI_BIN = process.env.CLAUDE_CODE_BIN || 'claude';
 const TIMEOUT_MS = 30000;
@@ -45,7 +46,7 @@ function buildMcpConfig() {
 }
 
 export async function getReplyViaClaudeCode(userText, model, mcpEnabled) {
-  const args = ['-p', userText, '--append-system-prompt', YUSHEN_SYSTEM_PROMPT, '--output-format', 'json'];
+  const args = ['-p', userText, '--append-system-prompt', getComposedSystemPrompt(), '--output-format', 'json'];
 
   const mcpConfig = mcpEnabled ? buildMcpConfig() : null;
   if (mcpConfig) {

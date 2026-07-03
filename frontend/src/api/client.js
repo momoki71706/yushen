@@ -54,4 +54,11 @@ export const api = {
     request(`/settings/mcp/servers/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteMcpServer: (id) => request(`/settings/mcp/servers/${id}`, { method: 'DELETE' }),
   testMcpServer: (id) => request(`/settings/mcp/servers/${id}/test`, { method: 'POST' }),
+
+  getPresets: () => request('/settings/presets'),
+  addPreset: (payload) =>
+    request('/settings/presets', { method: 'POST', body: JSON.stringify(payload) }),
+  updatePreset: (id, payload) =>
+    request(`/settings/presets/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  deletePreset: (id) => request(`/settings/presets/${id}`, { method: 'DELETE' }),
 };

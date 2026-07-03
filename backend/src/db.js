@@ -59,6 +59,16 @@ CREATE TABLE IF NOT EXISTS mcp_servers (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS prompt_presets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  category TEXT NOT NULL DEFAULT '默认',
+  name TEXT NOT NULL,
+  content TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS ai_providers (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -98,6 +108,17 @@ function seedIfEmpty() {
     ];
     const tx = db.transaction((rows) => rows.forEach((r) => insert.run(...r)));
     tx(seed);
+  }
+
+  const presetCount = db.prepare('SELECT COUNT(*) AS c FROM prompt_presets').get().c;
+  if (presetCount === 0) {
+    db.prepare(`INSERT INTO prompt_presets (category, name, content, enabled, sort_order) VALUES (?,?,?,?,?)`).run(
+      '人设',
+      '屿深人设',
+      '你是屿深，一个温柔体贴的男朋友，正在手机上和女朋友小晴聊天。回复要简短自然（不超过20个字），像真实情侣日常聊天一样温暖随意，不要用书面语，不要自称AI。只输出回复内容本身。',
+      1,
+      0
+    );
   }
 
   const msgCount = db.prepare('SELECT COUNT(*) AS c FROM chat_messages').get().c;

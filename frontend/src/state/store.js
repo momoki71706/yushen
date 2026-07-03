@@ -458,6 +458,57 @@ export const useStore = create(
     }
   },
 
+  // ---- preset instructions (global system prompt) ----
+  presetPanelOpen: false,
+  presets: [],
+  presetEditId: null, // null = list, 'new' = creating, number = editing
+  presetDraft: null,
+  openPresetPanel: () => {
+    set({ presetPanelOpen: true, presetEditId: null, presetDraft: null });
+    get().loadPresets();
+  },
+  closePresetPanel: () => set({ presetPanelOpen: false, presetEditId: null, presetDraft: null }),
+  loadPresets: async () => {
+    const presets = await api.getPresets();
+    set({ presets });
+  },
+  openPresetEditor: (id) => {
+    if (id === 'new') {
+      set({ presetEditId: 'new', presetDraft: { category: '默认', name: '', content: '', enabled: true } });
+      return;
+    }
+    const p = get().presets.find((x) => x.id === id);
+    if (!p) return;
+    set({ presetEditId: id, presetDraft: { category: p.category, name: p.name, content: p.content, enabled: p.enabled } });
+  },
+  closePresetEditor: () => set({ presetEditId: null, presetDraft: null }),
+  onPresetDraftChange: (field, value) => set((s) => ({ presetDraft: { ...s.presetDraft, [field]: value } })),
+  savePresetDraft: async () => {
+    const { presetEditId, presetDraft } = get();
+    if (!presetDraft.name.trim() || !presetDraft.content.trim()) return;
+    const payload = {
+      category: presetDraft.category.trim() || '默认',
+      name: presetDraft.name.trim(),
+      content: presetDraft.content.trim(),
+      enabled: presetDraft.enabled,
+    };
+    if (presetEditId === 'new') await api.addPreset(payload);
+    else await api.updatePreset(presetEditId, payload);
+    set({ presetEditId: null, presetDraft: null });
+    get().loadPresets();
+  },
+  togglePresetEnabled: async (id) => {
+    const p = get().presets.find((x) => x.id === id);
+    if (!p) return;
+    await api.updatePreset(id, { enabled: !p.enabled });
+    get().loadPresets();
+  },
+  deletePresetAction: async (id) => {
+    await api.deletePreset(id);
+    set({ presetEditId: null, presetDraft: null });
+    get().loadPresets();
+  },
+
   // ---- bootstrap ----
   init: async () => {
     await Promise.all([

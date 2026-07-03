@@ -3,6 +3,7 @@ import { db, getSetting, setSetting } from '../db.js';
 import * as providers from '../providers.js';
 import { isClaudeCodeAvailable, testClaudeCode } from '../claudeCode.js';
 import * as mcp from '../mcp.js';
+import * as presets from '../presets.js';
 
 const router = Router();
 
@@ -147,6 +148,30 @@ router.post('/mcp/servers/:id/test', async (req, res) => {
   } catch (err) {
     res.json({ ok: false, message: err.message || '连接失败' });
   }
+});
+
+// ---- Global preset instructions (system prompt) ----
+
+router.get('/presets', (req, res) => {
+  res.json(presets.listPresets());
+});
+
+router.post('/presets', (req, res) => {
+  const { name, content } = req.body;
+  if (!name || !String(name).trim()) return res.status(400).json({ error: 'name is required' });
+  if (!content || !String(content).trim()) return res.status(400).json({ error: 'content is required' });
+  res.json(presets.addPreset(req.body));
+});
+
+router.patch('/presets/:id', (req, res) => {
+  const updated = presets.updatePreset(req.params.id, req.body);
+  if (!updated) return res.status(404).json({ error: 'not found' });
+  res.json(updated);
+});
+
+router.delete('/presets/:id', (req, res) => {
+  presets.deletePreset(req.params.id);
+  res.json({ ok: true });
 });
 
 export default router;

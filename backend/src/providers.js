@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { db, getSetting, setSetting } from './db.js';
-import { YUSHEN_SYSTEM_PROMPT, FALLBACK_REPLY, estimateTokens } from './persona.js';
+import { FALLBACK_REPLY, estimateTokens } from './persona.js';
+import { getComposedSystemPrompt } from './presets.js';
 
 function maskKey(key) {
   if (!key) return '';
@@ -145,6 +146,7 @@ async function callOpenAiCompatible({ apiKey, baseUrl, model, system, userText, 
 export async function getReplyViaProvider(history, provider) {
   const apiKey = pickKey(provider.keys, provider.multiKeyEnabled);
   if (!apiKey) return { text: FALLBACK_REPLY, tokens: estimateTokens(FALLBACK_REPLY) };
+  const systemPrompt = getComposedSystemPrompt();
 
   if (provider.type === 'openai') {
     const userText = history[history.length - 1]?.text || '';
@@ -152,7 +154,7 @@ export async function getReplyViaProvider(history, provider) {
       apiKey,
       baseUrl: provider.baseUrl,
       model: provider.selectedModel,
-      system: YUSHEN_SYSTEM_PROMPT,
+      system: systemPrompt,
       userText,
     });
     const text = (json.choices?.[0]?.message?.content || '').trim() || FALLBACK_REPLY;
@@ -165,7 +167,7 @@ export async function getReplyViaProvider(history, provider) {
     apiKey,
     baseUrl: provider.baseUrl,
     model: provider.selectedModel,
-    system: YUSHEN_SYSTEM_PROMPT,
+    system: systemPrompt,
     messages,
   });
   const text = response.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim() || FALLBACK_REPLY;

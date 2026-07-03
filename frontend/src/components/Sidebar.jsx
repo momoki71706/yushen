@@ -19,6 +19,16 @@ function ToolIcon() {
   );
 }
 
+function NoteIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M3 1.5H10L13 4.5V14.5H3V1.5Z" stroke="#8C6A72" strokeWidth="1.3" strokeLinejoin="round" fill="none" />
+      <path d="M10 1.5V4.5H13" stroke="#8C6A72" strokeWidth="1.3" strokeLinejoin="round" fill="none" />
+      <path d="M5.5 8H10.5M5.5 10.5H10.5" stroke="#8C6A72" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 const MENU_ITEMS = [
   { label: '主题装扮', bg: '#EDD9E1' },
   { label: '纪念日管理', bg: '#D9CBD3' },
@@ -39,6 +49,7 @@ export default function Sidebar() {
   const toggleLetterReminderSetting = useStore((s) => s.toggleLetterReminderSetting);
   const openAiSettings = useStore((s) => s.openAiSettings);
   const openMcpPanel = useStore((s) => s.openMcpPanel);
+  const openPresetPanel = useStore((s) => s.openPresetPanel);
 
   if (!sidebarOpen) return null;
 
@@ -82,6 +93,13 @@ export default function Sidebar() {
             <ToolIcon />
           </div>
           <div className="sidebar-menu-label">工具管理</div>
+          <ChevronRight />
+        </button>
+        <button className="sidebar-menu-item" onClick={openPresetPanel}>
+          <div className="sidebar-menu-icon" style={{ background: '#E7D6CE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <NoteIcon />
+          </div>
+          <div className="sidebar-menu-label">预设词</div>
           <ChevronRight />
         </button>
         <div className="sidebar-divider" style={{ margin: '4px 0 8px' }} />

@@ -3,7 +3,8 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { db } from './db.js';
-import { YUSHEN_SYSTEM_PROMPT, FALLBACK_REPLY, estimateTokens } from './persona.js';
+import { FALLBACK_REPLY, estimateTokens } from './persona.js';
+import { getComposedSystemPrompt } from './presets.js';
 
 const MAX_TOOL_ITERATIONS = 5;
 const CLIENT_INFO = { name: 'xiaoqing-yushen-app', version: '1.0.0' };
@@ -154,7 +155,7 @@ export async function runToolLoop(history, apiKey, model, baseURL, tools) {
     const response = await anthropic.messages.create({
       model: model || 'claude-sonnet-5',
       max_tokens: 400,
-      system: YUSHEN_SYSTEM_PROMPT,
+      system: getComposedSystemPrompt(),
       messages,
       tools: anthropicTools,
     });

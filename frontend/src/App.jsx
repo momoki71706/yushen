@@ -8,6 +8,7 @@ import Sidebar from './components/Sidebar';
 import LetterReminder from './components/LetterReminder';
 import AiSettingsPanel from './components/AiSettingsPanel';
 import McpPanel from './components/McpPanel';
+import PresetPanel from './components/PresetPanel';
 import ModePill from './components/ModePill';
 import PlaceholderTab from './components/PlaceholderTab';
 import ChatMode from './modes/ChatMode';
@@ -57,6 +58,7 @@ function App() {
         <LetterReminder />
         <AiSettingsPanel />
         <McpPanel />
+        <PresetPanel />
       </div>
     </div>
   );

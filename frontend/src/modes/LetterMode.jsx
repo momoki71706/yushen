@@ -81,7 +81,7 @@ function Compose() {
           <input
             type="date"
             className="diary-date-input"
-            style={{ height: 32, fontSize: '12px', width: 140 }}
+            style={{ height: 34, fontSize: '16px', width: 140 }}
             value={letterUnlockDate}
             onChange={(e) => onUnlockDateChange(e.target.value)}
           />
