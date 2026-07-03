@@ -1,4 +1,4 @@
-import { db } from './db.js';
+import { db, getSetting } from './db.js';
 
 function serialize(row) {
   return {
@@ -48,9 +48,15 @@ export function deletePreset(id) {
 
 // Every enabled preset's content is concatenated (in category/sort order)
 // into a single system prompt applied to every chat call, across all AI
-// providers and Claude Code CLI.
+// providers and Claude Code CLI. The rolling chat-history summary (from
+// compression.js) is appended last so it stays close to the actual
+// conversation in the prompt.
 export function getComposedSystemPrompt() {
   const rows = db.prepare('SELECT content FROM prompt_presets WHERE enabled = 1 ORDER BY category ASC, sort_order ASC, id ASC').all();
   const combined = rows.map((r) => r.content.trim()).filter(Boolean).join('\n\n');
-  return combined || '你是屿深，正在手机上和女朋友小晴聊天。回复要简短自然、温暖随意。';
+  const base = combined || '你是屿深，正在手机上和女朋友小晴聊天。回复要简短自然、温暖随意。';
+
+  const chatSummary = (getSetting('chatSummary', '') || '').trim();
+  if (!chatSummary) return base;
+  return `${base}\n\n【更早之前的对话摘要】\n${chatSummary}`;
 }

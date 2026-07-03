@@ -94,8 +94,33 @@ export const useStore = create(
     set({ chatDraft: '' });
     get().pushMessage(text, 'text');
   },
-  sendBowSticker: () => get().pushMessage('抱抱～', 'text'),
   sendPhotoSticker: () => get().pushMessage('分享了一张此刻的照片', 'photo'),
+
+  // ---- quick model switcher (bow icon popover) ----
+  modelSwitcherOpen: false,
+  openModelSwitcher: () => {
+    set({ modelSwitcherOpen: true });
+    get().loadAiMode();
+    get().loadProviders();
+  },
+  closeModelSwitcher: () => set({ modelSwitcherOpen: false }),
+  toggleModelSwitcher: () => {
+    if (get().modelSwitcherOpen) get().closeModelSwitcher();
+    else get().openModelSwitcher();
+  },
+  selectModelQuick: async (providerId, model) => {
+    set({ modelSwitcherOpen: false, aiMode: 'provider', activeProviderId: providerId });
+    await api.updateAiMode({ aiMode: 'provider', activeProviderId: providerId });
+    const provider = get().providers.find((p) => p.id === providerId);
+    if (provider && provider.selectedModel !== model) {
+      await api.updateProvider(providerId, { selectedModel: model });
+      get().loadProviders();
+    }
+  },
+  selectClaudeCodeQuick: async () => {
+    set({ modelSwitcherOpen: false });
+    await get().selectClaudeCodeMode();
+  },
 
   // ---- diary ----
   diaryEntries: [],

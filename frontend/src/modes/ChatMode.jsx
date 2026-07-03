@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
 import { BowIcon, StarIcon, PlusIcon } from '../components/Icons';
+import ModelSwitcherPopover from '../components/ModelSwitcherPopover';
 
 export default function ChatMode() {
   const messages = useStore((s) => s.messages);
@@ -8,10 +9,11 @@ export default function ChatMode() {
   const chatDraft = useStore((s) => s.chatDraft);
   const onChatChange = useStore((s) => s.onChatChange);
   const sendChat = useStore((s) => s.sendChat);
-  const sendBowSticker = useStore((s) => s.sendBowSticker);
   const sendPhotoSticker = useStore((s) => s.sendPhotoSticker);
   const mcpToolsEnabled = useStore((s) => s.mcpToolsEnabled);
   const toggleMcpToolsQuick = useStore((s) => s.toggleMcpToolsQuick);
+  const modelSwitcherOpen = useStore((s) => s.modelSwitcherOpen);
+  const toggleModelSwitcher = useStore((s) => s.toggleModelSwitcher);
 
   const listRef = useRef(null);
   useEffect(() => {
@@ -58,8 +60,17 @@ export default function ChatMode() {
       </div>
 
       <div className="chat__footer">
+        {modelSwitcherOpen && <ModelSwitcherPopover />}
         <div className="chat__stickers">
-          <button className="sticker-btn" style={{ background: '#F6E2E8' }} onClick={sendBowSticker}>
+          <button
+            className="sticker-btn"
+            title="快捷切换模型"
+            style={{
+              background: modelSwitcherOpen ? '#E8C4D4' : '#F6E2E8',
+              boxShadow: modelSwitcherOpen ? '0 0 0 3px rgba(200,137,158,0.3)' : 'none',
+            }}
+            onClick={toggleModelSwitcher}
+          >
             <BowIcon />
           </button>
           <button

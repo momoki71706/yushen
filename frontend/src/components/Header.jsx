@@ -26,6 +26,7 @@ export default function Header() {
 
         {isHome ? (
           <div className="header-titles">
+            <div className="header-titles__sub">{subtitleMap.home}</div>
             <div className="header-titles__main">{nickname}</div>
           </div>
         ) : (

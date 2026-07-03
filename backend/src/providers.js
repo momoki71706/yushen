@@ -199,4 +199,4 @@ export async function testProvider(id) {
   }
 }
 
-export { callAnthropic, pickKey };
+export { callAnthropic, callOpenAiCompatible, pickKey };

@@ -1,5 +1,9 @@
 /* ---------- outer page + phone shell ---------- */
 .app-outer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   height: var(--vvh, 100dvh);
   width: 100%;
   display: flex;
@@ -10,7 +14,7 @@
   overflow: hidden;
 }
 @media (min-width: 560px) {
-  .app-outer { height: auto; min-height: 100dvh; padding: 40px 20px; }
+  .app-outer { position: static; height: auto; min-height: 100dvh; padding: 40px 20px; }
 }
 
 .phone {
@@ -214,7 +218,7 @@
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
 }
-.chat__footer { flex-shrink: 0; padding: 8px 14px 16px; }
+.chat__footer { flex-shrink: 0; padding: 8px 14px 16px; position: relative; }
 .chat__stickers { display: flex; gap: 8px; margin-bottom: 9px; }
 .sticker-btn {
   width: 34px;
@@ -254,6 +258,48 @@
   flex-shrink: 0;
   box-shadow: 0 3px 8px rgba(232, 196, 212, 0.5);
 }
+
+/* ---------- quick model switcher popover ---------- */
+.model-switcher-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+.model-switcher-popover {
+  position: absolute;
+  z-index: 31;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  max-height: 45vh;
+  overflow-y: auto;
+  background: var(--glass-solid);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 12px 14px 14px;
+  box-shadow: 0 10px 30px rgba(58, 50, 54, 0.18);
+  animation: fadeIn 0.15s ease;
+}
+.model-switcher-title { font-size: 12.5px; font-weight: 600; color: var(--color-text-faint); margin-bottom: 8px; }
+.model-switcher-group + .model-switcher-group { margin-top: 10px; }
+.model-switcher-provider-name { font-size: 13px; font-weight: 600; color: var(--color-text); margin-bottom: 5px; }
+.model-switcher-empty { font-size: 12.5px; color: var(--color-text-faint); padding: 4px 0; }
+.model-switcher-cc {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-weak);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--color-text);
+  margin-bottom: 10px;
+}
+.model-switcher-cc--active { border-color: var(--color-accent); background: rgba(200, 137, 158, 0.1); font-weight: 600; }
 
 /* ---------- diary ---------- */
 .diary-scroll { flex: 1; overflow-y: auto; padding: 52px 20px 20px; }
@@ -760,8 +806,12 @@
   background: none;
   border: none;
   text-align: left;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
   border-bottom: 1px solid rgba(58, 50, 54, 0.06);
   width: 100%;
+  box-sizing: border-box;
 }
 .sidebar-menu-icon { width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; }
 .sidebar-menu-label { flex: 1; font-size: 15px; color: var(--color-text); text-align: left; }

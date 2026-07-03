@@ -29,6 +29,32 @@ function NoteIcon() {
   );
 }
 
+function BrainIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M6 1.5C4.3 1.5 3 2.8 3 4.3C1.9 4.6 1 5.6 1 6.9C1 7.8 1.4 8.5 2 9C1.6 9.5 1.4 10.1 1.4 10.8C1.4 12.2 2.5 13.4 4 13.5C4.2 14.4 5 15 6 15C7 15 7.8 14.3 8 13.4"
+        stroke="#8C6A72"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <path
+        d="M10 1.5C11.7 1.5 13 2.8 13 4.3C14.1 4.6 15 5.6 15 6.9C15 7.8 14.6 8.5 14 9C14.4 9.5 14.6 10.1 14.6 10.8C14.6 12.2 13.5 13.4 12 13.5C11.8 14.4 11 15 10 15C9 15 8.2 14.3 8 13.4"
+        stroke="#8C6A72"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <path d="M8 2V13.4" stroke="#8C6A72" strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+const MEMORY_LIBRARY_URL = 'https://yushen.zeabur.app/';
+
 const MENU_ITEMS = [
   { label: '主题装扮', bg: '#EDD9E1' },
   { label: '纪念日管理', bg: '#D9CBD3' },
@@ -135,6 +161,13 @@ export default function Sidebar() {
           <div className="sidebar-menu-label">预设词</div>
           <ChevronRight />
         </button>
+        <a className="sidebar-menu-item" href={MEMORY_LIBRARY_URL} target="_blank" rel="noopener noreferrer">
+          <div className="sidebar-menu-icon" style={{ background: '#D9CBD3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <BrainIcon />
+          </div>
+          <div className="sidebar-menu-label">记忆库</div>
+          <ChevronRight />
+        </a>
         <div className="sidebar-divider" style={{ margin: '4px 0 8px' }} />
         <div className="sidebar-reminder-row">
           <div className="sidebar-reminder-icon">

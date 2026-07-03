@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db.js';
 import { getYushenReply } from '../aiReply.js';
+import { maybeCompressChatHistory } from '../compression.js';
 
 const router = Router();
 
@@ -51,6 +52,8 @@ router.post('/', async (req, res) => {
   const theirs = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(theirsInfo.lastInsertRowid);
 
   res.json({ mine: serializeMessage(mine), reply: serializeMessage(theirs) });
+
+  maybeCompressChatHistory();
 });
 
 export default router;
