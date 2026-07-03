@@ -80,6 +80,14 @@ CREATE TABLE IF NOT EXISTS ai_providers (
   selected_model TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `);
 
 // Additive column migrations — CREATE TABLE IF NOT EXISTS above doesn't
@@ -171,6 +179,8 @@ function seedIfEmpty() {
     letterReminderDismissedDate: '',
     aiMode: 'provider',
     mcpToolsEnabled: '0',
+    proactiveMessagesEnabled: '0',
+    lastProactiveMessageAt: '',
   };
   const getSetting = db.prepare('SELECT value FROM settings WHERE key = ?');
   const setSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');

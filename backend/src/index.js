@@ -5,6 +5,8 @@ import chatRouter from './routes/chat.js';
 import diaryRouter from './routes/diary.js';
 import lettersRouter from './routes/letters.js';
 import settingsRouter from './routes/settings.js';
+import pushRouter from './routes/push.js';
+import { startProactiveScheduler } from './proactive.js';
 
 const app = express();
 app.use(cors());
@@ -14,6 +16,7 @@ app.use('/api/chat', chatRouter);
 app.use('/api/diary', diaryRouter);
 app.use('/api/letters', lettersRouter);
 app.use('/api/settings', settingsRouter);
+app.use('/api/push', pushRouter);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
@@ -23,4 +26,5 @@ app.listen(port, () => {
   if (!process.env.ANTHROPIC_API_KEY) {
     console.warn('ANTHROPIC_API_KEY is not set — chat will use a fallback canned reply instead of real AI.');
   }
+  startProactiveScheduler();
 });

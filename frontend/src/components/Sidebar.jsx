@@ -53,6 +53,21 @@ function BrainIcon() {
   );
 }
 
+function BellIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M8 1C6 1 4.5 2.6 4.5 4.6V7.2C4.5 8.1 4.1 9 3.4 9.6L2.5 10.4C2.1 10.7 2.3 11.4 2.8 11.4H13.2C13.7 11.4 13.9 10.7 13.5 10.4L12.6 9.6C11.9 9 11.5 8.1 11.5 7.2V4.6C11.5 2.6 10 1 8 1Z"
+        stroke="#8C6A72"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <path d="M6.3 13.2C6.6 14 7.2 14.5 8 14.5C8.8 14.5 9.4 14 9.7 13.2" stroke="#8C6A72" strokeWidth="1.2" strokeLinecap="round" fill="none" />
+    </svg>
+  );
+}
+
 function TrashIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -84,6 +99,10 @@ export default function Sidebar() {
   const closeSidebar = useStore((s) => s.closeSidebar);
   const letterReminderEnabled = useStore((s) => s.letterReminderEnabled);
   const toggleLetterReminderSetting = useStore((s) => s.toggleLetterReminderSetting);
+  const proactiveMessagesEnabled = useStore((s) => s.proactiveMessagesEnabled);
+  const proactiveToggleBusy = useStore((s) => s.proactiveToggleBusy);
+  const proactiveToggleError = useStore((s) => s.proactiveToggleError);
+  const toggleProactiveMessages = useStore((s) => s.toggleProactiveMessages);
   const openAiSettings = useStore((s) => s.openAiSettings);
   const openMcpPanel = useStore((s) => s.openMcpPanel);
   const openPresetPanel = useStore((s) => s.openPresetPanel);
@@ -201,6 +220,21 @@ export default function Sidebar() {
             <div className="toggle-switch__knob" style={{ left: letterReminderEnabled ? 20 : 2 }} />
           </button>
         </div>
+        <div className="sidebar-reminder-row">
+          <div className="sidebar-reminder-icon">
+            <BellIcon />
+          </div>
+          <div className="sidebar-menu-label">AI 主动消息推送</div>
+          <button
+            className="toggle-switch"
+            style={{ background: proactiveMessagesEnabled ? '#C8899E' : '#DCD4D8', opacity: proactiveToggleBusy ? 0.6 : 1 }}
+            onClick={toggleProactiveMessages}
+            disabled={proactiveToggleBusy}
+          >
+            <div className="toggle-switch__knob" style={{ left: proactiveMessagesEnabled ? 20 : 2 }} />
+          </button>
+        </div>
+        {proactiveToggleError && <div className="sidebar-error-text">{proactiveToggleError}</div>}
       </div>
       <div className="sidebar-backdrop" onClick={closeSidebar} />
     </div>

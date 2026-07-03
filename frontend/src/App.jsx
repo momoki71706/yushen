@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import './App.css';
 import { useStore } from './state/store';
 import { useVisualViewportHeight } from './useVisualViewportHeight';
+import { registerServiceWorker } from './push';
 import Header from './components/Header';
 import BottomNav from './components/BottomNav';
 import Sidebar from './components/Sidebar';
@@ -27,6 +28,7 @@ function App() {
 
   useEffect(() => {
     init();
+    registerServiceWorker();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

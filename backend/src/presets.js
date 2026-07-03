@@ -75,7 +75,7 @@ function getTimeContext() {
 // providers and Claude Code CLI. The rolling chat-history summary (from
 // compression.js) and the current-time block are appended last, in that
 // order — least volatile content first, most volatile last.
-export function getComposedSystemPrompt() {
+export function getComposedSystemPrompt(extraInstruction) {
   const rows = db.prepare('SELECT content FROM prompt_presets WHERE enabled = 1 ORDER BY category ASC, sort_order ASC, id ASC').all();
   const combined = rows.map((r) => r.content.trim()).filter(Boolean).join('\n\n');
   const base = combined || '你是屿深，正在手机上和女朋友小晴聊天。回复要简短自然、温暖随意。';
@@ -84,5 +84,6 @@ export function getComposedSystemPrompt() {
   const chatSummary = (getSetting('chatSummary', '') || '').trim();
   if (chatSummary) parts.push(`【更早之前的对话摘要】\n${chatSummary}`);
   parts.push(`【当前时间】\n${getTimeContext()}`);
+  if (extraInstruction) parts.push(extraInstruction);
   return parts.join('\n\n');
 }

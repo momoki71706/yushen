@@ -174,11 +174,14 @@ async function callOpenAiCompatible({ apiKey, baseUrl, model, system, messages, 
 
 // Plain (non-tool) reply for a resolved provider config — both Anthropic
 // and OpenAI-compatible providers get the full recent conversation, not
-// just the latest message.
-export async function getReplyViaProvider(history, provider) {
+// just the latest message. extraInstruction is an optional one-off system
+// prompt addition (used for proactive/unprompted messages, which need a
+// different nudge than a normal reply but shouldn't permanently change the
+// persona for every future call).
+export async function getReplyViaProvider(history, provider, extraInstruction) {
   const apiKey = pickKey(provider.keys);
   if (!apiKey) return { text: FALLBACK_REPLY, tokens: estimateTokens(FALLBACK_REPLY) };
-  const systemPrompt = getComposedSystemPrompt();
+  const systemPrompt = getComposedSystemPrompt(extraInstruction);
   const messages = history.map((m) => ({ role: m.from === 'me' ? 'user' : 'assistant', content: m.text }));
 
   if (provider.type === 'openai') {

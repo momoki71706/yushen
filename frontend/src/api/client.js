@@ -63,4 +63,10 @@ export const api = {
   updatePreset: (id, payload) =>
     request(`/settings/presets/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deletePreset: (id) => request(`/settings/presets/${id}`, { method: 'DELETE' }),
+
+  getVapidPublicKey: () => request('/push/vapid-public-key'),
+  subscribePush: (subscription) => request('/push/subscribe', { method: 'POST', body: JSON.stringify(subscription) }),
+  unsubscribePush: (endpoint) => request('/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) }),
+  getProactiveStatus: () => request('/push/proactive-status'),
+  setProactiveStatus: (enabled) => request('/push/proactive-status', { method: 'PATCH', body: JSON.stringify({ enabled }) }),
 };

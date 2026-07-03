@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '../api/client';
+import { subscribeToPush, unsubscribeFromPush, isPushSupported } from '../push';
 
 const MOOD_PALETTE = { 开心: '#EDD9E1', 平静: '#E0D2D9', 难过: '#C9AEB9', 兴奋: '#E7D6CE', 疲惫: '#CBB9C0' };
 const WEATHER_PALETTE = { 晴: '#EFE3D3', 多云: '#DED3D8', 雨: '#CDBFC5', 雪: '#F3EDEF', 风: '#D9CBD1' };
@@ -62,6 +63,38 @@ export const useStore = create(
     const enabled = !get().letterReminderEnabled;
     set({ letterReminderEnabled: enabled });
     await api.updateSettings({ letterReminderEnabled: enabled });
+  },
+
+  // ---- proactive push notifications ----
+  proactiveMessagesEnabled: false,
+  proactiveToggleBusy: false,
+  proactiveToggleError: '',
+  loadProactiveStatus: async () => {
+    try {
+      const { enabled } = await api.getProactiveStatus();
+      set({ proactiveMessagesEnabled: enabled });
+    } catch {
+      // backend not reachable yet — leave default
+    }
+  },
+  toggleProactiveMessages: async () => {
+    if (get().proactiveToggleBusy) return;
+    const next = !get().proactiveMessagesEnabled;
+    set({ proactiveToggleBusy: true, proactiveToggleError: '' });
+    try {
+      if (next) {
+        if (!isPushSupported()) throw new Error('这台设备不支持推送通知');
+        await subscribeToPush();
+      } else {
+        await unsubscribeFromPush();
+      }
+      await api.setProactiveStatus(next);
+      set({ proactiveMessagesEnabled: next });
+    } catch (err) {
+      set({ proactiveToggleError: err.message });
+    } finally {
+      set({ proactiveToggleBusy: false });
+    }
   },
 
   // ---- chat ----
@@ -572,6 +605,7 @@ export const useStore = create(
     ]);
     get().checkLetterReminder();
     api.getAiMode().then((s) => set({ mcpToolsEnabled: !!s.mcpToolsEnabled })).catch(() => {});
+    get().loadProactiveStatus();
   },
     }),
     {
