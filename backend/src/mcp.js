@@ -143,14 +143,23 @@ async function callTool(tools, qualifiedName, input) {
   const server = getServer(match.serverId);
   if (!server) return { content: [{ type: 'text', text: '工具所属的 MCP 服务已被删除' }], isError: true };
 
-  const client = await connectClient(server);
+  // connectClient() has to live inside this try too — if the connection
+  // itself fails (server cold-starting, transport negotiation error) it
+  // throws just like a failed tool call would, but it used to do so
+  // *outside* this function's try/catch, escaping uncaught all the way up
+  // through the tool loop to the top-level error handler and crashing the
+  // whole reply instead of gracefully reporting the failure back to the
+  // model as a tool result.
+  let client;
   try {
+    client = await connectClient(server);
     const result = await client.callTool({ name: match.toolName, arguments: input || {} });
     return result;
   } catch (err) {
+    console.error(`[mcp] tool call "${qualifiedName}" failed:`, err.message);
     return { content: [{ type: 'text', text: `工具调用失败: ${err.message}` }], isError: true };
   } finally {
-    await client.close();
+    if (client) await client.close().catch(() => {});
   }
 }
 
