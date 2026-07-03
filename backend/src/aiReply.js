@@ -1,7 +1,7 @@
 import { getSetting } from './db.js';
 import { getProviderWithKeys, getReplyViaProvider, pickKey } from './providers.js';
 import { getReplyViaClaudeCode } from './claudeCode.js';
-import { FALLBACK_REPLY, estimateTokens } from './persona.js';
+import { FALLBACK_REPLY, classifyAiError, estimateTokens } from './persona.js';
 import { getEnabledTools, runAnthropicToolLoop, runOpenAiToolLoop } from './mcp.js';
 
 export async function getYushenReply(history) {
@@ -32,6 +32,7 @@ export async function getYushenReply(history) {
     return await getReplyViaProvider(history, provider);
   } catch (err) {
     console.error('AI reply error:', err.message);
-    return { text: FALLBACK_REPLY, tokens: estimateTokens(FALLBACK_REPLY) };
+    const text = classifyAiError(err);
+    return { text, tokens: estimateTokens(text) };
   }
 }
