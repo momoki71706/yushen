@@ -1,0 +1,18 @@
+{
+  "name": "xiaoqing-yushen-backend",
+  "version": "1.0.0",
+  "description": "Backend for 小晴与屿深的App — chat AI proxy + data storage",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
+    "better-sqlite3": "^12.11.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  }
+}

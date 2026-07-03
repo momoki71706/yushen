@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Montserrat:wght@600;700&display=swap');
+
+:root {
+  --color-text: #4A4048;
+  --color-text-soft: #6B6268;
+  --color-text-faint: #847A80;
+  --color-accent: #C8899E;
+  --color-accent-strong: #B87A90;
+  --color-accent-icon: #C08BA0;
+  --color-accent-active: #C4879E;
+  --color-accent-inactive: #847A80;
+  --color-send: #E8C4D4;
+  --color-bubble-me: rgba(252, 228, 236, 0.5);
+  --color-bubble-them: rgba(255, 255, 255, 0.5);
+  --color-bubble-text: #75707A;
+  --glass-weak: rgba(255, 255, 255, 0.3);
+  --glass-soft: rgba(255, 255, 255, 0.4);
+  --glass-mid: rgba(255, 255, 255, 0.5);
+  --glass-strong: rgba(255, 255, 255, 0.55);
+  --glass-solid: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --shadow-soft: 0 1px 3px rgba(58, 50, 54, 0.05);
+  --shadow-card: 0 4px 16px rgba(58, 50, 54, 0.06);
+  --shadow-float: 0 6px 16px rgba(200, 137, 158, 0.45);
+}
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #D9CDD2 transparent;
+}
+*::-webkit-scrollbar { width: 2.5px; height: 2.5px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: #D9CDD2; border-radius: 3px; }
+*::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  font-weight: 400;
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+input, button, textarea, select {
+  font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.num {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+}
+
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sealStamp { 0% { transform: scale(1) rotate(0deg); } 35% { transform: scale(0.8) rotate(-8deg); } 60% { transform: scale(1.1) rotate(4deg); } 100% { transform: scale(1) rotate(0deg); } }
