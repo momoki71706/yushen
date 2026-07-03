@@ -25,6 +25,8 @@ router.get('/', (req, res) => {
   res.json(rows.map(serializeMessage));
 });
 
+const CONTEXT_MESSAGE_LIMIT = 30;
+
 router.post('/', async (req, res) => {
   const { text, kind } = req.body;
   if (!text || !String(text).trim()) return res.status(400).json({ error: 'text is required' });
@@ -35,7 +37,13 @@ router.post('/', async (req, res) => {
   const mineInfo = insertMine.run('me', text, kind || 'text', nowTime());
   const mine = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(mineInfo.lastInsertRowid);
 
-  const reply = await getYushenReply([{ from: 'me', text }]);
+  const recent = db
+    .prepare('SELECT from_who, text FROM chat_messages ORDER BY id DESC LIMIT ?')
+    .all(CONTEXT_MESSAGE_LIMIT)
+    .reverse()
+    .map((r) => ({ from: r.from_who, text: r.text }));
+
+  const reply = await getYushenReply(recent);
   const insertTheirs = db.prepare(
     'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens) VALUES (?,?,?,?,?)'
   );

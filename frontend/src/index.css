@@ -39,6 +39,14 @@ html, body, #root {
   margin: 0;
 }
 
+html, body {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #F6E9EE;
+}
+
 body {
   font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
   font-weight: 400;

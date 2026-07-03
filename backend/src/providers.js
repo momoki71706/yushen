@@ -117,7 +117,7 @@ async function callAnthropic({ apiKey, baseUrl, model, system, messages, tools, 
   });
 }
 
-async function callOpenAiCompatible({ apiKey, baseUrl, model, system, userText, maxTokens }) {
+async function callOpenAiCompatible({ apiKey, baseUrl, model, system, messages, maxTokens }) {
   const res = await fetch(joinUrl(baseUrl, '/chat/completions'), {
     method: 'POST',
     headers: {
@@ -127,10 +127,7 @@ async function callOpenAiCompatible({ apiKey, baseUrl, model, system, userText, 
     body: JSON.stringify({
       model,
       max_tokens: maxTokens || 300,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: userText },
-      ],
+      messages: [{ role: 'system', content: system }, ...messages],
     }),
   });
   if (!res.ok) {
@@ -140,29 +137,28 @@ async function callOpenAiCompatible({ apiKey, baseUrl, model, system, userText, 
   return res.json();
 }
 
-// Plain (non-tool) reply for a resolved provider config. Anthropic-type
-// providers get a real multi-turn Messages payload; OpenAI-compatible
-// providers currently get single-turn (latest message only).
+// Plain (non-tool) reply for a resolved provider config — both Anthropic
+// and OpenAI-compatible providers get the full recent conversation, not
+// just the latest message.
 export async function getReplyViaProvider(history, provider) {
   const apiKey = pickKey(provider.keys, provider.multiKeyEnabled);
   if (!apiKey) return { text: FALLBACK_REPLY, tokens: estimateTokens(FALLBACK_REPLY) };
   const systemPrompt = getComposedSystemPrompt();
+  const messages = history.map((m) => ({ role: m.from === 'me' ? 'user' : 'assistant', content: m.text }));
 
   if (provider.type === 'openai') {
-    const userText = history[history.length - 1]?.text || '';
     const json = await callOpenAiCompatible({
       apiKey,
       baseUrl: provider.baseUrl,
       model: provider.selectedModel,
       system: systemPrompt,
-      userText,
+      messages,
     });
     const text = (json.choices?.[0]?.message?.content || '').trim() || FALLBACK_REPLY;
     const tokens = json.usage?.completion_tokens ?? estimateTokens(text);
     return { text, tokens };
   }
 
-  const messages = history.map((m) => ({ role: m.from === 'me' ? 'user' : 'assistant', content: m.text }));
   const response = await callAnthropic({
     apiKey,
     baseUrl: provider.baseUrl,
@@ -188,7 +184,7 @@ export async function testProvider(id) {
       baseUrl: provider.baseUrl,
       model: provider.selectedModel,
       system: '你是一个测试助手，收到消息只回复"收到"两个字。',
-      userText: '你好',
+      messages: [{ role: 'user', content: '你好' }],
       maxTokens: 8,
     });
   } else {
