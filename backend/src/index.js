@@ -6,6 +6,7 @@ import diaryRouter from './routes/diary.js';
 import lettersRouter from './routes/letters.js';
 import settingsRouter from './routes/settings.js';
 import pushRouter from './routes/push.js';
+import exportRouter from './routes/export.js';
 import { startProactiveScheduler } from './proactive.js';
 import { startScheduledMessageChecker } from './scheduledMessages.js';
 
@@ -18,6 +19,7 @@ app.use('/api/diary', diaryRouter);
 app.use('/api/letters', lettersRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/push', pushRouter);
+app.use('/api/export', exportRouter);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 

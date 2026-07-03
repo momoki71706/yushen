@@ -20,3 +20,17 @@ export function formatBeijingClock(date = beijingNow()) {
 export function weekdayLabel(date = beijingNow()) {
   return WEEKDAYS[date.getUTCDay()];
 }
+
+// SQLite's datetime('now') default produces "YYYY-MM-DD HH:MM:SS" with no
+// timezone marker but is always UTC — appending 'Z' before parsing is what
+// makes Date treat it as UTC instead of the runtime's local time.
+export function beijingFromUtcString(utcSqliteString) {
+  return new Date(new Date(`${utcSqliteString}Z`).getTime() + BEIJING_OFFSET_MS);
+}
+
+export function formatBeijingDateTime(date = beijingNow()) {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d} ${formatBeijingClock(date)}`;
+}

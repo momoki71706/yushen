@@ -97,6 +97,35 @@ export const useStore = create(
     }
   },
 
+  // ---- export memories ----
+  exportBusy: false,
+  exportMessage: '',
+  exportMemoriesAction: async () => {
+    if (get().exportBusy) return;
+    set({ exportBusy: true, exportMessage: '' });
+    try {
+      const { content, filename, hasContent } = await api.exportMemories();
+      if (!hasContent) {
+        set({ exportMessage: '这次没有新内容可以导出' });
+        return;
+      }
+      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      set({ exportMessage: `已导出 ${filename}` });
+    } catch (err) {
+      set({ exportMessage: `导出失败：${err.message}` });
+    } finally {
+      set({ exportBusy: false });
+    }
+  },
+
   // ---- chat ----
   messages: [],
   chatDraft: '',

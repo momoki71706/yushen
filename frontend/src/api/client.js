@@ -69,4 +69,6 @@ export const api = {
   unsubscribePush: (endpoint) => request('/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) }),
   getProactiveStatus: () => request('/push/proactive-status'),
   setProactiveStatus: (enabled) => request('/push/proactive-status', { method: 'PATCH', body: JSON.stringify({ enabled }) }),
+
+  exportMemories: () => request('/export', { method: 'POST' }),
 };

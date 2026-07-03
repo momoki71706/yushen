@@ -68,6 +68,15 @@ function BellIcon() {
   );
 }
 
+function DownloadIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M8 1.5V10.5M8 10.5L4.5 7M8 10.5L11.5 7" stroke="#8C6A72" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M2 12.5V13.5C2 14.05 2.45 14.5 3 14.5H13C13.55 14.5 14 14.05 14 13.5V12.5" stroke="#8C6A72" strokeWidth="1.3" strokeLinecap="round" fill="none" />
+    </svg>
+  );
+}
+
 function TrashIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -85,7 +94,6 @@ const MENU_ITEMS = [
   { label: '主题装扮', bg: '#EDD9E1' },
   { label: '纪念日管理', bg: '#D9CBD3' },
   { label: '通知提醒', bg: '#E7D6CE' },
-  { label: '导出回忆', bg: '#C9B9BE' },
 ];
 
 const START_DATE = new Date(2024, 7, 16);
@@ -107,6 +115,9 @@ export default function Sidebar() {
   const openMcpPanel = useStore((s) => s.openMcpPanel);
   const openPresetPanel = useStore((s) => s.openPresetPanel);
   const openClearChatConfirm = useStore((s) => s.openClearChatConfirm);
+  const exportBusy = useStore((s) => s.exportBusy);
+  const exportMessage = useStore((s) => s.exportMessage);
+  const exportMemoriesAction = useStore((s) => s.exportMemoriesAction);
   const nickname = useStore((s) => s.nickname);
   const nicknameEditing = useStore((s) => s.nicknameEditing);
   const nicknameDraft = useStore((s) => s.nicknameDraft);
@@ -171,6 +182,14 @@ export default function Sidebar() {
             <ChevronRight />
           </button>
         ))}
+        <button className="sidebar-menu-item" onClick={exportMemoriesAction} disabled={exportBusy}>
+          <div className="sidebar-menu-icon" style={{ background: '#C9B9BE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <DownloadIcon />
+          </div>
+          <div className="sidebar-menu-label">{exportBusy ? '导出中…' : '导出回忆'}</div>
+          <ChevronRight />
+        </button>
+        {exportMessage && <div className="sidebar-error-text" style={{ color: 'var(--color-text-faint)' }}>{exportMessage}</div>}
         <button className="sidebar-menu-item" onClick={openAiSettings}>
           <div className="sidebar-menu-icon" style={{ background: '#D6C4CB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <SparkIcon />

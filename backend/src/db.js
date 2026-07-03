@@ -108,6 +108,7 @@ function ensureColumn(table, column, definition) {
   }
 }
 ensureColumn('chat_messages', 'thinking', 'TEXT');
+ensureColumn('letters', 'exported', 'INTEGER NOT NULL DEFAULT 0');
 
 function seedIfEmpty() {
   const diaryCount = db.prepare('SELECT COUNT(*) AS c FROM diary_entries').get().c;
