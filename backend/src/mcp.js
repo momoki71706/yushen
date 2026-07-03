@@ -123,6 +123,20 @@ const toOpenAiTool = (t) => ({
   function: { name: t.qualifiedName, description: t.description, parameters: t.inputSchema },
 });
 
+// Having tools attached to a request doesn't mean a model will actually
+// reach for them — many models (especially smaller ones behind relay
+// endpoints) default to answering from their own knowledge unless
+// explicitly told a tool exists and when to prefer it. Spelling the
+// available tools out in plain language in the system prompt makes
+// proactive tool use far more reliable than relying on the tools[]
+// parameter alone.
+function buildToolAwareSystemPrompt(tools) {
+  const base = getComposedSystemPrompt();
+  if (!tools.length) return base;
+  const toolList = tools.map((t) => `- ${t.qualifiedName}：${t.description || '（无描述）'}`).join('\n');
+  return `${base}\n\n【可用工具】\n你现在可以主动调用以下工具，只要对话内容和某个工具相关（比如对方让你查记忆、记点什么事、看看之前聊过什么），就应该直接调用对应工具，不要因为不确定而跳过或者只凭自己猜测回答：\n${toolList}`;
+}
+
 async function callTool(tools, qualifiedName, input) {
   const match = tools.find((t) => t.qualifiedName === qualifiedName);
   if (!match) return { content: [{ type: 'text', text: `未知工具: ${qualifiedName}` }], isError: true };
@@ -154,6 +168,7 @@ export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tool
 
   const anthropic = new Anthropic({ apiKey, ...(baseURL ? { baseURL } : {}) });
   const anthropicTools = tools.map(toAnthropicTool);
+  const systemPrompt = buildToolAwareSystemPrompt(tools);
   const messages = history.map((m) => ({
     role: m.from === 'me' ? 'user' : 'assistant',
     content: m.text,
@@ -161,12 +176,13 @@ export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tool
 
   let finalText = '';
   let totalOutputTokens = 0;
+  let toolCallCount = 0;
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const response = await anthropic.messages.create({
       model: model || 'claude-sonnet-5',
       max_tokens: 400,
-      system: getComposedSystemPrompt(),
+      system: systemPrompt,
       messages,
       tools: anthropicTools,
     });
@@ -178,6 +194,8 @@ export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tool
 
     if (response.stop_reason !== 'tool_use' || toolUses.length === 0) break;
 
+    toolCallCount += toolUses.length;
+    console.log(`[mcp] anthropic tool loop iteration ${i}: calling ${toolUses.map((tu) => tu.name).join(', ')}`);
     messages.push({ role: 'assistant', content: response.content });
     const toolResults = await Promise.all(
       toolUses.map(async (tu) => {
@@ -193,6 +211,7 @@ export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tool
     messages.push({ role: 'user', content: toolResults });
   }
 
+  if (toolCallCount === 0) console.log(`[mcp] anthropic tool loop: ${tools.length} tool(s) offered, model made 0 calls`);
   const text = finalText || FALLBACK_REPLY;
   return { text, tokens: totalOutputTokens || estimateTokens(text) };
 }
@@ -208,12 +227,13 @@ export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools) 
 
   const openAiTools = tools.map(toOpenAiTool);
   const messages = [
-    { role: 'system', content: getComposedSystemPrompt() },
+    { role: 'system', content: buildToolAwareSystemPrompt(tools) },
     ...history.map((m) => ({ role: m.from === 'me' ? 'user' : 'assistant', content: m.text })),
   ];
 
   let finalText = '';
   let totalTokens = 0;
+  let toolCallCount = 0;
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const res = await fetch(joinUrl(baseUrl, '/chat/completions'), {
@@ -240,6 +260,8 @@ export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools) 
     const toolCalls = message.tool_calls || [];
     if (!toolCalls.length) break;
 
+    toolCallCount += toolCalls.length;
+    console.log(`[mcp] openai tool loop iteration ${i}: calling ${toolCalls.map((tc) => tc.function.name).join(', ')}`);
     messages.push({ role: 'assistant', content: message.content || null, tool_calls: toolCalls });
     const toolResults = await Promise.all(
       toolCalls.map(async (tc) => {
@@ -260,6 +282,7 @@ export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools) 
     messages.push(...toolResults);
   }
 
+  if (toolCallCount === 0) console.log(`[mcp] openai tool loop: ${tools.length} tool(s) offered, model made 0 calls`);
   const text = finalText || FALLBACK_REPLY;
   return { text, tokens: totalTokens || estimateTokens(text) };
 }

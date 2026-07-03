@@ -27,6 +27,7 @@ export async function getYushenReply(history) {
         }
         return await runAnthropicToolLoop(history, apiKey, provider.selectedModel, provider.baseUrl || undefined, tools);
       }
+      console.log('[mcp] tools enabled but getEnabledTools() returned 0 tools — falling back to plain reply');
     }
     return await getReplyViaProvider(history, provider);
   } catch (err) {
