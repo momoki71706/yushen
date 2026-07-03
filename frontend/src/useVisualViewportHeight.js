@@ -12,7 +12,7 @@ const FIELD_SELECTOR = 'input, textarea, select, [contenteditable="true"]';
 // a stale value) when the keyboard closes, which would leave the layout
 // stuck at the smaller height. Rather than trust that event for the
 // "closed" case, we track focus on form fields ourselves and explicitly
-// drop back to the natural 100dvh the moment nothing is focused.
+// restore the full window height the moment nothing is focused.
 export function useVisualViewportHeight() {
   useEffect(() => {
     const vv = window.visualViewport;
@@ -20,6 +20,17 @@ export function useVisualViewportHeight() {
 
     let restoreTimer = null;
     let focused = false;
+
+    // Always keep --vvh/--vvt set to a concrete resolved px value rather
+    // than ever removing them and falling back to the CSS default
+    // (100dvh / 0px). WebKit has repeatedly proven unreliable about
+    // repainting when a custom property is removed and a var() fallback
+    // kicks in — the layout visually stays stuck at the old value until
+    // something unrelated (like opening the sidebar) forces a re-render.
+    // Setting a real value every time sidesteps that fallback-repaint
+    // path entirely instead of trying to out-time it.
+    document.documentElement.style.setProperty('--vvh', `${window.innerHeight}px`);
+    document.documentElement.style.setProperty('--vvt', '0px');
 
     const applyKeyboardHeight = () => {
       if (!focused) return;
@@ -43,19 +54,11 @@ export function useVisualViewportHeight() {
     };
 
     const restoreFullHeight = () => {
-      // Setting an explicit px value (rather than just removing the
-      // property and falling back to 100dvh) plus forcing a synchronous
-      // reflow works around a WebKit repaint bug where the layout stays
-      // visually stuck at the old, smaller height until something
-      // unrelated forces a re-render.
       document.documentElement.style.setProperty('--vvh', `${window.innerHeight}px`);
       document.documentElement.style.setProperty('--vvt', '0px');
+      // Forcing a synchronous reflow still helps WebKit pick up the new
+      // value promptly instead of visually lagging a frame behind.
       void document.documentElement.offsetHeight;
-      requestAnimationFrame(() => {
-        document.documentElement.style.removeProperty('--vvh');
-        document.documentElement.style.removeProperty('--vvt');
-        void document.documentElement.offsetHeight;
-      });
     };
 
     const onFocusIn = (e) => {
