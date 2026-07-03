@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
-import { BowIcon, StarIcon, PlusIcon } from '../components/Icons';
+import { BowIcon, StarIcon, PlusIcon, RefreshIcon, ChevronDownIcon } from '../components/Icons';
 import ModelSwitcherPopover from '../components/ModelSwitcherPopover';
 
 export default function ChatMode() {
@@ -14,6 +14,10 @@ export default function ChatMode() {
   const toggleMcpToolsQuick = useStore((s) => s.toggleMcpToolsQuick);
   const modelSwitcherOpen = useStore((s) => s.modelSwitcherOpen);
   const toggleModelSwitcher = useStore((s) => s.toggleModelSwitcher);
+  const regeneratingIds = useStore((s) => s.regeneratingIds);
+  const expandedThinkingIds = useStore((s) => s.expandedThinkingIds);
+  const regenerateMessageAction = useStore((s) => s.regenerateMessageAction);
+  const toggleThinkingExpanded = useStore((s) => s.toggleThinkingExpanded);
 
   const listRef = useRef(null);
   useEffect(() => {
@@ -28,6 +32,8 @@ export default function ChatMode() {
           const mine = msg.from === 'me';
           const tokens = !mine ? msg.tokens : null;
           const timeLabel = !mine && tokens != null ? `${msg.time} · ${tokens} tokens` : msg.time;
+          const isRegenerating = !mine && regeneratingIds.includes(msg.id);
+          const isExpanded = !mine && expandedThinkingIds.includes(msg.id);
           return (
             <div key={msg.id} className="chat__row" style={{ justifyContent: mine ? 'flex-end' : 'flex-start' }}>
               <div className="chat__bubble-wrap" style={{ alignItems: mine ? 'flex-end' : 'flex-start' }}>
@@ -46,12 +52,40 @@ export default function ChatMode() {
                     style={{
                       background: mine ? 'var(--color-bubble-me)' : 'var(--color-bubble-them)',
                       borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                      opacity: isRegenerating ? 0.5 : 1,
                     }}
                   >
                     {msg.text}
                   </div>
                 )}
-                <div className="chat__time">{timeLabel}</div>
+                <div className="chat__time-row">
+                  <div className="chat__time">{timeLabel}</div>
+                  {!mine && msg.kind !== 'photo' && (
+                    <div className="chat__msg-actions">
+                      <button
+                        className="chat__msg-action-btn"
+                        title="重新生成"
+                        onClick={() => regenerateMessageAction(msg.id)}
+                        disabled={isRegenerating}
+                      >
+                        <RefreshIcon />
+                      </button>
+                      <button
+                        className="chat__msg-action-btn"
+                        title="思考过程"
+                        onClick={() => toggleThinkingExpanded(msg.id)}
+                      >
+                        <ChevronDownIcon expanded={isExpanded} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {isExpanded && (
+                  <div className="chat__thinking-bubble">
+                    <div className="chat__thinking-label">Thinking：</div>
+                    <div className="chat__thinking-content">{msg.thinking || '（这条回复没有思考内容）'}</div>
+                  </div>
+                )}
               </div>
             </div>
           );

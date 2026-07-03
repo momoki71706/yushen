@@ -107,7 +107,14 @@ function joinUrl(base, path) {
   return `${(base || '').replace(/\/+$/, '')}${path}`;
 }
 
-async function callAnthropic({ apiKey, baseUrl, model, system, messages, tools, maxTokens }) {
+// Claude's extended thinking is Anthropic-specific — there's no generic
+// equivalent to request from an OpenAI-compatible relay, so it's only ever
+// enabled for provider.type === 'anthropic'. The API requires max_tokens to
+// exceed the thinking budget, so callers asking for it need to size
+// maxTokens accordingly (see THINKING_BUDGET_TOKENS usage below).
+export const THINKING_BUDGET_TOKENS = 1024;
+
+async function callAnthropic({ apiKey, baseUrl, model, system, messages, tools, maxTokens, enableThinking }) {
   const client = new Anthropic({ apiKey, ...(baseUrl ? { baseURL: baseUrl } : {}) });
   return client.messages.create({
     model,
@@ -115,7 +122,13 @@ async function callAnthropic({ apiKey, baseUrl, model, system, messages, tools, 
     system,
     messages,
     ...(tools ? { tools } : {}),
+    ...(enableThinking ? { thinking: { type: 'enabled', budget_tokens: THINKING_BUDGET_TOKENS } } : {}),
   });
+}
+
+function extractThinking(content) {
+  const blocks = (content || []).filter((b) => b.type === 'thinking');
+  return blocks.map((b) => b.thinking).join('\n').trim() || null;
 }
 
 async function callOpenAiCompatible({ apiKey, baseUrl, model, system, messages, maxTokens }) {
@@ -166,10 +179,12 @@ export async function getReplyViaProvider(history, provider) {
     model: provider.selectedModel,
     system: systemPrompt,
     messages,
+    maxTokens: THINKING_BUDGET_TOKENS + 400,
+    enableThinking: true,
   });
   const text = response.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim() || FALLBACK_REPLY;
   const tokens = response.usage?.output_tokens ?? estimateTokens(text);
-  return { text, tokens };
+  return { text, tokens, thinking: extractThinking(response.content) };
 }
 
 export async function testProvider(id) {
@@ -200,4 +215,4 @@ export async function testProvider(id) {
   }
 }
 
-export { callAnthropic, callOpenAiCompatible, pickKey };
+export { callAnthropic, callOpenAiCompatible, pickKey, extractThinking };

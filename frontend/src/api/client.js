@@ -17,6 +17,7 @@ export const api = {
   sendMessage: (text, kind = 'text') =>
     request('/chat', { method: 'POST', body: JSON.stringify({ text, kind }) }),
   clearChat: () => request('/chat', { method: 'DELETE' }),
+  regenerateMessage: (id) => request(`/chat/${id}/regenerate`, { method: 'POST' }),
 
   getDiaryEntries: () => request('/diary'),
   createDiaryEntry: (payload) =>

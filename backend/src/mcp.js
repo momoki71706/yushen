@@ -5,6 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { db } from './db.js';
 import { FALLBACK_REPLY, estimateTokens } from './persona.js';
 import { getComposedSystemPrompt } from './presets.js';
+import { THINKING_BUDGET_TOKENS, extractThinking } from './providers.js';
 
 const MAX_TOOL_ITERATIONS = 5;
 const CLIENT_INFO = { name: 'xiaoqing-yushen-app', version: '1.0.0' };
@@ -184,22 +185,25 @@ export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tool
   }));
 
   let finalText = '';
+  let finalThinking = null;
   let totalOutputTokens = 0;
   let toolCallCount = 0;
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const response = await anthropic.messages.create({
       model: model || 'claude-sonnet-5',
-      max_tokens: 400,
+      max_tokens: THINKING_BUDGET_TOKENS + 600,
       system: systemPrompt,
       messages,
       tools: anthropicTools,
+      thinking: { type: 'enabled', budget_tokens: THINKING_BUDGET_TOKENS },
     });
     totalOutputTokens += response.usage?.output_tokens || 0;
 
     const toolUses = response.content.filter((b) => b.type === 'tool_use');
     const textBlocks = response.content.filter((b) => b.type === 'text');
     finalText = textBlocks.map((b) => b.text).join('').trim();
+    finalThinking = extractThinking(response.content) || finalThinking;
 
     if (response.stop_reason !== 'tool_use' || toolUses.length === 0) break;
 
@@ -222,7 +226,7 @@ export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tool
 
   if (toolCallCount === 0) console.log(`[mcp] anthropic tool loop: ${tools.length} tool(s) offered, model made 0 calls`);
   const text = finalText || FALLBACK_REPLY;
-  return { text, tokens: totalOutputTokens || estimateTokens(text) };
+  return { text, tokens: totalOutputTokens || estimateTokens(text), thinking: finalThinking };
 }
 
 function joinUrl(base, path) {

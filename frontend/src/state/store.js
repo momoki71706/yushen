@@ -96,6 +96,26 @@ export const useStore = create(
   },
   sendPhotoSticker: () => get().pushMessage('分享了一张此刻的照片', 'photo'),
 
+  // ---- regenerate + thinking chain (per AI bubble) ----
+  regeneratingIds: [],
+  expandedThinkingIds: [],
+  regenerateMessageAction: async (id) => {
+    if (get().regeneratingIds.includes(id)) return;
+    set((s) => ({ regeneratingIds: [...s.regeneratingIds, id] }));
+    try {
+      const updated = await api.regenerateMessage(id);
+      set((s) => ({ messages: s.messages.map((m) => (m.id === id ? updated : m)) }));
+    } finally {
+      set((s) => ({ regeneratingIds: s.regeneratingIds.filter((x) => x !== id) }));
+    }
+  },
+  toggleThinkingExpanded: (id) =>
+    set((s) => ({
+      expandedThinkingIds: s.expandedThinkingIds.includes(id)
+        ? s.expandedThinkingIds.filter((x) => x !== id)
+        : [...s.expandedThinkingIds, id],
+    })),
+
   // ---- clear chat (confirmation gated, destructive) ----
   clearChatConfirmOpen: false,
   openClearChatConfirm: () => set({ clearChatConfirmOpen: true, sidebarOpen: false }),

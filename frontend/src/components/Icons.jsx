@@ -32,6 +32,35 @@ export function CheckIcon({ color = '#C08BA0', width = 12, height = 10 }) {
   );
 }
 
+export function RefreshIcon({ color = '#9B939A', width = 12, height = 12 }) {
+  return (
+    <svg width={width} height={height} viewBox="0 0 14 14" fill="none">
+      <path
+        d="M12.5 7A5.5 5.5 0 1 1 10.6 3M12.5 7V2.5M12.5 7H8"
+        stroke={color}
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+export function ChevronDownIcon({ color = '#9B939A', width = 12, height = 12, expanded = false }) {
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 14 14"
+      fill="none"
+      style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}
+    >
+      <path d="M3 5.5L7 9.5L11 5.5" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function BowIcon({ color = '#C08BA0' }) {
   return (
     <svg width="18" height="13" viewBox="0 0 20 14" fill="none">

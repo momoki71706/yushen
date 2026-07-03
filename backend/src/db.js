@@ -82,6 +82,17 @@ CREATE TABLE IF NOT EXISTS ai_providers (
 );
 `);
 
+// Additive column migrations — CREATE TABLE IF NOT EXISTS above doesn't
+// retrofit new columns onto an existing table, so anything added after
+// initial release needs an explicit ALTER TABLE guarded by a column check.
+function ensureColumn(table, column, definition) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+ensureColumn('chat_messages', 'thinking', 'TEXT');
+
 function seedIfEmpty() {
   const diaryCount = db.prepare('SELECT COUNT(*) AS c FROM diary_entries').get().c;
   if (diaryCount === 0) {

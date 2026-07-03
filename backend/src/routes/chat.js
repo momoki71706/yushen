@@ -18,6 +18,7 @@ function serializeMessage(row) {
     kind: row.kind,
     time: row.time_label,
     tokens: row.tokens,
+    thinking: row.thinking || null,
   };
 }
 
@@ -27,6 +28,16 @@ router.get('/', (req, res) => {
 });
 
 const CONTEXT_MESSAGE_LIMIT = 30;
+
+// History for a reply anchored right after `beforeId` (or the newest
+// messages overall when beforeId is omitted) — shared by both sending a
+// new message and regenerating an existing one.
+function recentHistory(beforeId) {
+  const rows = beforeId
+    ? db.prepare('SELECT from_who, text FROM chat_messages WHERE id < ? ORDER BY id DESC LIMIT ?').all(beforeId, CONTEXT_MESSAGE_LIMIT)
+    : db.prepare('SELECT from_who, text FROM chat_messages ORDER BY id DESC LIMIT ?').all(CONTEXT_MESSAGE_LIMIT);
+  return rows.reverse().map((r) => ({ from: r.from_who, text: r.text }));
+}
 
 router.post('/', async (req, res) => {
   const { text, kind } = req.body;
@@ -38,22 +49,36 @@ router.post('/', async (req, res) => {
   const mineInfo = insertMine.run('me', text, kind || 'text', nowTime());
   const mine = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(mineInfo.lastInsertRowid);
 
-  const recent = db
-    .prepare('SELECT from_who, text FROM chat_messages ORDER BY id DESC LIMIT ?')
-    .all(CONTEXT_MESSAGE_LIMIT)
-    .reverse()
-    .map((r) => ({ from: r.from_who, text: r.text }));
-
-  const reply = await getYushenReply(recent);
+  const reply = await getYushenReply(recentHistory());
   const insertTheirs = db.prepare(
-    'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens) VALUES (?,?,?,?,?)'
+    'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens, thinking) VALUES (?,?,?,?,?,?)'
   );
-  const theirsInfo = insertTheirs.run('them', reply.text, 'text', nowTime(), reply.tokens);
+  const theirsInfo = insertTheirs.run('them', reply.text, 'text', nowTime(), reply.tokens, reply.thinking || null);
   const theirs = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(theirsInfo.lastInsertRowid);
 
   res.json({ mine: serializeMessage(mine), reply: serializeMessage(theirs) });
 
   maybeCompressChatHistory();
+});
+
+// Re-runs one specific past AI reply using the conversation as it stood
+// right before that reply, and overwrites just that message in place —
+// everything after it in the conversation is left untouched.
+router.post('/:id/regenerate', async (req, res) => {
+  const id = Number(req.params.id);
+  const target = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(id);
+  if (!target) return res.status(404).json({ error: 'message not found' });
+  if (target.from_who !== 'them') return res.status(400).json({ error: 'only AI replies can be regenerated' });
+
+  const reply = await getYushenReply(recentHistory(id));
+  db.prepare('UPDATE chat_messages SET text = ?, tokens = ?, thinking = ? WHERE id = ?').run(
+    reply.text,
+    reply.tokens,
+    reply.thinking || null,
+    id
+  );
+  const updated = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(id);
+  res.json(serializeMessage(updated));
 });
 
 // Wipes the whole conversation and its rolling summary. Mainly useful
