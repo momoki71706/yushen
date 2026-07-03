@@ -48,6 +48,7 @@ body {
 
 input, button, textarea, select {
   font-family: inherit;
+  min-width: 0;
 }
 
 button {
