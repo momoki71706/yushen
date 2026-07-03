@@ -36,4 +36,14 @@ export const api = {
   updateAiSettings: (payload) =>
     request('/settings/ai', { method: 'PATCH', body: JSON.stringify(payload) }),
   testAiSettings: () => request('/settings/ai/test', { method: 'POST' }),
+
+  toggleMcpTools: (enabled) =>
+    request('/settings/mcp/toggle', { method: 'PATCH', body: JSON.stringify({ enabled }) }),
+  getMcpServers: () => request('/settings/mcp/servers'),
+  addMcpServer: (payload) =>
+    request('/settings/mcp/servers', { method: 'POST', body: JSON.stringify(payload) }),
+  updateMcpServer: (id, payload) =>
+    request(`/settings/mcp/servers/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteMcpServer: (id) => request(`/settings/mcp/servers/${id}`, { method: 'DELETE' }),
+  testMcpServer: (id) => request(`/settings/mcp/servers/${id}/test`, { method: 'POST' }),
 };

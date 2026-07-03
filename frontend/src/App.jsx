@@ -6,6 +6,7 @@ import BottomNav from './components/BottomNav';
 import Sidebar from './components/Sidebar';
 import LetterReminder from './components/LetterReminder';
 import AiSettingsPanel from './components/AiSettingsPanel';
+import McpPanel from './components/McpPanel';
 import ModePill from './components/ModePill';
 import PlaceholderTab from './components/PlaceholderTab';
 import ChatMode from './modes/ChatMode';
@@ -52,6 +53,7 @@ function App() {
         <Sidebar />
         <LetterReminder />
         <AiSettingsPanel />
+        <McpPanel />
       </div>
     </div>
   );

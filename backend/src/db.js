@@ -49,6 +49,15 @@ CREATE TABLE IF NOT EXISTS letters (
   has_attachment INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS mcp_servers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  headers TEXT,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `);
 
 function seedIfEmpty() {
@@ -98,6 +107,10 @@ function seedIfEmpty() {
     letterReminderDismissedDate: '',
     aiProvider: 'api',
     anthropicApiKey: '',
+    relayApiKey: '',
+    relayBaseUrl: '',
+    relayModel: '',
+    mcpToolsEnabled: '0',
   };
   const getSetting = db.prepare('SELECT value FROM settings WHERE key = ?');
   const setSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');

@@ -9,6 +9,16 @@ function SparkIcon() {
   );
 }
 
+function ToolIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M11 1L15 5L12.5 7.5L8.5 3.5L11 1Z" stroke="#8C6A72" strokeWidth="1.3" strokeLinejoin="round" fill="none" />
+      <path d="M8.5 3.5L2 10C1.4 10.6 1.4 11.5 2 12S3.4 12.6 4 12L10.5 5.5" stroke="#8C6A72" strokeWidth="1.3" strokeLinejoin="round" fill="none" />
+      <circle cx="3" cy="13" r="1.5" fill="#8C6A72" />
+    </svg>
+  );
+}
+
 const MENU_ITEMS = [
   { label: '主题装扮', bg: '#EDD9E1' },
   { label: '纪念日管理', bg: '#D9CBD3' },
@@ -28,6 +38,7 @@ export default function Sidebar() {
   const letterReminderEnabled = useStore((s) => s.letterReminderEnabled);
   const toggleLetterReminderSetting = useStore((s) => s.toggleLetterReminderSetting);
   const openAiSettings = useStore((s) => s.openAiSettings);
+  const openMcpPanel = useStore((s) => s.openMcpPanel);
 
   if (!sidebarOpen) return null;
 
@@ -64,6 +75,13 @@ export default function Sidebar() {
             <SparkIcon />
           </div>
           <div className="sidebar-menu-label">AI 接入设置</div>
+          <ChevronRight />
+        </button>
+        <button className="sidebar-menu-item" onClick={openMcpPanel}>
+          <div className="sidebar-menu-icon" style={{ background: '#C9B9BE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ToolIcon />
+          </div>
+          <div className="sidebar-menu-label">工具管理</div>
           <ChevronRight />
         </button>
         <div className="sidebar-divider" style={{ margin: '4px 0 8px' }} />

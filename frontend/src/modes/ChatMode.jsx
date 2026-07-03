@@ -9,8 +9,9 @@ export default function ChatMode() {
   const onChatChange = useStore((s) => s.onChatChange);
   const sendChat = useStore((s) => s.sendChat);
   const sendBowSticker = useStore((s) => s.sendBowSticker);
-  const sendStarSticker = useStore((s) => s.sendStarSticker);
   const sendPhotoSticker = useStore((s) => s.sendPhotoSticker);
+  const mcpToolsEnabled = useStore((s) => s.mcpToolsEnabled);
+  const toggleMcpToolsQuick = useStore((s) => s.toggleMcpToolsQuick);
 
   const listRef = useRef(null);
   useEffect(() => {
@@ -61,7 +62,15 @@ export default function ChatMode() {
           <button className="sticker-btn" style={{ background: '#F6E2E8' }} onClick={sendBowSticker}>
             <BowIcon />
           </button>
-          <button className="sticker-btn" style={{ background: '#F1E0E8' }} onClick={sendStarSticker}>
+          <button
+            className="sticker-btn"
+            title="工具开关"
+            style={{
+              background: mcpToolsEnabled ? '#E8C4D4' : '#F1E0E8',
+              boxShadow: mcpToolsEnabled ? '0 0 0 3px rgba(200,137,158,0.3)' : 'none',
+            }}
+            onClick={toggleMcpToolsQuick}
+          >
             <StarIcon />
           </button>
           <button className="sticker-btn" style={{ background: 'rgba(255,255,255,0.7)' }} onClick={sendPhotoSticker}>

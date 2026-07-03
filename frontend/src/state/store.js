@@ -92,7 +92,6 @@ export const useStore = create((set, get) => ({
     get().pushMessage(text, 'text');
   },
   sendBowSticker: () => get().pushMessage('抱抱～', 'text'),
-  sendStarSticker: () => get().pushMessage('想你啦', 'text'),
   sendPhotoSticker: () => get().pushMessage('分享了一张此刻的照片', 'photo'),
 
   // ---- diary ----
@@ -286,6 +285,22 @@ export const useStore = create((set, get) => ({
     set({ aiApiKeyDraft: '', aiTestStatus: null });
     get().loadAiSettings();
   },
+  relayApiKeyDraft: '',
+  relayBaseUrlDraft: '',
+  relayModelDraft: '',
+  onRelayApiKeyDraftChange: (value) => set({ relayApiKeyDraft: value }),
+  onRelayBaseUrlDraftChange: (value) => set({ relayBaseUrlDraft: value }),
+  onRelayModelDraftChange: (value) => set({ relayModelDraft: value }),
+  saveRelayConfig: async () => {
+    const { relayApiKeyDraft, relayBaseUrlDraft, relayModelDraft } = get();
+    const payload = {};
+    if (relayApiKeyDraft.trim()) payload.relayApiKey = relayApiKeyDraft.trim();
+    if (relayBaseUrlDraft.trim()) payload.relayBaseUrl = relayBaseUrlDraft.trim();
+    if (relayModelDraft.trim()) payload.relayModel = relayModelDraft.trim();
+    await api.updateAiSettings(payload);
+    set({ relayApiKeyDraft: '', relayBaseUrlDraft: '', relayModelDraft: '', aiTestStatus: null });
+    get().loadAiSettings();
+  },
   testAiConnection: async () => {
     set({ aiTestStatus: { loading: true } });
     try {
@@ -293,6 +308,56 @@ export const useStore = create((set, get) => ({
       set({ aiTestStatus: { loading: false, ok: result.ok, message: result.message } });
     } catch (err) {
       set({ aiTestStatus: { loading: false, ok: false, message: err.message } });
+    }
+  },
+
+  // ---- MCP tools ----
+  mcpToolsEnabled: false,
+  mcpPanelOpen: false,
+  mcpServers: [],
+  mcpNewName: '',
+  mcpNewUrl: '',
+  mcpTestStatus: {},
+  toggleMcpToolsQuick: async () => {
+    const enabled = !get().mcpToolsEnabled;
+    set({ mcpToolsEnabled: enabled });
+    await api.toggleMcpTools(enabled);
+  },
+  openMcpPanel: () => {
+    set({ mcpPanelOpen: true });
+    get().loadMcpServers();
+  },
+  closeMcpPanel: () => set({ mcpPanelOpen: false }),
+  loadMcpServers: async () => {
+    const mcpServers = await api.getMcpServers();
+    set({ mcpServers });
+  },
+  onMcpNewNameChange: (value) => set({ mcpNewName: value }),
+  onMcpNewUrlChange: (value) => set({ mcpNewUrl: value }),
+  addMcpServerAction: async () => {
+    const { mcpNewName, mcpNewUrl } = get();
+    if (!mcpNewName.trim() || !mcpNewUrl.trim()) return;
+    await api.addMcpServer({ name: mcpNewName.trim(), url: mcpNewUrl.trim() });
+    set({ mcpNewName: '', mcpNewUrl: '' });
+    get().loadMcpServers();
+  },
+  toggleMcpServerEnabled: async (id) => {
+    const server = get().mcpServers.find((s) => s.id === id);
+    if (!server) return;
+    await api.updateMcpServer(id, { enabled: !server.enabled });
+    get().loadMcpServers();
+  },
+  deleteMcpServerAction: async (id) => {
+    await api.deleteMcpServer(id);
+    get().loadMcpServers();
+  },
+  testMcpServerAction: async (id) => {
+    set((s) => ({ mcpTestStatus: { ...s.mcpTestStatus, [id]: { loading: true } } }));
+    try {
+      const result = await api.testMcpServer(id);
+      set((s) => ({ mcpTestStatus: { ...s.mcpTestStatus, [id]: result } }));
+    } catch (err) {
+      set((s) => ({ mcpTestStatus: { ...s.mcpTestStatus, [id]: { ok: false, message: err.message } } }));
     }
   },
 
@@ -305,5 +370,6 @@ export const useStore = create((set, get) => ({
       get().loadLetters(),
     ]);
     get().checkLetterReminder();
+    api.getAiSettings().then((s) => set({ mcpToolsEnabled: !!s.mcpToolsEnabled })).catch(() => {});
   },
 }));

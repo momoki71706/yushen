@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { db, getSetting, setSetting } from '../db.js';
-import { resolveApiKey } from '../aiReply.js';
+import { resolveApiKey, resolveRelayConfig } from '../aiReply.js';
 import { testApiKey } from '../anthropic.js';
 import { isClaudeCodeAvailable, testClaudeCode } from '../claudeCode.js';
+import * as mcp from '../mcp.js';
 
 const router = Router();
 
@@ -55,6 +56,7 @@ router.get('/ai', async (req, res) => {
   const provider = getSetting('aiProvider', 'api');
   const storedKey = getSetting('anthropicApiKey', '');
   const envKey = process.env.ANTHROPIC_API_KEY || '';
+  const relay = resolveRelayConfig();
   const claudeCodeAvailable = await isClaudeCodeAvailable();
   res.json({
     provider,
@@ -62,20 +64,26 @@ router.get('/ai', async (req, res) => {
     apiKeyMasked: maskKey(storedKey || envKey),
     apiKeySource: storedKey ? 'app' : envKey ? 'env' : null,
     claudeCodeAvailable,
+    relayHasKey: !!relay.apiKey,
+    relayApiKeyMasked: maskKey(relay.apiKey),
+    relayBaseUrl: relay.baseURL,
+    relayModel: getSetting('relayModel', ''),
+    mcpToolsEnabled: getSetting('mcpToolsEnabled', '0') === '1',
   });
 });
 
 router.patch('/ai', (req, res) => {
-  const { provider, apiKey } = req.body;
+  const { provider, apiKey, relayApiKey, relayBaseUrl, relayModel } = req.body;
   if (provider !== undefined) {
-    if (!['api', 'claude-code'].includes(provider)) {
-      return res.status(400).json({ error: 'provider must be "api" or "claude-code"' });
+    if (!['api', 'claude-code', 'relay'].includes(provider)) {
+      return res.status(400).json({ error: 'provider must be "api", "claude-code" or "relay"' });
     }
     setSetting('aiProvider', provider);
   }
-  if (apiKey !== undefined) {
-    setSetting('anthropicApiKey', (apiKey || '').trim());
-  }
+  if (apiKey !== undefined) setSetting('anthropicApiKey', (apiKey || '').trim());
+  if (relayApiKey !== undefined) setSetting('relayApiKey', (relayApiKey || '').trim());
+  if (relayBaseUrl !== undefined) setSetting('relayBaseUrl', (relayBaseUrl || '').trim());
+  if (relayModel !== undefined) setSetting('relayModel', (relayModel || '').trim());
   res.json({ ok: true });
 });
 
@@ -85,12 +93,55 @@ router.post('/ai/test', async (req, res) => {
     if (provider === 'claude-code') {
       await testClaudeCode();
       res.json({ ok: true, message: 'Claude Code CLI 调用成功' });
+    } else if (provider === 'relay') {
+      const relay = resolveRelayConfig();
+      if (!relay.apiKey) return res.json({ ok: false, message: '还没有设置中转站 API Key' });
+      if (!relay.baseURL) return res.json({ ok: false, message: '还没有设置中转站接口地址' });
+      await testApiKey(relay.apiKey, relay.model, relay.baseURL);
+      res.json({ ok: true, message: '中转站连接成功' });
     } else {
       const key = resolveApiKey();
       if (!key) return res.json({ ok: false, message: '还没有设置 API Key' });
       await testApiKey(key, process.env.ANTHROPIC_MODEL || 'claude-sonnet-5');
       res.json({ ok: true, message: 'API Key 验证成功' });
     }
+  } catch (err) {
+    res.json({ ok: false, message: err.message || '连接失败' });
+  }
+});
+
+router.patch('/mcp/toggle', (req, res) => {
+  const enabled = !!req.body.enabled;
+  setSetting('mcpToolsEnabled', enabled ? '1' : '0');
+  res.json({ mcpToolsEnabled: enabled });
+});
+
+router.get('/mcp/servers', (req, res) => {
+  res.json(mcp.listServers());
+});
+
+router.post('/mcp/servers', (req, res) => {
+  const { name, url, headers } = req.body;
+  if (!name || !String(name).trim()) return res.status(400).json({ error: 'name is required' });
+  if (!url || !String(url).trim()) return res.status(400).json({ error: 'url is required' });
+  res.json(mcp.addServer({ name: name.trim(), url: url.trim(), headers }));
+});
+
+router.patch('/mcp/servers/:id', (req, res) => {
+  const updated = mcp.updateServer(req.params.id, req.body);
+  if (!updated) return res.status(404).json({ error: 'not found' });
+  res.json(updated);
+});
+
+router.delete('/mcp/servers/:id', (req, res) => {
+  mcp.deleteServer(req.params.id);
+  res.json({ ok: true });
+});
+
+router.post('/mcp/servers/:id/test', async (req, res) => {
+  try {
+    const result = await mcp.testServer(req.params.id);
+    res.json(result);
   } catch (err) {
     res.json({ ok: false, message: err.message || '连接失败' });
   }
