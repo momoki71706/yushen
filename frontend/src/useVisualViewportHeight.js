@@ -27,7 +27,17 @@ export function useVisualViewportHeight() {
     };
 
     const restoreFullHeight = () => {
-      document.documentElement.style.removeProperty('--vvh');
+      // Setting an explicit px value (rather than just removing the
+      // property and falling back to 100dvh) plus forcing a synchronous
+      // reflow works around a WebKit repaint bug where the layout stays
+      // visually stuck at the old, smaller height until something
+      // unrelated forces a re-render.
+      document.documentElement.style.setProperty('--vvh', `${window.innerHeight}px`);
+      void document.documentElement.offsetHeight;
+      requestAnimationFrame(() => {
+        document.documentElement.style.removeProperty('--vvh');
+        void document.documentElement.offsetHeight;
+      });
     };
 
     const onFocusIn = (e) => {

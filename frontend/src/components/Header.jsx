@@ -33,6 +33,7 @@ export default function Header() {
           <div className="nickname-row">
             {nicknameEditing ? (
               <>
+                <div className="nickname-spacer" />
                 <input
                   className="nickname-input"
                   value={nicknameDraft}
@@ -47,6 +48,7 @@ export default function Header() {
               </>
             ) : (
               <>
+                <div className="nickname-spacer" />
                 <div className="nickname-text">{nickname}</div>
                 <button className="nickname-icon-btn" onClick={startEditNickname}>
                   <PencilIcon />

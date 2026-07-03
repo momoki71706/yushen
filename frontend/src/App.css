@@ -113,6 +113,10 @@
   color: var(--color-text);
   font-weight: 500;
 }
+.nickname-spacer {
+  width: 24px;
+  flex-shrink: 0;
+}
 .nickname-icon-btn {
   width: 24px;
   height: 24px;
