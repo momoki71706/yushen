@@ -46,17 +46,46 @@ export function deletePreset(id) {
   db.prepare('DELETE FROM prompt_presets WHERE id = ?').run(id);
 }
 
+const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+function getPeriodLabel(hour) {
+  if (hour < 6) return '凌晨';
+  if (hour < 9) return '早上';
+  if (hour < 12) return '上午';
+  if (hour < 14) return '中午';
+  if (hour < 17) return '下午';
+  if (hour < 19) return '傍晚';
+  if (hour < 22) return '晚上';
+  return '深夜';
+}
+
+// Recomputed fresh on every call — this is what actually makes time
+// awareness work. Embedding a timestamp inside a chat message (or, worse,
+// a static one written into a preset) gets read by the model as just more
+// conversation text, easy to ignore or misread. A clearly-labelled system
+// block that's always current is what the model treats as ground truth.
+function getTimeContext() {
+  const now = new Date();
+  const weekday = WEEKDAYS[now.getDay()];
+  const period = getPeriodLabel(now.getHours());
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  return `现在是${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${weekday} ${period} ${hh}:${mm}`;
+}
+
 // Every enabled preset's content is concatenated (in category/sort order)
 // into a single system prompt applied to every chat call, across all AI
 // providers and Claude Code CLI. The rolling chat-history summary (from
-// compression.js) is appended last so it stays close to the actual
-// conversation in the prompt.
+// compression.js) and the current-time block are appended last, in that
+// order — least volatile content first, most volatile last.
 export function getComposedSystemPrompt() {
   const rows = db.prepare('SELECT content FROM prompt_presets WHERE enabled = 1 ORDER BY category ASC, sort_order ASC, id ASC').all();
   const combined = rows.map((r) => r.content.trim()).filter(Boolean).join('\n\n');
   const base = combined || '你是屿深，正在手机上和女朋友小晴聊天。回复要简短自然、温暖随意。';
 
+  const parts = [base];
   const chatSummary = (getSetting('chatSummary', '') || '').trim();
-  if (!chatSummary) return base;
-  return `${base}\n\n【更早之前的对话摘要】\n${chatSummary}`;
+  if (chatSummary) parts.push(`【更早之前的对话摘要】\n${chatSummary}`);
+  parts.push(`【当前时间】\n${getTimeContext()}`);
+  return parts.join('\n\n');
 }

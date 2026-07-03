@@ -131,6 +131,27 @@ function extractThinking(content) {
   return blocks.map((b) => b.thinking).join('\n').trim() || null;
 }
 
+// OpenAI's own API never exposes reasoning traces, but most relays that
+// proxy a reasoning-capable model through an OpenAI-compatible facade do —
+// there's just no standard for where. `reasoning_content` (DeepSeek's
+// convention, widely copied) and `reasoning` are the two most common
+// dedicated fields; some relays instead inline it as <think>...</think>
+// right inside the visible content, which needs stripping out or it'd
+// show up as raw tags in the chat bubble.
+function extractOpenAiThinking(message) {
+  if (!message) return { text: '', thinking: null };
+  let text = message.content || '';
+  let thinking = message.reasoning_content || message.reasoning || null;
+
+  const thinkMatch = text.match(/<think>([\s\S]*?)<\/think>/i);
+  if (thinkMatch) {
+    thinking = (thinking ? `${thinking}\n` : '') + thinkMatch[1].trim();
+    text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+  }
+
+  return { text: text.trim(), thinking: thinking ? thinking.trim() : null };
+}
+
 async function callOpenAiCompatible({ apiKey, baseUrl, model, system, messages, maxTokens }) {
   const res = await fetch(joinUrl(baseUrl, '/chat/completions'), {
     method: 'POST',
@@ -168,9 +189,10 @@ export async function getReplyViaProvider(history, provider) {
       system: systemPrompt,
       messages,
     });
-    const text = (json.choices?.[0]?.message?.content || '').trim() || FALLBACK_REPLY;
+    const { text: rawText, thinking } = extractOpenAiThinking(json.choices?.[0]?.message);
+    const text = rawText || FALLBACK_REPLY;
     const tokens = json.usage?.completion_tokens ?? estimateTokens(text);
-    return { text, tokens };
+    return { text, tokens, thinking };
   }
 
   const response = await callAnthropic({
@@ -215,4 +237,4 @@ export async function testProvider(id) {
   }
 }
 
-export { callAnthropic, callOpenAiCompatible, pickKey, extractThinking };
+export { callAnthropic, callOpenAiCompatible, pickKey, extractThinking, extractOpenAiThinking };

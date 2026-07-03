@@ -5,7 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { db } from './db.js';
 import { FALLBACK_REPLY, estimateTokens } from './persona.js';
 import { getComposedSystemPrompt } from './presets.js';
-import { THINKING_BUDGET_TOKENS, extractThinking } from './providers.js';
+import { THINKING_BUDGET_TOKENS, extractThinking, extractOpenAiThinking } from './providers.js';
 
 const MAX_TOOL_ITERATIONS = 5;
 const CLIENT_INFO = { name: 'xiaoqing-yushen-app', version: '1.0.0' };
@@ -245,6 +245,7 @@ export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools) 
   ];
 
   let finalText = '';
+  let finalThinking = null;
   let totalTokens = 0;
   let toolCallCount = 0;
 
@@ -268,7 +269,9 @@ export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools) 
 
     const message = json.choices?.[0]?.message;
     if (!message) break;
-    finalText = (message.content || '').trim();
+    const extracted = extractOpenAiThinking(message);
+    finalText = extracted.text;
+    finalThinking = extracted.thinking || finalThinking;
 
     const toolCalls = message.tool_calls || [];
     if (!toolCalls.length) break;
@@ -297,5 +300,5 @@ export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools) 
 
   if (toolCallCount === 0) console.log(`[mcp] openai tool loop: ${tools.length} tool(s) offered, model made 0 calls`);
   const text = finalText || FALLBACK_REPLY;
-  return { text, tokens: totalTokens || estimateTokens(text) };
+  return { text, tokens: totalTokens || estimateTokens(text), thinking: finalThinking };
 }
