@@ -1,17 +1,10 @@
 import { Router } from 'express';
 import { db, getSetting, setSetting } from '../db.js';
-import { resolveApiKey, resolveRelayConfig } from '../aiReply.js';
-import { testApiKey } from '../anthropic.js';
+import * as providers from '../providers.js';
 import { isClaudeCodeAvailable, testClaudeCode } from '../claudeCode.js';
 import * as mcp from '../mcp.js';
 
 const router = Router();
-
-function maskKey(key) {
-  if (!key) return null;
-  if (key.length <= 4) return '••••';
-  return '••••••' + key.slice(-4);
-}
 
 router.get('/', (req, res) => {
   res.json({
@@ -52,63 +45,72 @@ router.get('/reminder-status', (req, res) => {
   res.json({ shouldShow, dueUnreadCount });
 });
 
-router.get('/ai', async (req, res) => {
-  const provider = getSetting('aiProvider', 'api');
-  const storedKey = getSetting('anthropicApiKey', '');
-  const envKey = process.env.ANTHROPIC_API_KEY || '';
-  const relay = resolveRelayConfig();
+// ---- AI mode (provider list vs Claude Code CLI) ----
+
+router.get('/ai-mode', async (req, res) => {
   const claudeCodeAvailable = await isClaudeCodeAvailable();
   res.json({
-    provider,
-    hasApiKey: !!(storedKey || envKey),
-    apiKeyMasked: maskKey(storedKey || envKey),
-    apiKeySource: storedKey ? 'app' : envKey ? 'env' : null,
+    aiMode: getSetting('aiMode', 'provider'),
+    activeProviderId: getSetting('activeProviderId', ''),
     claudeCodeAvailable,
-    relayHasKey: !!relay.apiKey,
-    relayApiKeyMasked: maskKey(relay.apiKey),
-    relayBaseUrl: relay.baseURL,
-    relayModel: getSetting('relayModel', ''),
     mcpToolsEnabled: getSetting('mcpToolsEnabled', '0') === '1',
   });
 });
 
-router.patch('/ai', (req, res) => {
-  const { provider, apiKey, relayApiKey, relayBaseUrl, relayModel } = req.body;
-  if (provider !== undefined) {
-    if (!['api', 'claude-code', 'relay'].includes(provider)) {
-      return res.status(400).json({ error: 'provider must be "api", "claude-code" or "relay"' });
+router.patch('/ai-mode', (req, res) => {
+  const { aiMode, activeProviderId } = req.body;
+  if (aiMode !== undefined) {
+    if (!['provider', 'claude-code'].includes(aiMode)) {
+      return res.status(400).json({ error: 'aiMode must be "provider" or "claude-code"' });
     }
-    setSetting('aiProvider', provider);
+    setSetting('aiMode', aiMode);
   }
-  if (apiKey !== undefined) setSetting('anthropicApiKey', (apiKey || '').trim());
-  if (relayApiKey !== undefined) setSetting('relayApiKey', (relayApiKey || '').trim());
-  if (relayBaseUrl !== undefined) setSetting('relayBaseUrl', (relayBaseUrl || '').trim());
-  if (relayModel !== undefined) setSetting('relayModel', (relayModel || '').trim());
+  if (activeProviderId !== undefined) setSetting('activeProviderId', String(activeProviderId));
   res.json({ ok: true });
 });
 
-router.post('/ai/test', async (req, res) => {
-  const provider = getSetting('aiProvider', 'api');
+router.post('/ai-mode/test-claude-code', async (req, res) => {
   try {
-    if (provider === 'claude-code') {
-      await testClaudeCode();
-      res.json({ ok: true, message: 'Claude Code CLI 调用成功' });
-    } else if (provider === 'relay') {
-      const relay = resolveRelayConfig();
-      if (!relay.apiKey) return res.json({ ok: false, message: '还没有设置中转站 API Key' });
-      if (!relay.baseURL) return res.json({ ok: false, message: '还没有设置中转站接口地址' });
-      await testApiKey(relay.apiKey, relay.model, relay.baseURL);
-      res.json({ ok: true, message: '中转站连接成功' });
-    } else {
-      const key = resolveApiKey();
-      if (!key) return res.json({ ok: false, message: '还没有设置 API Key' });
-      await testApiKey(key, process.env.ANTHROPIC_MODEL || 'claude-sonnet-5');
-      res.json({ ok: true, message: 'API Key 验证成功' });
-    }
+    await testClaudeCode();
+    res.json({ ok: true, message: 'Claude Code CLI 调用成功' });
   } catch (err) {
     res.json({ ok: false, message: err.message || '连接失败' });
   }
 });
+
+// ---- AI providers (multi-provider, multi-key, multi-model) ----
+
+router.get('/providers', (req, res) => {
+  res.json(providers.listProviders());
+});
+
+router.post('/providers', (req, res) => {
+  const { name } = req.body;
+  if (!name || !String(name).trim()) return res.status(400).json({ error: 'name is required' });
+  res.json(providers.addProvider({ ...req.body, name: name.trim() }));
+});
+
+router.patch('/providers/:id', (req, res) => {
+  const updated = providers.updateProvider(req.params.id, req.body);
+  if (!updated) return res.status(404).json({ error: 'not found' });
+  res.json(updated);
+});
+
+router.delete('/providers/:id', (req, res) => {
+  providers.deleteProvider(req.params.id);
+  res.json({ ok: true });
+});
+
+router.post('/providers/:id/test', async (req, res) => {
+  try {
+    await providers.testProvider(req.params.id);
+    res.json({ ok: true, message: '连接成功' });
+  } catch (err) {
+    res.json({ ok: false, message: err.message || '连接失败' });
+  }
+});
+
+// ---- MCP tools ----
 
 router.patch('/mcp/toggle', (req, res) => {
   const enabled = !!req.body.enabled;

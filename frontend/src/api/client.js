@@ -32,10 +32,18 @@ export const api = {
     request('/settings', { method: 'PATCH', body: JSON.stringify(payload) }),
   getReminderStatus: () => request('/settings/reminder-status'),
 
-  getAiSettings: () => request('/settings/ai'),
-  updateAiSettings: (payload) =>
-    request('/settings/ai', { method: 'PATCH', body: JSON.stringify(payload) }),
-  testAiSettings: () => request('/settings/ai/test', { method: 'POST' }),
+  getAiMode: () => request('/settings/ai-mode'),
+  updateAiMode: (payload) =>
+    request('/settings/ai-mode', { method: 'PATCH', body: JSON.stringify(payload) }),
+  testClaudeCode: () => request('/settings/ai-mode/test-claude-code', { method: 'POST' }),
+
+  getProviders: () => request('/settings/providers'),
+  addProvider: (payload) =>
+    request('/settings/providers', { method: 'POST', body: JSON.stringify(payload) }),
+  updateProvider: (id, payload) =>
+    request(`/settings/providers/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteProvider: (id) => request(`/settings/providers/${id}`, { method: 'DELETE' }),
+  testProvider: (id) => request(`/settings/providers/${id}/test`, { method: 'POST' }),
 
   toggleMcpTools: (enabled) =>
     request('/settings/mcp/toggle', { method: 'PATCH', body: JSON.stringify({ enabled }) }),

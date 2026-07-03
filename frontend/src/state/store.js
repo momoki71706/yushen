@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { api } from '../api/client';
 
 const MOOD_PALETTE = { 开心: '#EDD9E1', 平静: '#E0D2D9', 难过: '#C9AEB9', 兴奋: '#E7D6CE', 疲惫: '#CBB9C0' };
@@ -23,7 +24,9 @@ function isDateDue(iso) {
   return d <= today;
 }
 
-export const useStore = create((set, get) => ({
+export const useStore = create(
+  persist(
+    (set, get) => ({
   moodPalette: MOOD_PALETTE,
   weatherPalette: WEATHER_PALETTE,
   parseLocalDate,
@@ -258,56 +261,150 @@ export const useStore = create((set, get) => ({
     });
   },
 
-  // ---- AI provider settings ----
+  // ---- AI provider settings (level 1: mode/provider list, level 2: provider editor) ----
   aiSettingsOpen: false,
-  aiSettings: { provider: 'api', hasApiKey: false, apiKeyMasked: null, apiKeySource: null, claudeCodeAvailable: false },
-  aiApiKeyDraft: '',
-  aiTestStatus: null,
+  aiMode: 'provider',
+  activeProviderId: '',
+  claudeCodeAvailable: false,
+  providers: [],
+  providerTestStatus: {},
+  claudeCodeTestStatus: null,
+  providerEditId: null, // null = level1, 'new' = creating, number = editing existing
+  providerDraft: null,
+
   openAiSettings: () => {
-    set({ aiSettingsOpen: true, aiTestStatus: null, aiApiKeyDraft: '' });
-    get().loadAiSettings();
+    set({ aiSettingsOpen: true, providerEditId: null, providerDraft: null });
+    get().loadAiMode();
+    get().loadProviders();
   },
-  closeAiSettings: () => set({ aiSettingsOpen: false }),
-  loadAiSettings: async () => {
-    const aiSettings = await api.getAiSettings();
-    set({ aiSettings });
+  closeAiSettings: () => set({ aiSettingsOpen: false, providerEditId: null, providerDraft: null }),
+  loadAiMode: async () => {
+    const s = await api.getAiMode();
+    set({
+      aiMode: s.aiMode,
+      activeProviderId: s.activeProviderId,
+      claudeCodeAvailable: s.claudeCodeAvailable,
+      mcpToolsEnabled: !!s.mcpToolsEnabled,
+    });
   },
-  setAiProvider: async (provider) => {
-    set((s) => ({ aiSettings: { ...s.aiSettings, provider }, aiTestStatus: null }));
-    await api.updateAiSettings({ provider });
-    get().loadAiSettings();
+  loadProviders: async () => {
+    const providers = await api.getProviders();
+    set({ providers });
   },
-  onAiApiKeyDraftChange: (value) => set({ aiApiKeyDraft: value }),
-  saveAiApiKey: async () => {
-    const key = (get().aiApiKeyDraft || '').trim();
-    if (!key) return;
-    await api.updateAiSettings({ apiKey: key });
-    set({ aiApiKeyDraft: '', aiTestStatus: null });
-    get().loadAiSettings();
+  selectClaudeCodeMode: async () => {
+    set({ aiMode: 'claude-code' });
+    await api.updateAiMode({ aiMode: 'claude-code' });
   },
-  relayApiKeyDraft: '',
-  relayBaseUrlDraft: '',
-  relayModelDraft: '',
-  onRelayApiKeyDraftChange: (value) => set({ relayApiKeyDraft: value }),
-  onRelayBaseUrlDraftChange: (value) => set({ relayBaseUrlDraft: value }),
-  onRelayModelDraftChange: (value) => set({ relayModelDraft: value }),
-  saveRelayConfig: async () => {
-    const { relayApiKeyDraft, relayBaseUrlDraft, relayModelDraft } = get();
-    const payload = {};
-    if (relayApiKeyDraft.trim()) payload.relayApiKey = relayApiKeyDraft.trim();
-    if (relayBaseUrlDraft.trim()) payload.relayBaseUrl = relayBaseUrlDraft.trim();
-    if (relayModelDraft.trim()) payload.relayModel = relayModelDraft.trim();
-    await api.updateAiSettings(payload);
-    set({ relayApiKeyDraft: '', relayBaseUrlDraft: '', relayModelDraft: '', aiTestStatus: null });
-    get().loadAiSettings();
+  selectProvider: async (id) => {
+    set({ aiMode: 'provider', activeProviderId: id });
+    await api.updateAiMode({ aiMode: 'provider', activeProviderId: id });
   },
-  testAiConnection: async () => {
-    set({ aiTestStatus: { loading: true } });
+  testClaudeCodeAction: async () => {
+    set({ claudeCodeTestStatus: { loading: true } });
     try {
-      const result = await api.testAiSettings();
-      set({ aiTestStatus: { loading: false, ok: result.ok, message: result.message } });
+      const result = await api.testClaudeCode();
+      set({ claudeCodeTestStatus: { loading: false, ok: result.ok, message: result.message } });
     } catch (err) {
-      set({ aiTestStatus: { loading: false, ok: false, message: err.message } });
+      set({ claudeCodeTestStatus: { loading: false, ok: false, message: err.message } });
+    }
+  },
+  testProviderAction: async (id) => {
+    set((s) => ({ providerTestStatus: { ...s.providerTestStatus, [id]: { loading: true } } }));
+    try {
+      const result = await api.testProvider(id);
+      set((s) => ({ providerTestStatus: { ...s.providerTestStatus, [id]: result } }));
+    } catch (err) {
+      set((s) => ({ providerTestStatus: { ...s.providerTestStatus, [id]: { ok: false, message: err.message } } }));
+    }
+  },
+  deleteProviderAction: async (id) => {
+    await api.deleteProvider(id);
+    set({ providerEditId: null, providerDraft: null });
+    get().loadProviders();
+    get().loadAiMode();
+  },
+
+  openProviderEditor: (id) => {
+    if (id === 'new') {
+      set({
+        providerEditId: 'new',
+        providerDraft: { name: '', type: 'anthropic', baseUrl: '', multiKeyEnabled: false, keysText: '', models: [], selectedModel: '', newModelDraft: '' },
+      });
+      return;
+    }
+    const p = get().providers.find((x) => x.id === id);
+    if (!p) return;
+    set({
+      providerEditId: id,
+      providerDraft: {
+        name: p.name,
+        type: p.type,
+        baseUrl: p.baseUrl,
+        multiKeyEnabled: p.multiKeyEnabled,
+        keysText: '',
+        keyCount: p.keyCount,
+        models: [...p.models],
+        selectedModel: p.selectedModel,
+        newModelDraft: '',
+      },
+    });
+  },
+  closeProviderEditor: () => set({ providerEditId: null, providerDraft: null }),
+  onProviderDraftChange: (field, value) => set((s) => ({ providerDraft: { ...s.providerDraft, [field]: value } })),
+  addModelToDraft: () => {
+    const { providerDraft } = get();
+    const name = (providerDraft.newModelDraft || '').trim();
+    if (!name || providerDraft.models.includes(name)) return;
+    const models = [...providerDraft.models, name];
+    set({
+      providerDraft: {
+        ...providerDraft,
+        models,
+        newModelDraft: '',
+        selectedModel: providerDraft.selectedModel || name,
+      },
+    });
+  },
+  removeModelFromDraft: (name) => {
+    const { providerDraft } = get();
+    const models = providerDraft.models.filter((m) => m !== name);
+    set({
+      providerDraft: {
+        ...providerDraft,
+        models,
+        selectedModel: providerDraft.selectedModel === name ? models[0] || '' : providerDraft.selectedModel,
+      },
+    });
+  },
+  saveProviderDraft: async () => {
+    const { providerEditId, providerDraft } = get();
+    if (!providerDraft.name.trim()) return;
+    const keysFromText = providerDraft.keysText
+      .split('\n')
+      .map((k) => k.trim())
+      .filter(Boolean);
+    const payload = {
+      name: providerDraft.name.trim(),
+      type: providerDraft.type,
+      baseUrl: providerDraft.baseUrl.trim(),
+      multiKeyEnabled: providerDraft.multiKeyEnabled,
+      models: providerDraft.models,
+      selectedModel: providerDraft.selectedModel,
+    };
+    if (keysFromText.length) payload.keys = keysFromText;
+
+    let saved;
+    if (providerEditId === 'new') {
+      if (!keysFromText.length) payload.keys = [];
+      saved = await api.addProvider(payload);
+    } else {
+      saved = await api.updateProvider(providerEditId, payload);
+    }
+    set({ providerEditId: null, providerDraft: null });
+    await get().loadProviders();
+    if (providerEditId === 'new' && saved) {
+      const providersNow = get().providers;
+      if (providersNow.length === 1) get().selectProvider(saved.id);
     }
   },
 
@@ -370,6 +467,18 @@ export const useStore = create((set, get) => ({
       get().loadLetters(),
     ]);
     get().checkLetterReminder();
-    api.getAiSettings().then((s) => set({ mcpToolsEnabled: !!s.mcpToolsEnabled })).catch(() => {});
+    api.getAiMode().then((s) => set({ mcpToolsEnabled: !!s.mcpToolsEnabled })).catch(() => {});
   },
-}));
+    }),
+    {
+      name: 'xq-app-ui-state',
+      partialize: (s) => ({
+        activeTab: s.activeTab,
+        homeMode: s.homeMode,
+        letterView: s.letterView,
+        letterMailboxTab: s.letterMailboxTab,
+        diaryView: s.diaryView === 'detail' ? 'list' : s.diaryView,
+      }),
+    }
+  )
+);

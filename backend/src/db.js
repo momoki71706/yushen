@@ -58,6 +58,18 @@ CREATE TABLE IF NOT EXISTS mcp_servers (
   enabled INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS ai_providers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'anthropic',
+  base_url TEXT,
+  multi_key_enabled INTEGER NOT NULL DEFAULT 0,
+  keys TEXT NOT NULL DEFAULT '[]',
+  models TEXT NOT NULL DEFAULT '[]',
+  selected_model TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `);
 
 function seedIfEmpty() {
@@ -101,15 +113,31 @@ function seedIfEmpty() {
     tx(seed);
   }
 
+  const providerCount = db.prepare('SELECT COUNT(*) AS c FROM ai_providers').get().c;
+  if (providerCount === 0) {
+    const envKey = process.env.ANTHROPIC_API_KEY || '';
+    const info = db
+      .prepare(
+        `INSERT INTO ai_providers (name, type, base_url, multi_key_enabled, keys, models, selected_model)
+         VALUES (?,?,?,?,?,?,?)`
+      )
+      .run(
+        'Anthropic 官方',
+        'anthropic',
+        '',
+        0,
+        JSON.stringify(envKey ? [envKey] : []),
+        JSON.stringify(['claude-sonnet-5']),
+        'claude-sonnet-5'
+      );
+    db.prepare(`INSERT INTO settings (key, value) VALUES ('activeProviderId', ?)`).run(String(info.lastInsertRowid));
+  }
+
   const defaults = {
     nickname: '屿深',
     letterReminderEnabled: '1',
     letterReminderDismissedDate: '',
-    aiProvider: 'api',
-    anthropicApiKey: '',
-    relayApiKey: '',
-    relayBaseUrl: '',
-    relayModel: '',
+    aiMode: 'provider',
     mcpToolsEnabled: '0',
   };
   const getSetting = db.prepare('SELECT value FROM settings WHERE key = ?');
