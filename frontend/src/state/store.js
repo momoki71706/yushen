@@ -96,6 +96,15 @@ export const useStore = create(
   },
   sendPhotoSticker: () => get().pushMessage('分享了一张此刻的照片', 'photo'),
 
+  // ---- clear chat (confirmation gated, destructive) ----
+  clearChatConfirmOpen: false,
+  openClearChatConfirm: () => set({ clearChatConfirmOpen: true, sidebarOpen: false }),
+  closeClearChatConfirm: () => set({ clearChatConfirmOpen: false }),
+  confirmClearChat: async () => {
+    await api.clearChat();
+    set({ messages: [], clearChatConfirmOpen: false });
+  },
+
   // ---- quick model switcher (bow icon popover) ----
   modelSwitcherOpen: false,
   openModelSwitcher: () => {

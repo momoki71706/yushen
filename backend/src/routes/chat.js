@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db } from '../db.js';
+import { db, setSetting } from '../db.js';
 import { getYushenReply } from '../aiReply.js';
 import { maybeCompressChatHistory } from '../compression.js';
 
@@ -54,6 +54,18 @@ router.post('/', async (req, res) => {
   res.json({ mine: serializeMessage(mine), reply: serializeMessage(theirs) });
 
   maybeCompressChatHistory();
+});
+
+// Wipes the whole conversation and its rolling summary. Mainly useful
+// after a stretch of broken replies (bad key, crashed tool calls, etc.)
+// got saved into history — those literal error strings sitting in past
+// turns can bias a model into echoing them back, so a clean slate is the
+// only real fix once that's happened, not just fixing the underlying bug.
+router.delete('/', (req, res) => {
+  db.prepare('DELETE FROM chat_messages').run();
+  setSetting('chatSummary', '');
+  setSetting('chatSummarizedThroughId', '0');
+  res.json({ ok: true });
 });
 
 export default router;

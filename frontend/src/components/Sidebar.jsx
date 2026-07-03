@@ -53,6 +53,17 @@ function BrainIcon() {
   );
 }
 
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M2.5 4H13.5" stroke="#8C6A72" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M6 4V2.5H10V4" stroke="#8C6A72" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3.5 4L4.2 13.5H11.8L12.5 4" stroke="#8C6A72" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M6.5 6.5V11M9.5 6.5V11" stroke="#8C6A72" strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 const MEMORY_LIBRARY_URL = 'https://yushen.zeabur.app/';
 
 const MENU_ITEMS = [
@@ -76,6 +87,7 @@ export default function Sidebar() {
   const openAiSettings = useStore((s) => s.openAiSettings);
   const openMcpPanel = useStore((s) => s.openMcpPanel);
   const openPresetPanel = useStore((s) => s.openPresetPanel);
+  const openClearChatConfirm = useStore((s) => s.openClearChatConfirm);
   const nickname = useStore((s) => s.nickname);
   const nicknameEditing = useStore((s) => s.nicknameEditing);
   const nicknameDraft = useStore((s) => s.nicknameDraft);
@@ -168,6 +180,13 @@ export default function Sidebar() {
           <div className="sidebar-menu-label">记忆库</div>
           <ChevronRight />
         </a>
+        <button className="sidebar-menu-item" onClick={openClearChatConfirm}>
+          <div className="sidebar-menu-icon" style={{ background: '#E3C7CE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <TrashIcon />
+          </div>
+          <div className="sidebar-menu-label">清空聊天记录</div>
+          <ChevronRight />
+        </button>
         <div className="sidebar-divider" style={{ margin: '4px 0 8px' }} />
         <div className="sidebar-reminder-row">
           <div className="sidebar-reminder-icon">
