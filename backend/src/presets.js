@@ -1,4 +1,5 @@
 import { db, getSetting } from './db.js';
+import { beijingNow, formatBeijingClock, weekdayLabel } from './time.js';
 
 function serialize(row) {
   return {
@@ -46,8 +47,6 @@ export function deletePreset(id) {
   db.prepare('DELETE FROM prompt_presets WHERE id = ?').run(id);
 }
 
-const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-
 function getPeriodLabel(hour) {
   if (hour < 6) return '凌晨';
   if (hour < 9) return '早上';
@@ -65,12 +64,10 @@ function getPeriodLabel(hour) {
 // conversation text, easy to ignore or misread. A clearly-labelled system
 // block that's always current is what the model treats as ground truth.
 function getTimeContext() {
-  const now = new Date();
-  const weekday = WEEKDAYS[now.getDay()];
-  const period = getPeriodLabel(now.getHours());
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mm = String(now.getMinutes()).padStart(2, '0');
-  return `现在是${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${weekday} ${period} ${hh}:${mm}`;
+  const now = beijingNow();
+  const weekday = weekdayLabel(now);
+  const period = getPeriodLabel(now.getUTCHours());
+  return `现在是${now.getUTCFullYear()}年${now.getUTCMonth() + 1}月${now.getUTCDate()}日 ${weekday} ${period} ${formatBeijingClock(now)}`;
 }
 
 // Every enabled preset's content is concatenated (in category/sort order)

@@ -2,13 +2,9 @@ import { Router } from 'express';
 import { db, setSetting } from '../db.js';
 import { getYushenReply } from '../aiReply.js';
 import { maybeCompressChatHistory } from '../compression.js';
+import { formatBeijingClock } from '../time.js';
 
 const router = Router();
-
-function nowTime() {
-  const now = new Date();
-  return String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-}
 
 function serializeMessage(row) {
   return {
@@ -46,14 +42,14 @@ router.post('/', async (req, res) => {
   const insertMine = db.prepare(
     'INSERT INTO chat_messages (from_who, text, kind, time_label) VALUES (?,?,?,?)'
   );
-  const mineInfo = insertMine.run('me', text, kind || 'text', nowTime());
+  const mineInfo = insertMine.run('me', text, kind || 'text', formatBeijingClock());
   const mine = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(mineInfo.lastInsertRowid);
 
   const reply = await getYushenReply(recentHistory());
   const insertTheirs = db.prepare(
     'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens, thinking) VALUES (?,?,?,?,?,?)'
   );
-  const theirsInfo = insertTheirs.run('them', reply.text, 'text', nowTime(), reply.tokens, reply.thinking || null);
+  const theirsInfo = insertTheirs.run('them', reply.text, 'text', formatBeijingClock(), reply.tokens, reply.thinking || null);
   const theirs = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(theirsInfo.lastInsertRowid);
 
   res.json({ mine: serializeMessage(mine), reply: serializeMessage(theirs) });
