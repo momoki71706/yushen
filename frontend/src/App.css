@@ -210,17 +210,18 @@
 .chat__time { font-size: 11px; color: var(--color-text-faint); }
 .chat__msg-actions { display: flex; align-items: center; gap: 4px; }
 .chat__msg-action-btn {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: none;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 1px 3px rgba(58, 50, 54, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.6;
+  opacity: 1;
 }
-.chat__msg-action-btn:disabled { opacity: 0.3; }
+.chat__msg-action-btn:disabled { opacity: 0.4; }
 .chat__thinking-bubble {
   max-width: 92%;
   margin-top: 4px;

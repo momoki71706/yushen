@@ -68,14 +68,14 @@ export default function ChatMode() {
                         onClick={() => regenerateMessageAction(msg.id)}
                         disabled={isRegenerating}
                       >
-                        <RefreshIcon />
+                        <RefreshIcon color="#8C6A72" width={14} height={14} />
                       </button>
                       <button
                         className="chat__msg-action-btn"
                         title="思考过程"
                         onClick={() => toggleThinkingExpanded(msg.id)}
                       >
-                        <ChevronDownIcon expanded={isExpanded} />
+                        <ChevronDownIcon color="#8C6A72" width={14} height={14} expanded={isExpanded} />
                       </button>
                     </div>
                   )}
