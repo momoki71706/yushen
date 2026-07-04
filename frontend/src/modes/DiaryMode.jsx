@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { attachmentUrl } from '../api/client';
 import { MoodIcon, WeatherIcon, PlusIcon, CheckIcon, CalendarIcon, SearchIcon, BackChevronIcon, RefreshIcon, CloseIcon } from '../components/Icons';
+import FavoriteHeart from '../components/FavoriteHeart';
 
 const MOODS = ['开心', '平静', '难过', '兴奋', '疲惫'];
 const WEATHERS = ['晴', '多云', '雨', '雪', '风'];
@@ -343,6 +344,15 @@ function DiaryDetail() {
                 <RefreshIcon color="#8C6A72" width={14} height={14} />
               </button>
             )}
+            <FavoriteHeart
+              type="diary"
+              sourceId={entry.id}
+              snippet={entry.excerpt}
+              sourceTime={entry.createdAt}
+              size={15}
+              className="diary-favorite-heart"
+              style={{ marginLeft: entry.author === 'them' ? 6 : 'auto' }}
+            />
           </div>
           <div className="diary-detail__excerpt" style={{ opacity: isRegenerating ? 0.5 : 1 }}>{entry.excerpt}</div>
           {entry.attachments?.length > 0 && (

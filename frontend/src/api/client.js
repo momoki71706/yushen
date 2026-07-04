@@ -118,6 +118,21 @@ export const api = {
 
   getRecentMemoryLog: (limit = 20) => request(`/memory/recent?limit=${limit}`),
 
+  getFavoriteKeys: () => request('/favorites/keys'),
+  getFavoriteCounts: () => request('/favorites/counts'),
+  getFavorites: ({ type, q, date } = {}) => {
+    const params = new URLSearchParams();
+    if (type) params.set('type', type);
+    if (q) params.set('q', q);
+    if (date) params.set('date', date);
+    const qs = params.toString();
+    return request(`/favorites${qs ? `?${qs}` : ''}`);
+  },
+  addFavorite: (payload) => request('/favorites', { method: 'POST', body: JSON.stringify(payload) }),
+  removeFavoriteBySource: (type, sourceId) =>
+    request(`/favorites/by-source?type=${encodeURIComponent(type)}&sourceId=${encodeURIComponent(sourceId)}`, { method: 'DELETE' }),
+  removeFavorite: (id) => request(`/favorites/${id}`, { method: 'DELETE' }),
+
   getLedgerEntries: () => request('/ledger'),
   addLedgerEntry: (payload) => request('/ledger', { method: 'POST', body: JSON.stringify(payload) }),
   updateLedgerEntry: (id, payload) => request(`/ledger/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),

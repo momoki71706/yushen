@@ -8,6 +8,7 @@ export default function Header() {
   const homeMode = useStore((s) => s.homeMode);
   const nickname = useStore((s) => s.nickname);
   const toggleSidebar = useStore((s) => s.toggleSidebar);
+  const openFavorites = useStore((s) => s.openFavorites);
 
   const isHome = activeTab === 'home';
   const subtitleMap = {
@@ -36,9 +37,9 @@ export default function Header() {
           </div>
         )}
 
-        <div className="icon-btn">
+        <button className="icon-btn" onClick={openFavorites} aria-label="收藏">
           <HeartIcon />
-        </div>
+        </button>
       </div>
     </div>
   );

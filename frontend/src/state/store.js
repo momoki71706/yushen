@@ -1418,6 +1418,147 @@ export const useStore = create(
     await api.updateContextSettings({ [key]: next });
   },
 
+  // ---- favorites ----
+  // Just the (type, sourceId) pairs, loaded once at boot — every heart
+  // button anywhere in the app checks this set to render its filled state,
+  // rather than each content view fetching its own favorite status.
+  favoritedKeys: new Set(),
+  loadFavoriteKeys: async () => {
+    try {
+      const keys = await api.getFavoriteKeys();
+      set({ favoritedKeys: new Set(keys.map((k) => `${k.type}:${k.sourceId}`)) });
+    } catch {
+      // backend not reachable yet — leave empty, hearts render unfilled
+    }
+  },
+  isFavorited: (type, sourceId) => get().favoritedKeys.has(`${type}:${sourceId}`),
+  // Favoriting asks for a title first (see FavoriteTitlePrompt); un-favoriting
+  // from the original content is instant (no confirm) — that only applies
+  // inside the favorites browser itself, which has its own confirm flow.
+  favoriteTitlePrompt: null, // { type, sourceId, snippet, sourceTime, draftTitle }
+  openFavoriteTitlePrompt: (item) => set({ favoriteTitlePrompt: { ...item, draftTitle: '' } }),
+  cancelFavoriteTitlePrompt: () => set({ favoriteTitlePrompt: null }),
+  onFavoriteTitleDraftChange: (value) =>
+    set((s) => ({ favoriteTitlePrompt: { ...s.favoriteTitlePrompt, draftTitle: value } })),
+  confirmFavoriteTitlePrompt: async () => {
+    const prompt = get().favoriteTitlePrompt;
+    if (!prompt) return;
+    const title = (prompt.draftTitle || '').trim() || prompt.snippet.slice(0, 20);
+    await api.addFavorite({
+      type: prompt.type,
+      sourceId: prompt.sourceId,
+      title,
+      snippet: prompt.snippet,
+      sourceTime: prompt.sourceTime,
+    });
+    set((s) => ({
+      favoritedKeys: new Set([...s.favoritedKeys, `${prompt.type}:${prompt.sourceId}`]),
+      favoriteTitlePrompt: null,
+    }));
+    if (get().favoritesCategory === prompt.type) get().loadFavoritesList();
+  },
+  unfavorite: async (type, sourceId) => {
+    await api.removeFavoriteBySource(type, sourceId);
+    set((s) => {
+      const next = new Set(s.favoritedKeys);
+      next.delete(`${type}:${sourceId}`);
+      return { favoritedKeys: next };
+    });
+  },
+  // Used from a heart button on the original content (chat/diary/letter/tip)
+  // — toggling off there needs no confirmation, only toggling off from
+  // inside the favorites browser does.
+  toggleFavoriteFromContent: (item) => {
+    if (get().isFavorited(item.type, item.sourceId)) get().unfavorite(item.type, item.sourceId);
+    else get().openFavoriteTitlePrompt(item);
+  },
+
+  favoritesOpen: false,
+  favoritesView: 'home', // 'home' | 'category'
+  favoritesCategory: null, // 'chat' | 'diary' | 'letter' | 'tip'
+  favoritesCounts: { chat: 0, diary: 0, letter: 0, tip: 0 },
+  favoritesHomeSearch: '',
+  favoritesHomeResults: [],
+  favoritesCategorySearch: '',
+  favoritesCategoryDate: '',
+  favoritesList: [],
+  favoritesExpandedId: null,
+  favoritesDeleteConfirmId: null,
+  openFavorites: () => {
+    set({ favoritesOpen: true, favoritesView: 'home', favoritesHomeSearch: '', favoritesHomeResults: [] });
+    get().loadFavoriteCounts();
+  },
+  closeFavorites: () => set({ favoritesOpen: false }),
+  loadFavoriteCounts: async () => {
+    const favoritesCounts = await api.getFavoriteCounts();
+    set({ favoritesCounts });
+  },
+  onFavoritesHomeSearchChange: async (value) => {
+    set({ favoritesHomeSearch: value });
+    if (!value.trim()) {
+      set({ favoritesHomeResults: [] });
+      return;
+    }
+    const favoritesHomeResults = await api.getFavorites({ q: value.trim() });
+    set({ favoritesHomeResults });
+  },
+  openFavoritesCategory: (type) => {
+    set({
+      favoritesView: 'category',
+      favoritesCategory: type,
+      favoritesCategorySearch: '',
+      favoritesCategoryDate: '',
+      favoritesExpandedId: null,
+    });
+    get().loadFavoritesList();
+  },
+  closeFavoritesCategory: () => set({ favoritesView: 'home', favoritesCategory: null }),
+  loadFavoritesList: async () => {
+    const { favoritesCategory, favoritesCategorySearch, favoritesCategoryDate } = get();
+    if (!favoritesCategory) return;
+    const favoritesList = await api.getFavorites({
+      type: favoritesCategory,
+      q: favoritesCategorySearch.trim() || undefined,
+      date: favoritesCategoryDate || undefined,
+    });
+    set({ favoritesList });
+  },
+  onFavoritesCategorySearchChange: (value) => {
+    set({ favoritesCategorySearch: value });
+    get().loadFavoritesList();
+  },
+  onFavoritesCategoryDateChange: (value) => {
+    set({ favoritesCategoryDate: value });
+    get().loadFavoritesList();
+  },
+  clearFavoritesCategoryDate: () => {
+    set({ favoritesCategoryDate: '' });
+    get().loadFavoritesList();
+  },
+  toggleFavoriteExpanded: (id) =>
+    set((s) => ({ favoritesExpandedId: s.favoritesExpandedId === id ? null : id })),
+  requestUnfavorite: (id) => set({ favoritesDeleteConfirmId: id }),
+  cancelUnfavorite: () => set({ favoritesDeleteConfirmId: null }),
+  confirmUnfavorite: async () => {
+    const id = get().favoritesDeleteConfirmId;
+    if (!id) return;
+    const target = get().favoritesList.find((f) => f.id === id) || get().favoritesHomeResults.find((f) => f.id === id);
+    await api.removeFavorite(id);
+    set((s) => ({
+      favoritesList: s.favoritesList.filter((f) => f.id !== id),
+      favoritesHomeResults: s.favoritesHomeResults.filter((f) => f.id !== id),
+      favoritesDeleteConfirmId: null,
+    }));
+    if (target) {
+      set((s) => {
+        const next = new Set(s.favoritedKeys);
+        next.delete(`${target.type}:${target.sourceId}`);
+        return { favoritedKeys: next };
+      });
+      get().loadFavoriteCounts();
+    }
+  },
+
   // ---- bootstrap ----
   init: async () => {
     await Promise.all([
@@ -1430,6 +1571,7 @@ export const useStore = create(
       get().loadLedgerCategories(),
       get().loadLedgerCardMessage(),
       get().loadHabits(),
+      get().loadFavoriteKeys(),
     ]);
     get().checkLetterReminder();
     get().checkDiaryReminder();

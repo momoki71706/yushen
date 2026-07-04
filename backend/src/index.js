@@ -11,6 +11,7 @@ import ledgerRouter from './routes/ledger.js';
 import habitsRouter from './routes/habits.js';
 import uploadRouter, { UPLOAD_DIR } from './routes/upload.js';
 import memoryRouter from './routes/memory.js';
+import favoritesRouter from './routes/favorites.js';
 import { startProactiveScheduler } from './proactive.js';
 import { startScheduledMessageChecker } from './scheduledMessages.js';
 import { startMemoryScheduler } from './memoryScheduler.js';
@@ -35,6 +36,7 @@ app.use('/api/ledger', ledgerRouter);
 app.use('/api/habits', habitsRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/memory', memoryRouter);
+app.use('/api/favorites', favoritesRouter);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 

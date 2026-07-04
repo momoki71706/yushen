@@ -32,6 +32,7 @@ function serialize(row) {
     tag: row.tag,
     excerpt: row.excerpt,
     hasUnread: !!row.has_unread,
+    createdAt: row.created_at,
     attachments,
     attachment: attachments[0] || null,
   };

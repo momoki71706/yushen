@@ -3,6 +3,14 @@ import { useStore } from '../state/store';
 import { attachmentUrl } from '../api/client';
 import { BowIcon, StarIcon, PlusIcon, RefreshIcon, ChevronDownIcon, PencilIcon, TrashIcon, FileIcon, CloseIcon, ReadStatusIcon } from '../components/Icons';
 import ModelSwitcherPopover from '../components/ModelSwitcherPopover';
+import FavoriteHeart from '../components/FavoriteHeart';
+
+function snippetForMessage(msg) {
+  if (msg.kind === 'photo') return msg.text || '[分享了一张照片]';
+  if (msg.kind === 'image') return msg.text || `[图片：${msg.attachment?.name || ''}]`;
+  if (msg.kind === 'file') return msg.text || `[文件：${msg.attachment?.name || ''}]`;
+  return msg.text || '';
+}
 
 function formatFileSize(bytes) {
   if (!bytes && bytes !== 0) return '';
@@ -314,6 +322,14 @@ export default function ChatMode() {
                               </button>
                             </>
                           )}
+                          <FavoriteHeart
+                            className="chat__msg-action-btn"
+                            type="chat"
+                            sourceId={msg.id}
+                            snippet={snippetForMessage(msg)}
+                            sourceTime={msg.createdAt}
+                            size={14}
+                          />
                           <button
                             className="chat__msg-action-btn"
                             title="删除"

@@ -1,5 +1,6 @@
 import { useStore } from '../state/store';
 import { EnvelopeOutlineIcon, EnvelopeIcon, BackChevronIcon, PencilIcon, TrashIcon, RefreshIcon, CloseIcon } from '../components/Icons';
+import FavoriteHeart from '../components/FavoriteHeart';
 
 const RECIPIENTS = ['屿深', '小晴'];
 
@@ -213,7 +214,15 @@ function Mailbox() {
               )}
               {showBody && (
                 <div className="mailbox__letter-full">
-                  <div className="mailbox__letter-heart" />
+                  <FavoriteHeart
+                    className="mailbox__letter-heart-btn"
+                    type="letter"
+                    sourceId={l.id}
+                    title={`${l.sender === '小晴' ? '给' : ''}${l.dearText || l.recipient}的信`}
+                    snippet={l.body}
+                    sourceTime={l.createdAt}
+                    size={18}
+                  />
                   <div className="mailbox__letter-dear">Dear {l.dearText || l.recipient}</div>
                   <div className="mailbox__letter-body">{l.body}</div>
                   <div className="mailbox__letter-signature">{l.signature || l.sender}</div>

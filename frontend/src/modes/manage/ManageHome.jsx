@@ -1,5 +1,6 @@
 import { useStore } from '../../state/store';
 import { mockWatchDay, mockScreenApps } from './mock';
+import FavoriteHeart from '../../components/FavoriteHeart';
 
 function LedgerGlyph() {
   return (
@@ -117,7 +118,18 @@ export default function ManageHome() {
             ))}
           </div>
         </div>
-        <div className="manage-card__message">{ledgerCardMessage}</div>
+        <div className="manage-card__message-row">
+          <div className="manage-card__message">{ledgerCardMessage}</div>
+          {ledgerCardMessage && (
+            <FavoriteHeart
+              type="tip"
+              sourceId={ledgerCardMessage}
+              snippet={ledgerCardMessage}
+              sourceTime={new Date().toISOString()}
+              size={13}
+            />
+          )}
+        </div>
       </button>
 
       <button className="manage-card manage-card--clickable" onClick={openHabits}>
@@ -147,7 +159,18 @@ export default function ManageHome() {
             })}
           </div>
         </div>
-        <div className="manage-card__message">{habitCardMessage}</div>
+        <div className="manage-card__message-row">
+          <div className="manage-card__message">{habitCardMessage}</div>
+          {habitCardMessage && (
+            <FavoriteHeart
+              type="tip"
+              sourceId={habitCardMessage}
+              snippet={habitCardMessage}
+              sourceTime={new Date().toISOString()}
+              size={13}
+            />
+          )}
+        </div>
       </button>
 
       <button className="manage-card manage-card--clickable" onClick={openWatch}>

@@ -214,6 +214,27 @@ CREATE TABLE IF NOT EXISTS memory_log (
   summary TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- One row per favorited item. source_id is a TEXT key (not a real FK) since
+-- it points at rows across four different tables/shapes — chat_messages.id,
+-- diary_entries.id, letters.id, or a generated key for a "tip" (a
+-- management-card AI subtitle, which has no table row of its own, just a
+-- live-rotating string — snippet freezes whatever it said at favorite time).
+-- (type, source_id) is unique so re-favoriting the same thing just updates
+-- the title instead of creating a duplicate. source_time is the ORIGINAL
+-- content's timestamp (not when it was favorited) — that's what the
+-- favorites list sorts by, so favoriting old and new things in any order
+-- still lands them in the right chronological place.
+CREATE TABLE IF NOT EXISTS favorites (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  type TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  snippet TEXT NOT NULL DEFAULT '',
+  source_time TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(type, source_id)
+);
 `);
 
 // Additive column migrations — CREATE TABLE IF NOT EXISTS above doesn't

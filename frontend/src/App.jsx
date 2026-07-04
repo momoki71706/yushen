@@ -17,6 +17,8 @@ import ClearChatConfirm from './components/ClearChatConfirm';
 import ImageViewer from './components/ImageViewer';
 import MemoryPanel from './components/MemoryPanel';
 import MemoryToast from './components/MemoryToast';
+import FavoritesOverlay from './components/FavoritesOverlay';
+import FavoriteTitlePrompt from './components/FavoriteTitlePrompt';
 import ModePill from './components/ModePill';
 import PlaceholderTab from './components/PlaceholderTab';
 import ChatMode from './modes/ChatMode';
@@ -101,6 +103,8 @@ function App() {
         <ImageViewer />
         <MemoryPanel />
         <MemoryToast />
+        <FavoritesOverlay />
+        <FavoriteTitlePrompt />
       </div>
     </div>
   );

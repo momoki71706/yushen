@@ -17,6 +17,7 @@ function serialize(row) {
     opened: !!row.opened,
     hasAttachment: !!row.has_attachment,
     replyToId: row.reply_to_id,
+    createdAt: row.created_at,
   };
 }
 

@@ -8,10 +8,15 @@ export function HamburgerIcon() {
   );
 }
 
-export function HeartIcon() {
+export function HeartIcon({ filled = true, width = 17, height = 15, color }) {
   return (
-    <svg width="17" height="15" viewBox="0 0 18 16" fill="none">
-      <path d="M9 15C9 15 1 10.5 1 5.2C1 2.6 3 1 5.2 1C6.9 1 8.3 2 9 3.3C9.7 2 11.1 1 12.8 1C15 1 17 2.6 17 5.2C17 10.5 9 15 9 15Z" fill="#C8899E" />
+    <svg width={width} height={height} viewBox="0 0 18 16" fill="none">
+      <path
+        d="M9 15C9 15 1 10.5 1 5.2C1 2.6 3 1 5.2 1C6.9 1 8.3 2 9 3.3C9.7 2 11.1 1 12.8 1C15 1 17 2.6 17 5.2C17 10.5 9 15 9 15Z"
+        fill={filled ? color || '#C8899E' : 'none'}
+        stroke={filled ? 'none' : color || '#B9AFB5'}
+        strokeWidth={filled ? 0 : 1.6}
+      />
     </svg>
   );
 }

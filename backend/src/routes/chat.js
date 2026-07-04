@@ -15,6 +15,7 @@ function serializeMessage(row) {
     text: row.text,
     kind: row.kind,
     time: row.time_label,
+    createdAt: row.created_at,
     tokens: row.tokens,
     thinking: row.thinking || null,
     toolCalls: row.tool_calls ? JSON.parse(row.tool_calls) : null,
