@@ -15,12 +15,17 @@ self.addEventListener('push', (event) => {
     payload = { title: '屿深', body: event.data.text() };
   }
   event.waitUntil(
-    self.registration.showNotification(payload.title || '屿深', {
-      body: payload.body || '',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      tag: 'yushen-proactive',
-    })
+    Promise.all([
+      self.registration.showNotification(payload.title || '屿深', {
+        body: payload.body || '',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        tag: 'yushen-proactive',
+      }),
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        clientList.forEach((client) => client.postMessage({ type: 'proactive-message' }));
+      }),
+    ])
   );
 });
 

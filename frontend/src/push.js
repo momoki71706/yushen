@@ -43,6 +43,18 @@ export async function subscribeToPush() {
   return subscription;
 }
 
+// Lets the app react the moment a proactive/scheduled push actually lands
+// (the service worker posts this after showing the notification), instead
+// of only picking up the new message on the next full reload — otherwise
+// it's saved server-side with full context but never shows up on screen
+// until something else happens to refetch it.
+export function listenForProactiveMessages(callback) {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type === 'proactive-message') callback();
+  });
+}
+
 export async function unsubscribeFromPush() {
   if (!('serviceWorker' in navigator)) return;
   const registration = await navigator.serviceWorker.ready;

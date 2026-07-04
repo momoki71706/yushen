@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import './App.css';
 import { useStore } from './state/store';
 import { useVisualViewportHeight } from './useVisualViewportHeight';
-import { registerServiceWorker } from './push';
+import { registerServiceWorker, listenForProactiveMessages } from './push';
 import Header from './components/Header';
 import BottomNav from './components/BottomNav';
 import Sidebar from './components/Sidebar';
@@ -30,6 +30,24 @@ function App() {
   useEffect(() => {
     init();
     registerServiceWorker();
+
+    // A proactive/scheduled message is written to the DB the moment it's
+    // generated, but this already-open tab has no way to know that on its
+    // own — refetch when the service worker tells us a push just landed,
+    // and again as a fallback whenever the app is reopened/refocused (e.g.
+    // tapping the notification, or just switching back from the home
+    // screen), so it shows up in the chat log instead of only existing
+    // server-side until some unrelated reload happens to pull it in.
+    listenForProactiveMessages(() => useStore.getState().loadMessages());
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') useStore.getState().loadMessages();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

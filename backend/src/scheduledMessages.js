@@ -1,5 +1,5 @@
 import { db, getSetting } from './db.js';
-import { getProviderWithKeys, getReplyViaProvider } from './providers.js';
+import { getProviderWithKeys, getReplyViaProvider, trimTrailingAssistantTurns } from './providers.js';
 import { formatBeijingClock } from './time.js';
 import { sendPushToAll } from './push.js';
 
@@ -23,13 +23,14 @@ async function fireDueScheduledMessages() {
       db.prepare('UPDATE scheduled_messages SET sent = 1 WHERE id = ?').run(row.id);
       if (!provider) continue;
 
-      const history = db
+      const rawHistory = db
         .prepare('SELECT from_who, text FROM chat_messages ORDER BY id DESC LIMIT ?')
         .all(CONTEXT_MESSAGE_LIMIT)
         .reverse()
         .map((r) => ({ from: r.from_who, text: r.text }));
+      const history = trimTrailingAssistantTurns(rawHistory);
 
-      const instruction = `【预约提醒】之前答应过要提醒一件事，内容是："${row.note}"。现在时间到了，请自然地把这条提醒带出来，符合你一贯的人设和语气，简短自然。不要提及"预约""系统""定时""提醒事项"这类暴露是程序生成的说法，就当作你自己想起来要说。只输出这条消息本身。`;
+      const instruction = `【预约提醒】之前答应过要提醒一件事，内容是："${row.note}"。现在时间到了，请自然地把这条提醒带出来——这是你自己重新起的一个话头，不是接着聊天记录里最后一条往下接话，不要对最后一条消息的具体内容做出回应或评价。符合你一贯的人设和语气，简短自然。不要提及"预约""系统""定时""提醒事项"这类暴露是程序生成的说法，就当作你自己想起来要说。只输出这条消息本身。`;
 
       try {
         const reply = await getReplyViaProvider(history, provider, instruction);

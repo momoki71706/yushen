@@ -3,6 +3,20 @@ import { db, getSetting, setSetting } from './db.js';
 import { FALLBACK_REPLY, estimateTokens } from './persona.js';
 import { getComposedSystemPrompt } from './presets.js';
 
+// Anthropic (and most OpenAI-compatible APIs) treat a messages[] list that
+// ends on an assistant turn as a request to *continue* that exact message,
+// not to start a new one — and since a normal exchange always ends with a
+// "them" reply, a proactive/scheduled nudge built from raw recent history
+// would almost always end that way. Feeding that straight in had the model
+// literally carry on the tail of whatever it last said instead of opening
+// fresh, which is what caused those out-of-nowhere non-sequiturs. Trimming
+// trailing assistant turns keeps the list ending on the last real "me" turn.
+export function trimTrailingAssistantTurns(history) {
+  let end = history.length;
+  while (end > 0 && history[end - 1].from !== 'me') end--;
+  return history.slice(0, end);
+}
+
 function maskKey(key) {
   if (!key) return '';
   if (key.length <= 4) return '••••';
