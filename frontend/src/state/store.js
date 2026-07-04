@@ -33,6 +33,10 @@ function todayISOLocal() {
   return `${y}-${m}-${day}`;
 }
 
+function monthPrefixFor(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
 const EXPENSE_CATEGORIES = [
   { key: '餐饮', color: '#EDD9E1' }, { key: '交通', color: '#D9CBD3' },
   { key: '购物', color: '#E7D6CE' }, { key: '娱乐', color: '#CBB9C0' },
@@ -42,7 +46,6 @@ const EXPENSE_CATEGORIES = [
 const INCOME_CATEGORIES = [
   { key: '工资', color: '#E0D2D9' }, { key: '红包', color: '#F1E0E8' }, { key: '其他', color: '#DED3D8' },
 ];
-const ALL_CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
 const HABIT_COLORS = ['#D9CBD3', '#CBB9C0', '#E7D6CE', '#EDD9E1', '#D6C4CB'];
 const LEDGER_MESSAGES = ['今天的咖啡花了多少？', '这个月还剩不到一半啦，省着点花', '钱包瘦了没关系，晚点我请你', '今天有没有乱花钱呀，如实交代', '记账这件事，坚持一下下就好'];
 const HABIT_MESSAGES = ['喝水了吗baby？', '已经连续这么多天了，继续保持呀', '今天的小习惯，打卡了吗', '别偷懒，我在看着呢', '坚持一下，明天的你会谢谢今天的自己'];
@@ -200,7 +203,10 @@ export const useStore = create(
   // ---- manage: ledger + habits ----
   expenseCategories: EXPENSE_CATEGORIES,
   incomeCategories: INCOME_CATEGORIES,
-  categoryColor: (key) => (ALL_CATEGORIES.find((c) => c.key === key) || { color: '#DED3D8' }).color,
+  categoryColor: (key) => {
+    const all = [...get().expenseCategories, ...get().incomeCategories];
+    return (all.find((c) => c.key === key) || { color: '#DED3D8' }).color;
+  },
   habitColors: HABIT_COLORS,
   todayISOLocal,
 
@@ -208,6 +214,7 @@ export const useStore = create(
   openLedger: () => {
     set({ manageView: 'ledger' });
     if (!get().ledgerLoaded) get().loadLedgerEntries();
+    if (!get().ledgerCategoriesLoaded) get().loadLedgerCategories();
   },
   openHabits: () => {
     set({ manageView: 'habits' });
@@ -217,22 +224,71 @@ export const useStore = create(
 
   ledgerEntries: [],
   ledgerLoaded: false,
+  ledgerCategoriesLoaded: false,
+  ledgerSubTab: 'entries', // 'entries' | 'budget'
+  setLedgerSubTab: (tab) => set({ ledgerSubTab: tab }),
   ledgerMonthOffset: 0,
   ledgerChartMode: 'pie',
+  ledgerChartType: 'expense', // 'expense' | 'income' — which side the bar chart shows
+  ledgerDrilldownCategory: null,
   ledgerShowAdd: false,
   ledgerDraft: null,
   ledgerCardMessage: pickDaily(LEDGER_MESSAGES),
+  loadLedgerCardMessage: async () => {
+    try {
+      const { message } = await api.getLedgerCardMessage();
+      if (message) set({ ledgerCardMessage: message });
+    } catch {
+      // backend not reachable yet — leave the placeholder in place
+    }
+  },
   loadLedgerEntries: async () => {
     const ledgerEntries = await api.getLedgerEntries();
     set({ ledgerEntries, ledgerLoaded: true });
   },
+  loadLedgerCategories: async () => {
+    const categories = await api.getLedgerCategories();
+    set({
+      expenseCategories: categories.filter((c) => c.type === 'expense'),
+      incomeCategories: categories.filter((c) => c.type === 'income'),
+      ledgerCategoriesLoaded: true,
+    });
+  },
+  addLedgerCategoryAction: async (type, name) => {
+    const trimmed = (name || '').trim();
+    if (!trimmed) return;
+    const category = await api.addLedgerCategory({ type, name: trimmed });
+    set((s) => ({
+      expenseCategories: type === 'expense' ? [...s.expenseCategories, category] : s.expenseCategories,
+      incomeCategories: type === 'income' ? [...s.incomeCategories, category] : s.incomeCategories,
+    }));
+  },
+  deleteLedgerCategoryAction: async (id) => {
+    await api.deleteLedgerCategory(id);
+    set((s) => ({
+      expenseCategories: s.expenseCategories.filter((c) => c.id !== id),
+      incomeCategories: s.incomeCategories.filter((c) => c.id !== id),
+    }));
+  },
+  ledgerCategoryDeleteConfirmId: null,
+  requestDeleteLedgerCategory: (id) => set({ ledgerCategoryDeleteConfirmId: id }),
+  cancelDeleteLedgerCategory: () => set({ ledgerCategoryDeleteConfirmId: null }),
+  confirmDeleteLedgerCategory: async () => {
+    const id = get().ledgerCategoryDeleteConfirmId;
+    if (!id) return;
+    await get().deleteLedgerCategoryAction(id);
+    set({ ledgerCategoryDeleteConfirmId: null });
+  },
   ledgerPrevMonth: () => set((s) => ({ ledgerMonthOffset: s.ledgerMonthOffset - 1 })),
   ledgerNextMonth: () => set((s) => ({ ledgerMonthOffset: Math.min(0, s.ledgerMonthOffset + 1) })),
   setLedgerChartMode: (mode) => set({ ledgerChartMode: mode }),
+  setLedgerChartType: (type) => set({ ledgerChartType: type, ledgerDrilldownCategory: null }),
+  toggleLedgerDrilldown: (category) =>
+    set((s) => ({ ledgerDrilldownCategory: s.ledgerDrilldownCategory === category ? null : category })),
   openLedgerAdd: () =>
     set({
       ledgerShowAdd: true,
-      ledgerDraft: { type: 'expense', category: '餐饮', amount: '', note: '', dateISO: todayISOLocal() },
+      ledgerDraft: { type: 'expense', category: get().expenseCategories[0]?.key || '', amount: '', note: '', dateISO: todayISOLocal() },
     }),
   closeLedgerAdd: () => set({ ledgerShowAdd: false, ledgerDraft: null }),
   onLedgerDraftChange: (field, value) =>
@@ -240,7 +296,9 @@ export const useStore = create(
       ledgerDraft: {
         ...s.ledgerDraft,
         [field]: value,
-        ...(field === 'type' ? { category: value === 'income' ? '工资' : '餐饮' } : {}),
+        ...(field === 'type'
+          ? { category: (value === 'income' ? s.incomeCategories[0]?.key : s.expenseCategories[0]?.key) || '' }
+          : {}),
       },
     })),
   saveLedgerEntry: async () => {
@@ -253,6 +311,25 @@ export const useStore = create(
   deleteLedgerEntryAction: async (id) => {
     await api.deleteLedgerEntry(id);
     set((s) => ({ ledgerEntries: s.ledgerEntries.filter((e) => e.id !== id) }));
+  },
+
+  ledgerBudgets: [],
+  ledgerBudgetsLoaded: false,
+  ledgerBudgetMonth: monthPrefixFor(new Date()),
+  loadLedgerBudgets: async (month) => {
+    const targetMonth = month || get().ledgerBudgetMonth;
+    const ledgerBudgets = await api.getLedgerBudgets(targetMonth);
+    set({ ledgerBudgets, ledgerBudgetsLoaded: true, ledgerBudgetMonth: targetMonth });
+  },
+  saveLedgerBudgetAction: async (category, amount) => {
+    const amt = parseFloat(amount);
+    if (!Number.isFinite(amt) || amt < 0) return;
+    const budget = await api.saveLedgerBudget({ month: get().ledgerBudgetMonth, category, amount: amt });
+    set((s) => ({ ledgerBudgets: [...s.ledgerBudgets.filter((b) => b.category !== category), budget] }));
+  },
+  deleteLedgerBudgetAction: async (id) => {
+    await api.deleteLedgerBudget(id);
+    set((s) => ({ ledgerBudgets: s.ledgerBudgets.filter((b) => b.id !== id) }));
   },
 
   habits: [],
@@ -1220,6 +1297,8 @@ export const useStore = create(
       get().loadDiaryEntries(),
       get().loadLetters(),
       get().loadLedgerEntries(),
+      get().loadLedgerCategories(),
+      get().loadLedgerCardMessage(),
       get().loadHabits(),
     ]);
     get().checkLetterReminder();

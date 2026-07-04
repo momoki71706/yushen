@@ -149,6 +149,31 @@ CREATE TABLE IF NOT EXISTS ledger_entries (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Categories used to be a hardcoded frontend list — now a real editable
+-- table so she can add/delete her own. sort_order keeps user-added ones
+-- appending after the seeded defaults instead of jumping to the front.
+CREATE TABLE IF NOT EXISTS ledger_categories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  type TEXT NOT NULL DEFAULT 'expense',
+  name TEXT NOT NULL,
+  color TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(type, name)
+);
+
+-- One planned monthly amount per category — month is 'YYYY-MM'. Absence of
+-- a row for a given (month, category) just means no budget was set, not
+-- zero; the frontend treats those two differently.
+CREATE TABLE IF NOT EXISTS ledger_budgets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  month TEXT NOT NULL,
+  category TEXT NOT NULL,
+  amount REAL NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(month, category)
+);
+
 CREATE TABLE IF NOT EXISTS habits (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -279,6 +304,22 @@ function seedIfEmpty() {
     db.prepare(`INSERT INTO settings (key, value) VALUES ('activeProviderId', ?)`).run(String(info.lastInsertRowid));
   }
 
+  const categoryCount = db.prepare('SELECT COUNT(*) AS c FROM ledger_categories').get().c;
+  if (categoryCount === 0) {
+    const insertCategory = db.prepare(
+      'INSERT INTO ledger_categories (type, name, color, sort_order) VALUES (?,?,?,?)'
+    );
+    const seedCategories = [
+      ['expense', '餐饮', '#EDD9E1'], ['expense', '交通', '#D9CBD3'],
+      ['expense', '购物', '#E7D6CE'], ['expense', '娱乐', '#CBB9C0'],
+      ['expense', '居家', '#D6C4CB'], ['expense', '医疗', '#C9AEB9'],
+      ['expense', '其他', '#DED3D8'],
+      ['income', '工资', '#E0D2D9'], ['income', '红包', '#F1E0E8'], ['income', '其他', '#DED3D8'],
+    ];
+    const tx = db.transaction((rows) => rows.forEach((r, i) => insertCategory.run(r[0], r[1], r[2], i)));
+    tx(seedCategories);
+  }
+
   const defaults = {
     nickname: '屿深',
     letterReminderEnabled: '1',
@@ -292,6 +333,12 @@ function seedIfEmpty() {
     diaryWriteFireAt: '',
     lastReadChatMessageId: '0',
     chatFollowUpCount: '0',
+    lastLedgerNagDate: '',
+    ledgerNagFireDate: '',
+    ledgerNagFireAt: '',
+    ledgerCardMessage: '',
+    ledgerCardMessageDate: '',
+    ledgerCardMessageFireAts: '[]',
   };
   const getSetting = db.prepare('SELECT value FROM settings WHERE key = ?');
   const setSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');

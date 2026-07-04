@@ -117,6 +117,16 @@ export const api = {
   addLedgerEntry: (payload) => request('/ledger', { method: 'POST', body: JSON.stringify(payload) }),
   deleteLedgerEntry: (id) => request(`/ledger/${id}`, { method: 'DELETE' }),
 
+  getLedgerCategories: () => request('/ledger/categories'),
+  addLedgerCategory: (payload) => request('/ledger/categories', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteLedgerCategory: (id) => request(`/ledger/categories/${id}`, { method: 'DELETE' }),
+
+  getLedgerBudgets: (month) => request(`/ledger/budgets?month=${encodeURIComponent(month)}`),
+  saveLedgerBudget: (payload) => request('/ledger/budgets', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteLedgerBudget: (id) => request(`/ledger/budgets/${id}`, { method: 'DELETE' }),
+
+  getLedgerCardMessage: () => request('/ledger/card-message'),
+
   getHabits: () => request('/habits'),
   addHabit: (payload) => request('/habits', { method: 'POST', body: JSON.stringify(payload) }),
   deleteHabit: (id) => request(`/habits/${id}`, { method: 'DELETE' }),

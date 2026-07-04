@@ -16,6 +16,7 @@ import { startMemoryScheduler } from './memoryScheduler.js';
 import { startDiaryScheduler } from './diaryScheduler.js';
 import { startLetterScheduler } from './letterScheduler.js';
 import { startChatFollowUpScheduler } from './chatFollowUp.js';
+import { startLedgerScheduler } from './ledgerScheduler.js';
 
 const app = express();
 app.use(cors());
@@ -47,4 +48,5 @@ app.listen(port, () => {
   startDiaryScheduler();
   startLetterScheduler();
   startChatFollowUpScheduler();
+  startLedgerScheduler();
 });
