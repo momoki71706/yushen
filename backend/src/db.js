@@ -52,6 +52,19 @@ CREATE TABLE IF NOT EXISTS diary_comments (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Queued by the comment_on_diary local tool when you explicitly ask in
+-- chat for him to go comment on a diary entry — fulfilled a few minutes
+-- later (see diaryScheduler.js) with a real diary comment plus a genuine
+-- chat follow-up, deliberately without a push notification since this was
+-- something you asked for, not an unprompted ping.
+CREATE TABLE IF NOT EXISTS diary_review_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  entry_id INTEGER NOT NULL,
+  fire_at TEXT NOT NULL,
+  done INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS letters (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   sender TEXT NOT NULL,

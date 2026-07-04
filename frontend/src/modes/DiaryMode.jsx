@@ -131,7 +131,18 @@ function DiaryList() {
         <button className="diary-paper-attach" onClick={toggleDiaryAttachment}>
           <PlusIcon color="#8C7A82" width={13} height={13} />
         </button>
-        <button className="diary-paper-save" onClick={saveDiaryEntry}>
+        <button
+          className="diary-paper-save"
+          onClick={() => {
+            // iOS Safari doesn't reliably move focus away from a text field
+            // just because a button was tapped — without this the textarea
+            // stays "focused" as far as the keyboard-aware viewport height
+            // hook is concerned, and the layout stays stuck in the
+            // compressed, keyboard-open state even after the entry saves.
+            document.activeElement?.blur();
+            saveDiaryEntry();
+          }}
+        >
           <CheckIcon />
           <span>保存</span>
         </button>
@@ -284,7 +295,14 @@ function DiaryDetail() {
             placeholder="留句话…"
             disabled={diaryCommentSending}
           />
-          <button className="diary-comment-send" onClick={addDiaryCommentAction} disabled={diaryCommentSending}>
+          <button
+            className="diary-comment-send"
+            onClick={() => {
+              document.activeElement?.blur();
+              addDiaryCommentAction();
+            }}
+            disabled={diaryCommentSending}
+          >
             <CheckIcon color="#fff" />
           </button>
         </div>

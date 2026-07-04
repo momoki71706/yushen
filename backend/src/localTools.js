@@ -38,6 +38,20 @@ export function getLocalTools() {
       serverId: null,
       toolName: 'read_diary',
     },
+    {
+      qualifiedName: 'comment_on_diary',
+      description:
+        '当对方在聊天里明确要求你去日记里评论/回复一下时调用（比如"去评论一下""你去看看我日记，给我留言"）。调用后不要在这条聊天回复里自己编造评论内容，只需要简短回一句"这就去看"之类的话——实际留言会稍后真的写进日记里，看完之后也会再回来聊天里跟她说一句反馈。',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          entry_id: { type: 'number', description: '要评论哪一篇日记的 id，不填则默认最新一篇' },
+        },
+        required: [],
+      },
+      serverId: null,
+      toolName: 'comment_on_diary',
+    },
   ];
 }
 
@@ -62,6 +76,18 @@ function readDiary(count) {
     .join('\n\n');
 }
 
+// 1-5 minutes — short enough to feel like "went and actually looked",
+// unlike the up-to-30-minute delay used for entries he wasn't asked about.
+function queueDiaryReview(entryId) {
+  const entry = entryId
+    ? db.prepare('SELECT * FROM diary_entries WHERE id = ?').get(entryId)
+    : db.prepare('SELECT * FROM diary_entries ORDER BY id DESC LIMIT 1').get();
+  if (!entry) return '没有找到日记，跟她确认一下是不是记错了。';
+  const fireAt = new Date(Date.now() + (1 + Math.random() * 4) * 60 * 1000).toISOString();
+  db.prepare('INSERT INTO diary_review_requests (entry_id, fire_at) VALUES (?, ?)').run(entry.id, fireAt);
+  return '已经记下了，一会儿会去看看再留言，看完也会回来跟她说一句——这条回复只需要简短回应一下，比如"这就去看"，不要自己编评论内容。';
+}
+
 export async function executeLocalTool(toolName, input) {
   if (toolName === 'schedule_message') {
     const { minutes } = scheduleMessage(input?.delay_minutes, input?.note);
@@ -69,6 +95,9 @@ export async function executeLocalTool(toolName, input) {
   }
   if (toolName === 'read_diary') {
     return { content: [{ type: 'text', text: readDiary(input?.count) }] };
+  }
+  if (toolName === 'comment_on_diary') {
+    return { content: [{ type: 'text', text: queueDiaryReview(input?.entry_id) }] };
   }
   return { content: [{ type: 'text', text: `未知本地工具: ${toolName}` }], isError: true };
 }

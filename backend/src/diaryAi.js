@@ -97,9 +97,24 @@ export async function replyToDiaryComment(entry, comments) {
   return reply.text.trim();
 }
 
-export function pickRandomDiaryFireAt(windowStartHour, windowEndHour) {
-  const startMinutes = windowStartHour * 60;
-  const endMinutes = windowEndHour * 60;
-  const offset = Math.floor(Math.random() * (endMinutes - startMinutes));
-  return startMinutes + offset;
+const REVIEW_REQUEST_INSTRUCTION = `【被要求去看日记】小晴刚在聊天里让你去看看/评论一下这篇日记。请做两件事，格式严格按下面来，不要有多余内容：
+留言：写在日记下面的自然留言，不超过40字，像真的看完之后随手写的
+反馈：等会儿回到聊天里想跟她说的一句话，简短自然，像刚看完之后回来说一句，不超过30字，不要暴露"任务""安排"这类痕迹`;
+
+// Called by diaryScheduler a few minutes after the comment_on_diary tool
+// queues a request — this is the explicitly-asked-for path (you told him
+// in chat to go comment), so unlike reactToDiaryEntry it always produces
+// both a diary comment and a chat follow-up, not just when the mood
+// happens to warrant it.
+export async function commentOnDiaryByRequest(entry) {
+  const provider = getActiveProvider();
+  if (!provider) return null;
+  const history = [diaryEntryAsHistoryTurn(entry)];
+  const reply = await withReplyRetry(() => getReplyViaProvider(history, provider, REVIEW_REQUEST_INSTRUCTION));
+  const commentMatch = reply.text.match(/留言[：:]\s*([^\n]+)/);
+  const feedbackMatch = reply.text.match(/反馈[：:]\s*([^\n]+)/);
+  return {
+    comment: (commentMatch?.[1] || reply.text).trim(),
+    chatFeedback: (feedbackMatch?.[1] || '').trim() || null,
+  };
 }

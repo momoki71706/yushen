@@ -1,10 +1,14 @@
 import { db, getSetting, setSetting } from './db.js';
 import { beijingNow, weekdayLabel, formatBeijingClock } from './time.js';
-import { writeDiaryEntry, reactToDiaryEntry, moodColorFor } from './diaryAi.js';
+import { writeDiaryEntry, reactToDiaryEntry, commentOnDiaryByRequest, moodColorFor } from './diaryAi.js';
 import { sendPushToAll, pushConfigured } from './push.js';
 import { classifyReplyForRetry, estimateTokens } from './persona.js';
 
-const CHECK_INTERVAL_MS = 5 * 60 * 1000;
+// Checked at the same cadence as scheduledMessages.js — the review-request
+// path (comment_on_diary) fires within 1-5 minutes, so a coarser interval
+// would make that feel sluggish even though the other two checks here
+// (daily write, delayed reaction) don't need anything this tight.
+const CHECK_INTERVAL_MS = 60 * 1000;
 const WRITE_WINDOW_START_HOUR = 21;
 const WRITE_WINDOW_END_HOUR = 24;
 const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000;
@@ -120,9 +124,42 @@ export async function maybeReactToDiaries() {
   }
 }
 
+// Fulfills a comment_on_diary request queued from chat — always writes both
+// the diary comment and a chat follow-up (unlike maybeReactToDiaries, which
+// only sends a chat message when the mood happens to warrant it), and never
+// pushes a notification for the follow-up: you're the one who asked for
+// this, so there's nothing to alert you to.
+export async function maybeFulfillDiaryReviewRequests() {
+  try {
+    const due = db.prepare('SELECT * FROM diary_review_requests WHERE done = 0 AND fire_at <= ?').all(new Date().toISOString());
+    if (!due.length) return;
+
+    for (const req of due) {
+      db.prepare('UPDATE diary_review_requests SET done = 1 WHERE id = ?').run(req.id);
+      try {
+        const entry = db.prepare('SELECT * FROM diary_entries WHERE id = ?').get(req.entry_id);
+        if (!entry) continue;
+        const result = await commentOnDiaryByRequest(entry);
+        if (!result) continue;
+        if (!classifyReplyForRetry(result.comment).bad) {
+          insertReactionComment.run(entry.id, result.comment, formatBeijingClock());
+        }
+        if (result.chatFeedback && !classifyReplyForRetry(result.chatFeedback).bad) {
+          insertChatFollowUp.run('them', result.chatFeedback, 'text', formatBeijingClock(), estimateTokens(result.chatFeedback));
+        }
+      } catch (err) {
+        console.error(`[diary] review request failed for #${req.id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[diary] review-request scheduler error:', err.message);
+  }
+}
+
 export function startDiaryScheduler() {
   setInterval(() => {
     maybeWriteDiary();
     maybeReactToDiaries();
+    maybeFulfillDiaryReviewRequests();
   }, CHECK_INTERVAL_MS);
 }
