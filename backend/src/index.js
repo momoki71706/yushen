@@ -13,6 +13,7 @@ import uploadRouter, { UPLOAD_DIR } from './routes/upload.js';
 import { startProactiveScheduler } from './proactive.js';
 import { startScheduledMessageChecker } from './scheduledMessages.js';
 import { startMemoryScheduler } from './memoryScheduler.js';
+import { startDiaryScheduler } from './diaryScheduler.js';
 
 const app = express();
 app.use(cors());
@@ -41,4 +42,5 @@ app.listen(port, () => {
   startProactiveScheduler();
   startScheduledMessageChecker();
   startMemoryScheduler();
+  startDiaryScheduler();
 });

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
-import { MoodIcon, WeatherIcon, PlusIcon, CheckIcon, CalendarIcon, SearchIcon, BackChevronIcon } from '../components/Icons';
+import { MoodIcon, WeatherIcon, PlusIcon, CheckIcon, CalendarIcon, SearchIcon, BackChevronIcon, RefreshIcon } from '../components/Icons';
 
 const MOODS = ['开心', '平静', '难过', '兴奋', '疲惫'];
 const WEATHERS = ['晴', '多云', '雨', '雪', '风'];
@@ -190,6 +190,7 @@ function DiaryList() {
               onClick={() => openDiaryDetail(entry.id, containerRef.current?.scrollTop)}
             >
               <div className="diary-entry-head">
+                {entry.author === 'them' && <div className="diary-entry-author">对方</div>}
                 <div className="diary-mood-dot" style={{ background: entry.moodColor }} />
                 <div className="diary-entry-mood">{entry.mood}</div>
                 <div className="diary-entry-dot">·</div>
@@ -212,9 +213,19 @@ function DiaryDetail() {
   const diaryDetailId = useStore((s) => s.diaryDetailId);
   const closeDiaryDetail = useStore((s) => s.closeDiaryDetail);
   const deleteDiaryEntry = useStore((s) => s.deleteDiaryEntry);
+  const diaryComments = useStore((s) => s.diaryComments);
+  const diaryCommentsLoading = useStore((s) => s.diaryCommentsLoading);
+  const diaryCommentDraft = useStore((s) => s.diaryCommentDraft);
+  const onDiaryCommentDraftChange = useStore((s) => s.onDiaryCommentDraftChange);
+  const diaryCommentSending = useStore((s) => s.diaryCommentSending);
+  const addDiaryCommentAction = useStore((s) => s.addDiaryCommentAction);
+  const diaryRegeneratingIds = useStore((s) => s.diaryRegeneratingIds);
+  const regenerateDiaryEntryAction = useStore((s) => s.regenerateDiaryEntryAction);
 
   const entry = diaryEntries.find((e) => e.id === diaryDetailId);
   if (!entry) return null;
+
+  const isRegenerating = diaryRegeneratingIds.includes(entry.id);
 
   return (
     <div className="diary-detail">
@@ -229,16 +240,54 @@ function DiaryDetail() {
       <div className="diary-detail__body">
         <div className="diary-detail__card">
           <div className="diary-entry-head">
+            {entry.author === 'them' && <div className="diary-entry-author">对方</div>}
             <div className="diary-mood-dot" style={{ background: entry.moodColor }} />
             <div className="diary-entry-mood">{entry.mood}</div>
             <div className="diary-entry-dot">·</div>
             <div className="diary-entry-weather">{entry.weather}</div>
             {entry.tag && <div className="diary-entry-tag">{entry.tag}</div>}
+            {entry.author === 'them' && (
+              <button
+                className="diary-regenerate-btn"
+                title="重新生成"
+                onClick={() => regenerateDiaryEntryAction(entry.id)}
+                disabled={isRegenerating}
+              >
+                <RefreshIcon color="#8C6A72" width={14} height={14} />
+              </button>
+            )}
           </div>
-          <div className="diary-detail__excerpt">{entry.excerpt}</div>
+          <div className="diary-detail__excerpt" style={{ opacity: isRegenerating ? 0.5 : 1 }}>{entry.excerpt}</div>
+        </div>
+
+        <div className="diary-comments">
+          <div className="diary-comments__title">留言</div>
+          {!diaryCommentsLoading && diaryComments.length === 0 && (
+            <div className="diary-comments__empty">还没有留言</div>
+          )}
+          {diaryComments.map((c) => (
+            <div key={c.id} className="diary-comment-row">
+              <div className="diary-comment-author">{c.author === 'me' ? '小晴' : '对方'}</div>
+              <div className="diary-comment-text">{c.text}</div>
+              <div className="diary-comment-time">{c.time}</div>
+            </div>
+          ))}
         </div>
       </div>
       <div className="diary-detail__footer">
+        <div className="diary-comment-input-row">
+          <input
+            className="diary-comment-input"
+            value={diaryCommentDraft}
+            onChange={(e) => onDiaryCommentDraftChange(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addDiaryCommentAction()}
+            placeholder="留句话…"
+            disabled={diaryCommentSending}
+          />
+          <button className="diary-comment-send" onClick={addDiaryCommentAction} disabled={diaryCommentSending}>
+            <CheckIcon color="#fff" />
+          </button>
+        </div>
         <button className="diary-delete-btn" onClick={() => deleteDiaryEntry(entry.id)}>删除这篇日记</button>
       </div>
     </div>

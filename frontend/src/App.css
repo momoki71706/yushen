@@ -719,6 +719,14 @@
 }
 .diary-entry-date { font-size: 11.5px; color: var(--color-text-faint); }
 .diary-entry-preview { font-size: 14px; color: var(--color-text); line-height: 1.6; }
+.diary-entry-author {
+  font-size: 11px;
+  color: #fff;
+  background: var(--color-accent);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
 
 .diary-detail { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .diary-detail__head { flex-shrink: 0; padding: 14px 20px 8px; }
@@ -757,6 +765,67 @@
   padding: 16px;
 }
 .diary-detail__excerpt { font-size: 14.5px; color: var(--color-text); line-height: 1.7; }
+.diary-regenerate-btn {
+  margin-left: auto;
+  border: none;
+  background: rgba(255, 255, 255, 0.6);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.diary-regenerate-btn:disabled { opacity: 0.5; }
+
+.diary-comments { margin-top: 18px; }
+.diary-comments__title { font-size: 13px; font-weight: 600; color: var(--color-text-soft); margin-bottom: 10px; }
+.diary-comments__empty { font-size: 12.5px; color: var(--color-text-faint); padding: 4px 0; }
+.diary-comment-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.diary-comment-row:last-child { border-bottom: none; }
+.diary-comment-author { font-size: 12px; font-weight: 600; color: var(--color-accent-strong); flex-shrink: 0; }
+.diary-comment-text { font-size: 13.5px; color: var(--color-text); line-height: 1.5; flex: 1; min-width: 120px; }
+.diary-comment-time { font-size: 10.5px; color: var(--color-text-faint); flex-shrink: 0; }
+
+.diary-comment-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.diary-comment-input {
+  flex: 1;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 13.5px;
+  color: var(--color-text);
+}
+.diary-comment-send {
+  border: none;
+  background: var(--color-accent);
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+}
+.diary-comment-send:disabled { opacity: 0.5; }
+
 .diary-detail__footer { flex-shrink: 0; padding: 12px 20px 20px; }
 .diary-delete-btn {
   width: 100%;

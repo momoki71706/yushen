@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 
 CREATE TABLE IF NOT EXISTS diary_entries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  author TEXT NOT NULL DEFAULT 'me',
   date_iso TEXT NOT NULL,
   date_label TEXT NOT NULL,
   mood TEXT NOT NULL,
@@ -34,6 +35,20 @@ CREATE TABLE IF NOT EXISTS diary_entries (
   tag TEXT,
   excerpt TEXT NOT NULL,
   has_attachment INTEGER NOT NULL DEFAULT 0,
+  reacted INTEGER NOT NULL DEFAULT 0,
+  react_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- One thread of back-and-forth comments per diary entry — kept separate
+-- from chat_messages since a diary comment is scoped to that one entry,
+-- not part of the ongoing conversation history.
+CREATE TABLE IF NOT EXISTS diary_comments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  entry_id INTEGER NOT NULL,
+  author TEXT NOT NULL,
+  text TEXT NOT NULL,
+  time_label TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -139,21 +154,30 @@ ensureColumn('chat_messages', 'attachment_name', 'TEXT');
 ensureColumn('chat_messages', 'attachment_mime', 'TEXT');
 ensureColumn('chat_messages', 'attachment_size', 'INTEGER');
 ensureColumn('letters', 'exported', 'INTEGER NOT NULL DEFAULT 0');
+ensureColumn('diary_entries', 'author', "TEXT NOT NULL DEFAULT 'me'");
+ensureColumn('diary_entries', 'reacted', 'INTEGER NOT NULL DEFAULT 0');
+ensureColumn('diary_entries', 'react_at', 'TEXT');
+
+// The very first release seeded 4 placeholder diary entries so the page
+// wasn't empty on first launch — now that real entries from both sides
+// accumulate on their own, those fakes just clutter a real diary. Matched
+// by their exact original text so this can never touch anything genuinely
+// written later, and gated on a flag so it only ever runs once.
+function cleanupFakeDiarySeed() {
+  if (getSetting('fakeDiarySeedCleaned', '0') === '1') return;
+  const FAKE_SEED_TEXT = [
+    '没什么特别的事，只是想把这种安稳的感觉记下来。',
+    '有点emo，可能是换季，也可能只是想被抱一下。',
+    '今天是我们第一次约会一周年，他说这一年谢谢我陪他一起长大。',
+    '收到了一个小惊喜，眼睛笑成了一条缝。',
+  ];
+  const del = db.prepare("DELETE FROM diary_entries WHERE author = 'me' AND excerpt = ?");
+  const tx = db.transaction((texts) => texts.forEach((t) => del.run(t)));
+  tx(FAKE_SEED_TEXT);
+  setSetting('fakeDiarySeedCleaned', '1');
+}
 
 function seedIfEmpty() {
-  const diaryCount = db.prepare('SELECT COUNT(*) AS c FROM diary_entries').get().c;
-  if (diaryCount === 0) {
-    const insert = db.prepare(`INSERT INTO diary_entries (date_iso, date_label, mood, mood_color, weather, tag, excerpt, has_attachment) VALUES (?,?,?,?,?,?,?,?)`);
-    const seed = [
-      ['2026-06-29', '6月29日 · 周一', '平静', '#E0D2D9', '多云', null, '没什么特别的事，只是想把这种安稳的感觉记下来。', 0],
-      ['2026-06-24', '6月24日 · 周三', '难过', '#C9AEB9', '雨', null, '有点emo，可能是换季，也可能只是想被抱一下。', 0],
-      ['2026-03-15', '3月15日 · 周日', '开心', '#EDD9E1', '晴', '纪念日', '今天是我们第一次约会一周年，他说这一年谢谢我陪他一起长大。', 0],
-      ['2026-06-18', '6月18日 · 周四', '开心', '#EDD9E1', '晴', null, '收到了一个小惊喜，眼睛笑成了一条缝。', 0],
-    ];
-    const tx = db.transaction((rows) => rows.forEach((r) => insert.run(...r)));
-    tx(seed);
-  }
-
   const letterCount = db.prepare('SELECT COUNT(*) AS c FROM letters').get().c;
   if (letterCount === 0) {
     const insert = db.prepare(`INSERT INTO letters (sender, recipient, signature, dear_text, unlock_date, body, opened, has_attachment) VALUES (?,?,?,?,?,?,?,?)`);
@@ -220,6 +244,9 @@ function seedIfEmpty() {
     mcpToolsEnabled: '0',
     proactiveMessagesEnabled: '0',
     lastProactiveMessageAt: '',
+    diaryNotifyEnabled: '0',
+    lastDiaryWriteDate: '',
+    diaryWriteFireAt: '',
   };
   const getSetting = db.prepare('SELECT value FROM settings WHERE key = ?');
   const setSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');
@@ -229,6 +256,7 @@ function seedIfEmpty() {
 }
 
 seedIfEmpty();
+cleanupFakeDiarySeed();
 
 export function getSetting(key, fallback = null) {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);

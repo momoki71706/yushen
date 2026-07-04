@@ -24,6 +24,20 @@ export function getLocalTools() {
       serverId: null,
       toolName: 'schedule_message',
     },
+    {
+      qualifiedName: 'read_diary',
+      description:
+        '当对话里提到日记相关的内容（比如对方说"我今天写日记了""你看我日记了吗"，或者你自己想看看最近写了什么日记）时调用，用来读取最近几篇日记的内容。不要在普通聊天里没由头地调用。',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          count: { type: 'number', description: '想看最近几篇，默认 5' },
+        },
+        required: [],
+      },
+      serverId: null,
+      toolName: 'read_diary',
+    },
   ];
 }
 
@@ -38,10 +52,23 @@ export function scheduleMessage(delayMinutes, note) {
   return { fireAt, minutes };
 }
 
+function readDiary(count) {
+  const limit = Math.max(1, Math.min(Number(count) || 5, 20));
+  const rows = db.prepare('SELECT * FROM diary_entries ORDER BY id DESC LIMIT ?').all(limit);
+  if (!rows.length) return '还没有任何日记。';
+  return rows
+    .reverse()
+    .map((r) => `[${r.date_label}｜${r.author === 'me' ? '小晴' : '你'}｜心情：${r.mood}，天气：${r.weather}]\n${r.excerpt}`)
+    .join('\n\n');
+}
+
 export async function executeLocalTool(toolName, input) {
   if (toolName === 'schedule_message') {
     const { minutes } = scheduleMessage(input?.delay_minutes, input?.note);
     return { content: [{ type: 'text', text: `已经记下了，${minutes} 分钟后会提醒。` }] };
+  }
+  if (toolName === 'read_diary') {
+    return { content: [{ type: 'text', text: readDiary(input?.count) }] };
   }
   return { content: [{ type: 'text', text: `未知本地工具: ${toolName}` }], isError: true };
 }

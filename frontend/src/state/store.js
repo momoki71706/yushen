@@ -106,6 +106,8 @@ export const useStore = create(
   pushMinGapHours: 3,
   pushQuietHourStart: 0,
   pushQuietHourEnd: 8,
+  diaryNotifyEnabled: false,
+  diaryNotifyBusy: false,
   openPushSettings: () => {
     set({ pushSettingsOpen: true });
     get().loadPushSettings();
@@ -120,9 +122,21 @@ export const useStore = create(
         pushMinGapHours: s.minGapHours,
         pushQuietHourStart: s.quietHourStart,
         pushQuietHourEnd: s.quietHourEnd,
+        diaryNotifyEnabled: s.diaryNotifyEnabled,
       });
     } catch {
       // backend not reachable yet — leave defaults
+    }
+  },
+  toggleDiaryNotifyEnabled: async () => {
+    if (get().diaryNotifyBusy) return;
+    const next = !get().diaryNotifyEnabled;
+    set({ diaryNotifyBusy: true });
+    try {
+      await api.updatePushSettings({ diaryNotifyEnabled: next });
+      set({ diaryNotifyEnabled: next });
+    } finally {
+      set({ diaryNotifyBusy: false });
     }
   },
   togglePushEnabled: async () => {
@@ -597,7 +611,10 @@ export const useStore = create(
       diaryHasAttachment: false,
     }));
   },
-  openDiaryDetail: (id, scrollTop) => set({ diaryView: 'detail', diaryDetailId: id, diaryListScrollTop: scrollTop || 0 }),
+  openDiaryDetail: (id, scrollTop) => {
+    set({ diaryView: 'detail', diaryDetailId: id, diaryListScrollTop: scrollTop || 0, diaryComments: [] });
+    get().loadDiaryComments(id);
+  },
   closeDiaryDetail: () => set({ diaryView: 'list', diaryDetailId: null }),
   deleteDiaryEntry: async (id) => {
     await api.deleteDiaryEntry(id);
@@ -606,6 +623,48 @@ export const useStore = create(
       diaryView: 'list',
       diaryDetailId: null,
     }));
+  },
+
+  // ---- diary comments (flat comment-section style, on the detail page) ----
+  diaryComments: [],
+  diaryCommentsLoading: false,
+  diaryCommentDraft: '',
+  diaryCommentSending: false,
+  diaryRegeneratingIds: [],
+  loadDiaryComments: async (entryId) => {
+    set({ diaryCommentsLoading: true });
+    try {
+      const diaryComments = await api.getDiaryComments(entryId);
+      set({ diaryComments });
+    } finally {
+      set({ diaryCommentsLoading: false });
+    }
+  },
+  onDiaryCommentDraftChange: (value) => set({ diaryCommentDraft: value }),
+  addDiaryCommentAction: async () => {
+    const { diaryDetailId, diaryCommentDraft, diaryCommentSending } = get();
+    const trimmed = (diaryCommentDraft || '').trim();
+    if (!trimmed || diaryCommentSending || !diaryDetailId) return;
+    set({ diaryCommentSending: true, diaryCommentDraft: '' });
+    try {
+      const { mine, reply } = await api.addDiaryComment(diaryDetailId, trimmed);
+      set((s) => ({ diaryComments: [...s.diaryComments, mine, ...(reply ? [reply] : [])] }));
+    } finally {
+      set({ diaryCommentSending: false });
+    }
+  },
+  regenerateDiaryEntryAction: async (id) => {
+    if (get().diaryRegeneratingIds.includes(id)) return;
+    set((s) => ({ diaryRegeneratingIds: [...s.diaryRegeneratingIds, id] }));
+    try {
+      const updated = await api.regenerateDiaryEntry(id);
+      set((s) => ({
+        diaryEntries: s.diaryEntries.map((e) => (e.id === id ? updated : e)),
+        diaryComments: s.diaryDetailId === id ? [] : s.diaryComments,
+      }));
+    } finally {
+      set((s) => ({ diaryRegeneratingIds: s.diaryRegeneratingIds.filter((x) => x !== id) }));
+    }
   },
 
   // ---- letters ----

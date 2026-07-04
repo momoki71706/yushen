@@ -48,6 +48,9 @@ export const api = {
   createDiaryEntry: (payload) =>
     request('/diary', { method: 'POST', body: JSON.stringify(payload) }),
   deleteDiaryEntry: (id) => request(`/diary/${id}`, { method: 'DELETE' }),
+  regenerateDiaryEntry: (id) => request(`/diary/${id}/regenerate`, { method: 'POST' }),
+  getDiaryComments: (id) => request(`/diary/${id}/comments`),
+  addDiaryComment: (id, text) => request(`/diary/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
 
   getLetters: () => request('/letters'),
   createLetter: (payload) =>

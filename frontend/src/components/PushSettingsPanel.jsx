@@ -13,6 +13,9 @@ export default function PushSettingsPanel() {
   const pushQuietHourStart = useStore((s) => s.pushQuietHourStart);
   const pushQuietHourEnd = useStore((s) => s.pushQuietHourEnd);
   const adjustPushSetting = useStore((s) => s.adjustPushSetting);
+  const diaryNotifyEnabled = useStore((s) => s.diaryNotifyEnabled);
+  const diaryNotifyBusy = useStore((s) => s.diaryNotifyBusy);
+  const toggleDiaryNotifyEnabled = useStore((s) => s.toggleDiaryNotifyEnabled);
 
   if (!pushSettingsOpen) return null;
 
@@ -58,6 +61,21 @@ export default function PushSettingsPanel() {
             <div className="screen-threshold-value">{pushMinGapHours} 小时</div>
             <button className="screen-step-btn" onClick={() => adjustPushSetting('minGapHours', 1, 1, 48)}>+</button>
           </div>
+        </div>
+
+        <div className="watch-card" style={{ margin: '0 0 14px' }}>
+          <div className="screen-threshold-head">
+            <div className="watch-card-title" style={{ marginBottom: 0 }}>他写日记了要通知我</div>
+            <button
+              className="toggle-switch"
+              style={{ background: diaryNotifyEnabled ? '#C8899E' : '#DCD4D8', opacity: diaryNotifyBusy ? 0.6 : 1 }}
+              onClick={toggleDiaryNotifyEnabled}
+              disabled={diaryNotifyBusy}
+            >
+              <div className="toggle-switch__knob" style={{ left: diaryNotifyEnabled ? 20 : 2 }} />
+            </button>
+          </div>
+          <div className="screen-threshold-sub">开启后，他每天写完日记会给你发一条推送</div>
         </div>
 
         <div className="watch-card" style={{ margin: 0 }}>

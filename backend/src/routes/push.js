@@ -47,6 +47,7 @@ function readPushSettings() {
     minGapHours: clampInt(getSetting('proactiveMinGapHours', String(PUSH_DEFAULTS.minGapHours)), 1, 48, PUSH_DEFAULTS.minGapHours),
     quietHourStart: clampInt(getSetting('proactiveQuietHourStart', String(PUSH_DEFAULTS.quietHourStart)), 0, 23, PUSH_DEFAULTS.quietHourStart),
     quietHourEnd: clampInt(getSetting('proactiveQuietHourEnd', String(PUSH_DEFAULTS.quietHourEnd)), 0, 23, PUSH_DEFAULTS.quietHourEnd),
+    diaryNotifyEnabled: getSetting('diaryNotifyEnabled', '0') === '1',
   };
 }
 
@@ -55,12 +56,13 @@ router.get('/settings', (req, res) => {
 });
 
 router.patch('/settings', (req, res) => {
-  const { enabled, idleThresholdHours, minGapHours, quietHourStart, quietHourEnd } = req.body || {};
+  const { enabled, idleThresholdHours, minGapHours, quietHourStart, quietHourEnd, diaryNotifyEnabled } = req.body || {};
   if (enabled !== undefined) setSetting('proactiveMessagesEnabled', enabled ? '1' : '0');
   if (idleThresholdHours !== undefined) setSetting('proactiveIdleThresholdHours', String(clampInt(idleThresholdHours, 1, 48, PUSH_DEFAULTS.idleThresholdHours)));
   if (minGapHours !== undefined) setSetting('proactiveMinGapHours', String(clampInt(minGapHours, 1, 48, PUSH_DEFAULTS.minGapHours)));
   if (quietHourStart !== undefined) setSetting('proactiveQuietHourStart', String(clampInt(quietHourStart, 0, 23, PUSH_DEFAULTS.quietHourStart)));
   if (quietHourEnd !== undefined) setSetting('proactiveQuietHourEnd', String(clampInt(quietHourEnd, 0, 23, PUSH_DEFAULTS.quietHourEnd)));
+  if (diaryNotifyEnabled !== undefined) setSetting('diaryNotifyEnabled', diaryNotifyEnabled ? '1' : '0');
   res.json(readPushSettings());
 });
 
