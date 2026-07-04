@@ -4,7 +4,7 @@ import { getYushenReply } from '../aiReply.js';
 import { maybeCompressChatHistory } from '../compression.js';
 import { formatBeijingClock } from '../time.js';
 import { getContextMessageLimit } from '../contextSettings.js';
-import { describeForHistory } from '../chatHistory.js';
+import { enrichHistory } from '../chatHistory.js';
 
 const router = Router();
 
@@ -33,26 +33,31 @@ router.get('/', (req, res) => {
 // new message and regenerating an existing one. `inclusive` also folds in
 // the message at `beforeId` itself (used when regenerating the reply to a
 // specific user message, since that message's text is the last turn).
-function recentHistory(beforeId, { inclusive = false } = {}) {
+async function recentHistory(beforeId, { inclusive = false } = {}) {
   const limit = getContextMessageLimit();
   const rows = beforeId
     ? db
-        .prepare(`SELECT from_who, text, kind, attachment_name FROM chat_messages WHERE id ${inclusive ? '<=' : '<'} ? ORDER BY id DESC LIMIT ?`)
+        .prepare(`SELECT from_who, text, kind, attachment_url, attachment_name, attachment_mime FROM chat_messages WHERE id ${inclusive ? '<=' : '<'} ? ORDER BY id DESC LIMIT ?`)
         .all(beforeId, limit)
-    : db.prepare('SELECT from_who, text, kind, attachment_name FROM chat_messages ORDER BY id DESC LIMIT ?').all(limit);
-  return rows.reverse().map((r) => ({ from: r.from_who, text: describeForHistory(r) }));
+    : db.prepare('SELECT from_who, text, kind, attachment_url, attachment_name, attachment_mime FROM chat_messages ORDER BY id DESC LIMIT ?').all(limit);
+  return enrichHistory(rows.reverse());
 }
 
-router.post('/', async (req, res) => {
-  const { text, kind, attachment } = req.body;
-  const isAttachment = kind === 'image' || kind === 'file';
-  if (!isAttachment && (!text || !String(text).trim())) return res.status(400).json({ error: 'text is required' });
-  if (isAttachment && !attachment?.url) return res.status(400).json({ error: 'attachment is required' });
+const insertMineStmt = db.prepare(
+  'INSERT INTO chat_messages (from_who, text, kind, time_label, attachment_url, attachment_name, attachment_mime, attachment_size) VALUES (?,?,?,?,?,?,?,?)'
+);
+const insertTheirsStmt = db.prepare(
+  'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens, thinking) VALUES (?,?,?,?,?,?)'
+);
 
-  const insertMine = db.prepare(
-    'INSERT INTO chat_messages (from_who, text, kind, time_label, attachment_url, attachment_name, attachment_mime, attachment_size) VALUES (?,?,?,?,?,?,?,?)'
-  );
-  const mineInfo = insertMine.run(
+// Returns the inserted row, or null if the item is invalid (no text on a
+// plain-text item, or no attachment on an image/file item) — callers skip
+// nulls rather than failing the whole request over one bad entry.
+function insertMineRow({ text, kind, attachment }) {
+  const isAttachment = kind === 'image' || kind === 'file';
+  if (!isAttachment && (!text || !String(text).trim())) return null;
+  if (isAttachment && !attachment?.url) return null;
+  const info = insertMineStmt.run(
     'me',
     text || '',
     kind || 'text',
@@ -62,16 +67,45 @@ router.post('/', async (req, res) => {
     isAttachment ? attachment.mime || null : null,
     isAttachment ? attachment.size || null : null
   );
-  const mine = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(mineInfo.lastInsertRowid);
+  return db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(info.lastInsertRowid);
+}
 
-  const reply = await getYushenReply(recentHistory());
-  const insertTheirs = db.prepare(
-    'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens, thinking) VALUES (?,?,?,?,?,?)'
-  );
-  const theirsInfo = insertTheirs.run('them', reply.text, 'text', formatBeijingClock(), reply.tokens, reply.thinking || null);
-  const theirs = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(theirsInfo.lastInsertRowid);
+function insertTheirsRow(reply) {
+  const info = insertTheirsStmt.run('them', reply.text, 'text', formatBeijingClock(), reply.tokens, reply.thinking || null);
+  return db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(info.lastInsertRowid);
+}
+
+router.post('/', async (req, res) => {
+  const { text, kind, attachment } = req.body;
+  const isAttachment = kind === 'image' || kind === 'file';
+  if (!isAttachment && (!text || !String(text).trim())) return res.status(400).json({ error: 'text is required' });
+  if (isAttachment && !attachment?.url) return res.status(400).json({ error: 'attachment is required' });
+
+  const mine = insertMineRow({ text, kind, attachment });
+  const reply = await getYushenReply(await recentHistory());
+  const theirs = insertTheirsRow(reply);
 
   res.json({ mine: serializeMessage(mine), reply: serializeMessage(theirs) });
+
+  maybeCompressChatHistory();
+});
+
+// Same idea as the single-message POST, but for sending several things at
+// once (e.g. a few picked photos plus a typed caption) as one turn — each
+// item becomes its own row, in order, but only one AI reply is generated
+// afterward, reading the whole updated conversation, so it reacts to all
+// of it together instead of firing once per attachment.
+router.post('/batch', async (req, res) => {
+  const { items } = req.body;
+  if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'items is required' });
+
+  const mineRows = items.map(insertMineRow).filter(Boolean);
+  if (!mineRows.length) return res.status(400).json({ error: 'no valid items' });
+
+  const reply = await getYushenReply(await recentHistory());
+  const theirs = insertTheirsRow(reply);
+
+  res.json({ mine: mineRows.map(serializeMessage), reply: serializeMessage(theirs) });
 
   maybeCompressChatHistory();
 });
@@ -85,7 +119,7 @@ router.post('/:id/regenerate', async (req, res) => {
   if (!target) return res.status(404).json({ error: 'message not found' });
   if (target.from_who !== 'them') return res.status(400).json({ error: 'only AI replies can be regenerated' });
 
-  const reply = await getYushenReply(recentHistory(id));
+  const reply = await getYushenReply(await recentHistory(id));
   db.prepare('UPDATE chat_messages SET text = ?, tokens = ?, thinking = ? WHERE id = ?').run(
     reply.text,
     reply.tokens,
@@ -129,7 +163,7 @@ router.post('/:id/regenerate-round', async (req, res) => {
     return res.status(400).json({ error: 'this message is not the latest turn' });
   }
 
-  const reply = await getYushenReply(recentHistory(id, { inclusive: true }));
+  const reply = await getYushenReply(await recentHistory(id, { inclusive: true }));
 
   if (next) {
     db.prepare('UPDATE chat_messages SET text = ?, tokens = ?, thinking = ? WHERE id = ?').run(

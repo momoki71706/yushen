@@ -3,8 +3,11 @@ const ORIGIN = BASE_URL.replace(/\/api\/?$/, '');
 
 // Attachment URLs come back from the backend as paths relative to the
 // server (e.g. "/uploads/xxx.png"), not the "/api"-suffixed base — this
-// resolves one to an actual loadable URL.
+// resolves one to an actual loadable URL. Optimistic messages use a local
+// blob: object URL before the real upload finishes, which is already a
+// complete URL and must be passed through untouched.
 export function attachmentUrl(path) {
+  if (!path || path.startsWith('blob:') || path.startsWith('http:') || path.startsWith('https:')) return path;
   return `${ORIGIN}${path}`;
 }
 
@@ -24,6 +27,7 @@ export const api = {
   getMessages: () => request('/chat'),
   sendMessage: (text, kind = 'text', attachment = null) =>
     request('/chat', { method: 'POST', body: JSON.stringify({ text, kind, attachment }) }),
+  sendBatch: (items) => request('/chat/batch', { method: 'POST', body: JSON.stringify({ items }) }),
   uploadAttachment: async (file) => {
     const form = new FormData();
     form.append('file', file);

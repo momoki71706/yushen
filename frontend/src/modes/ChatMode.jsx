@@ -1,9 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
 import { attachmentUrl } from '../api/client';
-import { BowIcon, StarIcon, PlusIcon, RefreshIcon, ChevronDownIcon, PencilIcon, TrashIcon, FileIcon } from '../components/Icons';
+import { BowIcon, StarIcon, PlusIcon, RefreshIcon, ChevronDownIcon, PencilIcon, TrashIcon, FileIcon, CloseIcon } from '../components/Icons';
 import ModelSwitcherPopover from '../components/ModelSwitcherPopover';
-import AttachmentMenuPopover from '../components/AttachmentMenuPopover';
 
 function formatFileSize(bytes) {
   if (!bytes && bytes !== 0) return '';
@@ -12,18 +11,79 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// Drag-to-reorder for the staged attachment strip, implemented with
+// pointer events rather than the HTML5 drag-and-drop API — the latter has
+// no real touch support on iOS Safari, which is where this app actually
+// runs day to day.
+function AttachmentDraftStrip() {
+  const attachmentDraft = useStore((s) => s.attachmentDraft);
+  const removeAttachmentDraft = useStore((s) => s.removeAttachmentDraft);
+  const reorderAttachmentDraft = useStore((s) => s.reorderAttachmentDraft);
+  const dragRef = useRef(null);
+
+  if (!attachmentDraft.length) return null;
+
+  const handlePointerDown = (e, index) => {
+    dragRef.current = { index, startX: e.clientX };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const handlePointerMove = (e) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const itemWidth = e.currentTarget.offsetWidth + 8;
+    const deltaIndex = Math.round((e.clientX - drag.startX) / itemWidth);
+    if (!deltaIndex) return;
+    const targetIndex = Math.max(0, Math.min(attachmentDraft.length - 1, drag.index + deltaIndex));
+    if (targetIndex !== drag.index) {
+      reorderAttachmentDraft(drag.index, targetIndex);
+      dragRef.current = { index: targetIndex, startX: e.clientX };
+    }
+  };
+  const handlePointerUp = () => {
+    dragRef.current = null;
+  };
+
+  return (
+    <div className="attachment-draft-strip">
+      {attachmentDraft.map((a, i) => (
+        <div
+          key={a.id}
+          className="attachment-draft-item"
+          onPointerDown={(e) => handlePointerDown(e, i)}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+        >
+          {a.kind === 'image' ? (
+            <img src={a.previewUrl} alt="" />
+          ) : (
+            <div className="attachment-draft-file">
+              <FileIcon width={20} height={20} />
+              <span>{a.file.name}</span>
+            </div>
+          )}
+          <button
+            className="attachment-draft-remove"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => removeAttachmentDraft(a.id)}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ChatMode() {
   const messages = useStore((s) => s.messages);
   const isReplying = useStore((s) => s.isReplying);
   const chatDraft = useStore((s) => s.chatDraft);
   const onChatChange = useStore((s) => s.onChatChange);
   const sendChat = useStore((s) => s.sendChat);
-  const attachmentMenuOpen = useStore((s) => s.attachmentMenuOpen);
-  const toggleAttachmentMenu = useStore((s) => s.toggleAttachmentMenu);
-  const closeAttachmentMenu = useStore((s) => s.closeAttachmentMenu);
+  const addAttachmentDraftFiles = useStore((s) => s.addAttachmentDraftFiles);
   const attachmentUploading = useStore((s) => s.attachmentUploading);
   const attachmentError = useStore((s) => s.attachmentError);
-  const sendAttachment = useStore((s) => s.sendAttachment);
   const clearAttachmentError = useStore((s) => s.clearAttachmentError);
   const imageViewerUrl = useStore((s) => s.imageViewerUrl);
   const openImageViewer = useStore((s) => s.openImageViewer);
@@ -50,25 +110,15 @@ export default function ChatMode() {
   const confirmDeleteMessage = useStore((s) => s.confirmDeleteMessage);
 
   const listRef = useRef(null);
-  const imageInputRef = useRef(null);
-  const docInputRef = useRef(null);
+  const fileInputRef = useRef(null);
   useEffect(() => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, isReplying]);
 
   const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
+    addAttachmentDraftFiles(e.target.files);
     e.target.value = '';
-    if (file) sendAttachment(file);
-  };
-  const pickImage = () => {
-    closeAttachmentMenu();
-    imageInputRef.current?.click();
-  };
-  const pickFile = () => {
-    closeAttachmentMenu();
-    docInputRef.current?.click();
   };
 
   return (
@@ -220,7 +270,6 @@ export default function ChatMode() {
 
       <div className="chat__footer">
         {modelSwitcherOpen && <ModelSwitcherPopover />}
-        {attachmentMenuOpen && <AttachmentMenuPopover onPickImage={pickImage} onPickFile={pickFile} />}
         <div className="chat__stickers">
           <button
             className="sticker-btn"
@@ -248,17 +297,15 @@ export default function ChatMode() {
             className="sticker-btn"
             title="插入附件"
             style={{
-              background: attachmentMenuOpen ? '#E8C4D4' : 'rgba(255,255,255,0.7)',
-              boxShadow: attachmentMenuOpen ? '0 0 0 3px rgba(200,137,158,0.3)' : 'none',
+              background: 'rgba(255,255,255,0.7)',
               opacity: attachmentUploading ? 0.5 : 1,
             }}
-            onClick={toggleAttachmentMenu}
+            onClick={() => fileInputRef.current?.click()}
             disabled={attachmentUploading}
           >
             <PlusIcon color="#C08BA0" width={14} height={14} />
           </button>
-          <input ref={imageInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
-          <input ref={docInputRef} type="file" style={{ display: 'none' }} onChange={handleFileChange} />
+          <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={handleFileChange} />
         </div>
         {attachmentError && (
           <div className="chat__attachment-error">
@@ -266,6 +313,7 @@ export default function ChatMode() {
             <button className="chat__attachment-error-close" onClick={clearAttachmentError}>×</button>
           </div>
         )}
+        <AttachmentDraftStrip />
         <div className="chat__input-row">
           <input
             className="chat__input"

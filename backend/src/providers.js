@@ -17,6 +17,25 @@ export function trimTrailingAssistantTurns(history) {
   return history.slice(0, end);
 }
 
+// A history entry with an `image` field needs the actual image bytes sent
+// as a real content block for a vision model to see it — a plain string
+// only carries the caption. Entries without an image (the overwhelming
+// majority) stay as plain strings so existing providers/relays that don't
+// expect array content are unaffected.
+export function toAnthropicMessageContent(m) {
+  if (!m.image) return m.text;
+  const blocks = [{ type: 'image', source: { type: 'base64', media_type: m.image.mediaType, data: m.image.base64 } }];
+  if (m.text) blocks.push({ type: 'text', text: m.text });
+  return blocks;
+}
+
+export function toOpenAiMessageContent(m) {
+  if (!m.image) return m.text;
+  const parts = [{ type: 'image_url', image_url: { url: `data:${m.image.mediaType};base64,${m.image.base64}` } }];
+  if (m.text) parts.push({ type: 'text', text: m.text });
+  return parts;
+}
+
 function maskKey(key) {
   if (!key) return '';
   if (key.length <= 4) return '••••';
@@ -196,7 +215,11 @@ export async function getReplyViaProvider(history, provider, extraInstruction) {
   const apiKey = pickKey(provider.keys);
   if (!apiKey) return { text: FALLBACK_REPLY, tokens: estimateTokens(FALLBACK_REPLY) };
   const systemPrompt = getComposedSystemPrompt(extraInstruction);
-  const messages = history.map((m) => ({ role: m.from === 'me' ? 'user' : 'assistant', content: m.text }));
+  const isOpenAi = provider.type === 'openai';
+  const messages = history.map((m) => ({
+    role: m.from === 'me' ? 'user' : 'assistant',
+    content: isOpenAi ? toOpenAiMessageContent(m) : toAnthropicMessageContent(m),
+  }));
 
   if (provider.type === 'openai') {
     const json = await callOpenAiCompatible({

@@ -4,7 +4,7 @@ import { formatBeijingClock, beijingNow } from './time.js';
 import { sendPushToAll, pushConfigured } from './push.js';
 import { classifyReplyForRetry, withReplyRetry } from './persona.js';
 import { getContextMessageLimit } from './contextSettings.js';
-import { describeForHistory } from './chatHistory.js';
+import { enrichHistory } from './chatHistory.js';
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often the scheduler wakes up to check
 
@@ -59,11 +59,11 @@ async function maybeSendProactiveMessage() {
     const provider = providerId ? getProviderWithKeys(providerId) : null;
     if (!provider) return;
 
-    const rawHistory = db
-      .prepare('SELECT from_who, text, kind, attachment_name FROM chat_messages ORDER BY id DESC LIMIT ?')
+    const rows = db
+      .prepare('SELECT from_who, text, kind, attachment_url, attachment_name, attachment_mime FROM chat_messages ORDER BY id DESC LIMIT ?')
       .all(getContextMessageLimit())
-      .reverse()
-      .map((r) => ({ from: r.from_who, text: describeForHistory(r) }));
+      .reverse();
+    const rawHistory = await enrichHistory(rows);
     const history = trimTrailingAssistantTurns(rawHistory);
 
     const reply = await withReplyRetry(() => getReplyViaProvider(history, provider, buildProactiveInstruction(idleMs)));

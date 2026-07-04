@@ -3,7 +3,7 @@ import { getProviderWithKeys, pickKey, trimTrailingAssistantTurns } from './prov
 import { getEnabledTools, runAnthropicToolLoop, runOpenAiToolLoop } from './mcp.js';
 import { getLocalTools } from './localTools.js';
 import { getContextMessageLimit, getMemorySaveIntervalHours } from './contextSettings.js';
-import { describeForHistory } from './chatHistory.js';
+import { enrichHistory } from './chatHistory.js';
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often the scheduler wakes up to check
 
@@ -37,12 +37,12 @@ async function maybeSaveMemory() {
     const apiKey = pickKey(provider.keys);
     if (!apiKey) return;
 
-    const rawHistory = db
-      .prepare('SELECT from_who, text, kind, attachment_name FROM chat_messages ORDER BY id DESC LIMIT ?')
+    const rows = db
+      .prepare('SELECT from_who, text, kind, attachment_url, attachment_name, attachment_mime FROM chat_messages ORDER BY id DESC LIMIT ?')
       .all(getContextMessageLimit())
-      .reverse()
-      .map((r) => ({ from: r.from_who, text: describeForHistory(r) }));
-    if (!rawHistory.length) return;
+      .reverse();
+    if (!rows.length) return;
+    const rawHistory = await enrichHistory(rows);
     const history = trimTrailingAssistantTurns(rawHistory);
     if (!history.length) return;
 

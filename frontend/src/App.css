@@ -254,6 +254,60 @@
   margin-bottom: 8px;
 }
 .chat__attachment-error-close { border: none; background: none; color: #B4645E; font-size: 15px; line-height: 1; padding: 0 2px; flex-shrink: 0; }
+.attachment-draft-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+}
+.attachment-draft-item {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--glass-mid);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-soft);
+  touch-action: none;
+  user-select: none;
+}
+.attachment-draft-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.attachment-draft-file {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px;
+}
+.attachment-draft-file span {
+  font-size: 9px;
+  color: var(--color-text-faint);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.attachment-draft-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
 .image-viewer-overlay {
   position: absolute;
   inset: 0;

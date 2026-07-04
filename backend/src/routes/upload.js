@@ -1,13 +1,10 @@
 import { Router } from 'express';
 import multer from 'multer';
-import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { fileURLToPath } from 'node:url';
+import { UPLOAD_DIR } from '../uploadDir.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+export { UPLOAD_DIR };
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB — generous for phone photos, not so large a single upload can stall the connection
 

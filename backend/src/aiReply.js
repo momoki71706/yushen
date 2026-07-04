@@ -19,7 +19,12 @@ async function attemptYushenReply(history) {
 
   try {
     if (aiMode === 'claude-code') {
-      const userText = history[history.length - 1]?.text || '';
+      // The CLI only takes a single plain-text prompt, no image content
+      // blocks — an image turn's `.text` is just its caption (often empty),
+      // so without this it would silently look like a blank message instead
+      // of a photo the model can't actually see through this path.
+      const last = history[history.length - 1];
+      const userText = last ? (last.image ? `[发送了一张图片]${last.text ? `，并说：${last.text}` : ''}` : last.text) : '';
       return await getReplyViaClaudeCode(userText, undefined, mcpEnabled);
     }
 

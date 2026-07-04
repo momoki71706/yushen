@@ -5,7 +5,13 @@ import Anthropic from '@anthropic-ai/sdk';
 import { db } from './db.js';
 import { FALLBACK_REPLY, estimateTokens } from './persona.js';
 import { getComposedSystemPrompt } from './presets.js';
-import { THINKING_BUDGET_TOKENS, extractThinking, extractOpenAiThinking } from './providers.js';
+import {
+  THINKING_BUDGET_TOKENS,
+  extractThinking,
+  extractOpenAiThinking,
+  toAnthropicMessageContent,
+  toOpenAiMessageContent,
+} from './providers.js';
 import { isLocalTool, executeLocalTool } from './localTools.js';
 
 const MAX_TOOL_ITERATIONS = 5;
@@ -183,7 +189,7 @@ export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tool
   const systemPrompt = buildToolAwareSystemPrompt(tools, extraInstruction);
   const messages = history.map((m) => ({
     role: m.from === 'me' ? 'user' : 'assistant',
-    content: m.text,
+    content: toAnthropicMessageContent(m),
   }));
 
   let finalText = '';
@@ -243,7 +249,7 @@ export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools, 
   const openAiTools = tools.map(toOpenAiTool);
   const messages = [
     { role: 'system', content: buildToolAwareSystemPrompt(tools, extraInstruction) },
-    ...history.map((m) => ({ role: m.from === 'me' ? 'user' : 'assistant', content: m.text })),
+    ...history.map((m) => ({ role: m.from === 'me' ? 'user' : 'assistant', content: toOpenAiMessageContent(m) })),
   ];
 
   let finalText = '';

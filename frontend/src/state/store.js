@@ -323,33 +323,97 @@ export const useStore = create(
       set({ isReplying: false });
     }
   },
-  sendChat: () => {
-    const text = (get().chatDraft || '').trim();
-    if (!text) return;
-    set({ chatDraft: '' });
-    get().pushMessage(text, 'text');
-  },
+  sendChat: () => get().sendComposedMessage(),
 
   // ---- attachments (real image/file uploads via the chat "+" button) ----
-  attachmentMenuOpen: false,
-  toggleAttachmentMenu: () => set((s) => ({ attachmentMenuOpen: !s.attachmentMenuOpen })),
-  closeAttachmentMenu: () => set({ attachmentMenuOpen: false }),
+  // Picking a file only stages it here as a small removable/reorderable
+  // thumbnail — nothing is uploaded or sent until sendComposedMessage runs,
+  // so you can review, drop, or add more before anything actually goes out.
+  attachmentDraft: [],
   attachmentUploading: false,
   attachmentError: '',
-  sendAttachment: async (file) => {
-    if (!file) return;
-    set({ attachmentUploading: true, attachmentError: '' });
+  addAttachmentDraftFiles: (fileList) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    const items = files.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      file,
+      previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+      kind: file.type.startsWith('image/') ? 'image' : 'file',
+    }));
+    set((s) => ({ attachmentDraft: [...s.attachmentDraft, ...items] }));
+  },
+  removeAttachmentDraft: (id) =>
+    set((s) => {
+      const target = s.attachmentDraft.find((a) => a.id === id);
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      return { attachmentDraft: s.attachmentDraft.filter((a) => a.id !== id) };
+    }),
+  reorderAttachmentDraft: (fromIndex, toIndex) =>
+    set((s) => {
+      if (fromIndex === toIndex) return {};
+      const next = [...s.attachmentDraft];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return { attachmentDraft: next };
+    }),
+  clearAttachmentError: () => set({ attachmentError: '' }),
+  // Uploads every staged file, then sends them together with any typed
+  // text as one batch — inserted as consecutive turns before a single AI
+  // reply is generated, so the reply can react to all of it as one thing
+  // said at once instead of triggering a separate reply per attachment.
+  sendComposedMessage: async () => {
+    const text = (get().chatDraft || '').trim();
+    const draft = get().attachmentDraft;
+    if (!draft.length) {
+      if (!text) return;
+      set({ chatDraft: '' });
+      get().pushMessage(text, 'text');
+      return;
+    }
+
+    const pendingPrefix = `pending-${Date.now()}`;
+    const optimistic = draft.map((a, i) => ({
+      id: `${pendingPrefix}-${i}`,
+      from: 'me',
+      kind: a.kind,
+      text: '',
+      time: '',
+      attachment: { url: a.previewUrl, name: a.file.name, mime: a.file.type, size: a.file.size },
+    }));
+    if (text) optimistic.push({ id: `${pendingPrefix}-text`, from: 'me', kind: 'text', text, time: '' });
+
+    set((s) => ({
+      messages: [...s.messages, ...optimistic],
+      chatDraft: '',
+      attachmentDraft: [],
+      attachmentUploading: true,
+      attachmentError: '',
+      isReplying: true,
+    }));
+
     try {
-      const uploaded = await api.uploadAttachment(file);
-      const kind = (file.type || '').startsWith('image/') ? 'image' : 'file';
-      await get().pushMessage('', kind, uploaded);
+      const uploaded = await Promise.all(draft.map((a) => api.uploadAttachment(a.file)));
+      draft.forEach((a) => {
+        if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
+      });
+      const items = uploaded.map((u, i) => ({ text: '', kind: draft[i].kind, attachment: u }));
+      if (text) items.push({ text, kind: 'text' });
+      const { mine, reply } = await api.sendBatch(items);
+      set((s) => ({
+        messages: [...s.messages.filter((m) => !String(m.id).startsWith(pendingPrefix)), ...mine, reply],
+        isReplying: false,
+      }));
     } catch (err) {
-      set({ attachmentError: err.message });
+      set((s) => ({
+        messages: s.messages.filter((m) => !String(m.id).startsWith(pendingPrefix)),
+        attachmentError: err.message,
+        isReplying: false,
+      }));
     } finally {
       set({ attachmentUploading: false });
     }
   },
-  clearAttachmentError: () => set({ attachmentError: '' }),
 
   // ---- image viewer (tap an image bubble to view full-size) ----
   imageViewerUrl: null,
