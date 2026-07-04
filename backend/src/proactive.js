@@ -2,6 +2,7 @@ import { db, getSetting, setSetting } from './db.js';
 import { getProviderWithKeys, getReplyViaProvider, trimTrailingAssistantTurns } from './providers.js';
 import { formatBeijingClock, beijingNow } from './time.js';
 import { sendPushToAll, pushConfigured } from './push.js';
+import { classifyReplyForRetry, withReplyRetry } from './persona.js';
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often the scheduler wakes up to check
 const IDLE_THRESHOLD_MS = 4 * 60 * 60 * 1000; // conversation has to be quiet this long before a proactive message is even considered
@@ -49,8 +50,10 @@ async function maybeSendProactiveMessage() {
       .map((r) => ({ from: r.from_who, text: r.text }));
     const history = trimTrailingAssistantTurns(rawHistory);
 
-    const reply = await getReplyViaProvider(history, provider, buildProactiveInstruction(idleMs));
-    if (!reply.text) return;
+    const reply = await withReplyRetry(() => getReplyViaProvider(history, provider, buildProactiveInstruction(idleMs)));
+    // Still empty/broken after a retry — skip this round rather than push
+    // an internal error line ("钥匙好像失效了") as if it were a real message.
+    if (classifyReplyForRetry(reply.text).bad) return;
 
     db.prepare(
       'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens, thinking) VALUES (?,?,?,?,?,?)'

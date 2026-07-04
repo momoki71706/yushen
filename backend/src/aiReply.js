@@ -1,11 +1,19 @@
 import { getSetting } from './db.js';
 import { getProviderWithKeys, getReplyViaProvider, pickKey } from './providers.js';
 import { getReplyViaClaudeCode } from './claudeCode.js';
-import { FALLBACK_REPLY, classifyAiError, estimateTokens } from './persona.js';
+import { FALLBACK_REPLY, classifyAiError, estimateTokens, withReplyRetry } from './persona.js';
 import { getEnabledTools, runAnthropicToolLoop, runOpenAiToolLoop } from './mcp.js';
 import { getLocalTools } from './localTools.js';
 
+// An empty reply or a canned "something broke" line that turns out to be
+// transient (network blip, overloaded server) gets one automatic retry
+// before the user ever sees it — see persona.js's withReplyRetry for what
+// counts as worth retrying.
 export async function getYushenReply(history) {
+  return withReplyRetry(() => attemptYushenReply(history));
+}
+
+async function attemptYushenReply(history) {
   const aiMode = getSetting('aiMode', 'provider');
   const mcpEnabled = getSetting('mcpToolsEnabled', '0') === '1';
 
