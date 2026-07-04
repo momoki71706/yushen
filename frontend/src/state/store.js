@@ -1320,7 +1320,8 @@ export const useStore = create(
     set({ memoryLogEntries });
   },
   lastSeenMemoryLogId: 0,
-  memoryToast: null,
+  memoryToastItems: [], // [{id, summary}] — every unseen save this poll turned up, not just the latest
+  dismissMemoryToast: () => set({ memoryToastItems: [] }),
   // Polled periodically while the app is open (see App.jsx) — anything
   // newer than the last id we've shown a toast for gets one now. Compares
   // against a persisted id (not just in-memory) so a reload doesn't
@@ -1331,12 +1332,10 @@ export const useStore = create(
       const lastSeenId = get().lastSeenMemoryLogId;
       const unseen = entries.filter((e) => e.id > lastSeenId).sort((a, b) => a.id - b.id);
       if (!unseen.length) return;
-      set({ lastSeenMemoryLogId: unseen[unseen.length - 1].id });
-      const latest = unseen[unseen.length - 1];
-      set({ memoryToast: latest.summary });
+      set({ lastSeenMemoryLogId: unseen[unseen.length - 1].id, memoryToastItems: unseen });
       setTimeout(() => {
-        if (get().memoryToast === latest.summary) set({ memoryToast: null });
-      }, 5000);
+        if (get().memoryToastItems === unseen) set({ memoryToastItems: [] });
+      }, 8000);
     } catch {
       // backend not reachable this tick — try again next poll
     }
