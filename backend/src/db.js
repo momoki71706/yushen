@@ -171,6 +171,8 @@ ensureColumn('letters', 'exported', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('diary_entries', 'author', "TEXT NOT NULL DEFAULT 'me'");
 ensureColumn('diary_entries', 'reacted', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('diary_entries', 'react_at', 'TEXT');
+ensureColumn('diary_entries', 'react_attempts', 'INTEGER NOT NULL DEFAULT 0');
+ensureColumn('diary_review_requests', 'attempts', 'INTEGER NOT NULL DEFAULT 0');
 // Defaults to 1 (read) here specifically so this migration doesn't
 // retroactively mark every pre-existing entry/comment as unread — new rows
 // going forward explicitly set 0 or 1 per-author at insert time instead of

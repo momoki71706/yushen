@@ -2,7 +2,13 @@ import { db, getSetting, setSetting } from './db.js';
 import { beijingNow, weekdayLabel, formatBeijingClock } from './time.js';
 import { writeDiaryEntry, reactToDiaryEntry, commentOnDiaryByRequest, moodColorFor } from './diaryAi.js';
 import { sendPushToAll, pushConfigured } from './push.js';
-import { classifyReplyForRetry, estimateTokens } from './persona.js';
+import { FALLBACK_REPLY, classifyReplyForRetry, estimateTokens } from './persona.js';
+
+// A diary comment/feedback attempt gets retried on the next couple of
+// checks (one retry per minute-ish tick) before giving up for good — unlike
+// maybeWriteDiary, which just keeps trying all day, these are tied to one
+// specific triggering event and shouldn't retry forever.
+const MAX_REACTION_ATTEMPTS = 3; // 1 original attempt + 2 retries
 
 // Checked at the same cadence as scheduledMessages.js — the review-request
 // path (comment_on_diary) fires within 1-5 minutes, so a coarser interval
@@ -108,16 +114,27 @@ export async function maybeReactToDiaries() {
     if (!due.length) return;
 
     for (const entry of due) {
-      // Mark reacted before generating — if generation throws, better to
-      // silently skip one reaction than retry it every check forever.
-      db.prepare('UPDATE diary_entries SET reacted = 1 WHERE id = ?').run(entry.id);
       try {
         const reaction = await reactToDiaryEntry(entry);
-        if (!reaction) continue;
-        if (!classifyReplyForRetry(reaction.comment).bad) {
-          insertReactionComment.run(entry.id, reaction.comment, formatBeijingClock());
-          await notifyDiaryComment(reaction.comment);
+        if (!reaction) continue; // no provider configured yet — keep waiting, doesn't count as a failed attempt
+
+        if (classifyReplyForRetry(reaction.comment).bad) {
+          const attempts = entry.react_attempts + 1;
+          if (attempts < MAX_REACTION_ATTEMPTS) {
+            db.prepare('UPDATE diary_entries SET react_attempts = ? WHERE id = ?').run(attempts, entry.id);
+            continue;
+          }
+          // Out of retries — surface the actual failure instead of just
+          // going quiet, so a real outage doesn't read as him simply never
+          // having noticed.
+          db.prepare('UPDATE diary_entries SET reacted = 1 WHERE id = ?').run(entry.id);
+          insertReactionComment.run(entry.id, reaction.comment || FALLBACK_REPLY, formatBeijingClock());
+          continue;
         }
+
+        db.prepare('UPDATE diary_entries SET reacted = 1 WHERE id = ?').run(entry.id);
+        insertReactionComment.run(entry.id, reaction.comment, formatBeijingClock());
+        await notifyDiaryComment(reaction.comment);
         if (reaction.chatFollowUp && !classifyReplyForRetry(reaction.chatFollowUp).bad) {
           insertChatFollowUp.run('them', reaction.chatFollowUp, 'text', formatBeijingClock(), estimateTokens(reaction.chatFollowUp));
           if (pushConfigured) await sendPushToAll({ title: '屿深', body: reaction.chatFollowUp });
@@ -142,16 +159,29 @@ export async function maybeFulfillDiaryReviewRequests() {
     if (!due.length) return;
 
     for (const req of due) {
-      db.prepare('UPDATE diary_review_requests SET done = 1 WHERE id = ?').run(req.id);
       try {
         const entry = db.prepare('SELECT * FROM diary_entries WHERE id = ?').get(req.entry_id);
-        if (!entry) continue;
-        const result = await commentOnDiaryByRequest(entry);
-        if (!result) continue;
-        if (!classifyReplyForRetry(result.comment).bad) {
-          insertReactionComment.run(entry.id, result.comment, formatBeijingClock());
-          await notifyDiaryComment(result.comment);
+        if (!entry) {
+          db.prepare('UPDATE diary_review_requests SET done = 1 WHERE id = ?').run(req.id);
+          continue;
         }
+        const result = await commentOnDiaryByRequest(entry);
+        if (!result) continue; // no provider configured yet — keep waiting
+
+        if (classifyReplyForRetry(result.comment).bad) {
+          const attempts = req.attempts + 1;
+          if (attempts < MAX_REACTION_ATTEMPTS) {
+            db.prepare('UPDATE diary_review_requests SET attempts = ? WHERE id = ?').run(attempts, req.id);
+            continue;
+          }
+          db.prepare('UPDATE diary_review_requests SET done = 1 WHERE id = ?').run(req.id);
+          insertReactionComment.run(entry.id, result.comment || FALLBACK_REPLY, formatBeijingClock());
+          continue;
+        }
+
+        db.prepare('UPDATE diary_review_requests SET done = 1 WHERE id = ?').run(req.id);
+        insertReactionComment.run(entry.id, result.comment, formatBeijingClock());
+        await notifyDiaryComment(result.comment);
         if (result.chatFeedback && !classifyReplyForRetry(result.chatFeedback).bad) {
           insertChatFollowUp.run('them', result.chatFeedback, 'text', formatBeijingClock(), estimateTokens(result.chatFeedback));
         }
