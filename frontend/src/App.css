@@ -322,6 +322,7 @@
 .chat__time-row { display: flex; align-items: center; gap: 6px; margin-top: 3px; padding: 0 4px; }
 .chat__time { font-size: 11px; color: var(--color-text-faint); }
 .chat__msg-actions { display: flex; align-items: center; gap: 4px; }
+.chat__read-status { display: flex; align-items: center; opacity: 0.75; }
 .chat__msg-action-btn {
   width: 24px;
   height: 24px;
@@ -936,6 +937,14 @@
 }
 .reply-picker-item-body { font-size: 13.5px; color: var(--color-text); line-height: 1.5; margin-bottom: 4px; }
 .reply-picker-item-meta { font-size: 11px; color: var(--color-text-faint); }
+.letter-reply-target {
+  font-size: 12px;
+  color: var(--color-text-soft);
+  background: var(--glass-mid);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
 
 .letter-card {
   border-radius: 12px;

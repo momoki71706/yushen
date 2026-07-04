@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
 import { attachmentUrl } from '../api/client';
-import { BowIcon, StarIcon, PlusIcon, RefreshIcon, ChevronDownIcon, PencilIcon, TrashIcon, FileIcon, CloseIcon } from '../components/Icons';
+import { BowIcon, StarIcon, PlusIcon, RefreshIcon, ChevronDownIcon, PencilIcon, TrashIcon, FileIcon, CloseIcon, ReadStatusIcon } from '../components/Icons';
 import ModelSwitcherPopover from '../components/ModelSwitcherPopover';
 
 function formatFileSize(bytes) {
@@ -79,6 +79,7 @@ export default function ChatMode() {
   const messages = useStore((s) => s.messages);
   const isReplying = useStore((s) => s.isReplying);
   const markChatRead = useStore((s) => s.markChatRead);
+  const chatLastReadId = useStore((s) => s.chatLastReadId);
   const chatDraft = useStore((s) => s.chatDraft);
   const onChatChange = useStore((s) => s.onChatChange);
   const sendChat = useStore((s) => s.sendChat);
@@ -211,6 +212,11 @@ export default function ChatMode() {
                     ) : (
                       <>
                         <div className="chat__time">{timeLabel}</div>
+                        {!mine && typeof msg.id === 'number' && (
+                          <span className="chat__read-status" title={msg.id <= chatLastReadId ? '已读' : '未读'}>
+                            <ReadStatusIcon read={msg.id <= chatLastReadId} />
+                          </span>
+                        )}
                         <div className="chat__msg-actions">
                           {!mine && msg.kind === 'text' && (
                             <>

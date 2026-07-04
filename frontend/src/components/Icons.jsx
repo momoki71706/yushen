@@ -32,6 +32,21 @@ export function CheckIcon({ color = '#C08BA0', width = 12, height = 10 }) {
   );
 }
 
+export function ReadStatusIcon({ read, color = '#B9AEB4', width = 9, height = 9 }) {
+  if (read) {
+    return (
+      <svg width={width} height={height} viewBox="0 0 14 11" fill="none">
+        <path d="M1 5.5L5 9.5L13 1" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg width={width} height={height} viewBox="0 0 10 10" fill="none">
+      <circle cx="5" cy="5" r="4" stroke={color} strokeWidth="1.6" />
+    </svg>
+  );
+}
+
 export function RefreshIcon({ color = '#9B939A', width = 12, height = 12 }) {
   return (
     <svg width={width} height={height} viewBox="0 0 14 14" fill="none">

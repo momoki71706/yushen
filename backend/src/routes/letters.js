@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db, getSetting } from '../db.js';
-import { writeLetterReply, MIN_REPLY_LENGTH } from '../letterAi.js';
+import { writeLetterReply, writeFreshLetter, MIN_REPLY_LENGTH } from '../letterAi.js';
 import { pickReplyFireAt } from '../letterScheduler.js';
 
 const router = Router();
@@ -25,10 +25,41 @@ router.get('/', (req, res) => {
   res.json(rows.map(serialize));
 });
 
+// Debug/manual trigger — there's no autonomous version of this (unlike
+// diary entries, nothing schedules him writing an unprompted letter), so
+// this is currently the only way a mailbox ever gets its first received
+// letter without going through the reply chain first. Kept simple and
+// synchronous since it's a deliberate on-demand test action, not a
+// background job.
+router.post('/trigger-write', async (req, res) => {
+  const result = await writeFreshLetter();
+  if (!result) return res.status(400).json({ error: '还没有配置好的 AI 供应商' });
+  if (result.failed || !result.reply) return res.status(502).json({ error: '这次生成失败了，再试一次' });
+
+  const today = new Date().toISOString().slice(0, 10);
+  const info = db
+    .prepare(`INSERT INTO letters (sender, recipient, signature, dear_text, unlock_date, body, opened) VALUES ('屿深','小晴',?,?,?,?,0)`)
+    .run(result.reply.signature, result.reply.dearText, today, result.reply.body);
+
+  const row = db.prepare('SELECT * FROM letters WHERE id = ?').get(info.lastInsertRowid);
+  res.json(serialize(row));
+});
+
 router.post('/', (req, res) => {
-  const { recipient, unlockDate, body, signature, dearText, hasAttachment } = req.body;
+  const { recipient, unlockDate, body, signature, dearText, hasAttachment, replyToId } = req.body;
   const trimmed = (body || '').trim();
   if (!trimmed) return res.status(400).json({ error: 'body is required' });
+
+  // A reply must target one of *his* letters — replying to your own past
+  // letter doesn't make sense, and this is also what makes the reply-back
+  // queue below meaningful (his reply-to-your-reply, not to himself).
+  let replyTarget = null;
+  if (replyToId) {
+    replyTarget = db.prepare('SELECT * FROM letters WHERE id = ?').get(replyToId);
+    if (!replyTarget || replyTarget.sender !== '屿深') {
+      return res.status(400).json({ error: '只能回复他寄来的信' });
+    }
+  }
 
   const nickname = getSetting('nickname', '屿深');
   const resolvedSignature = (signature || '小晴').trim() || '小晴';
@@ -46,10 +77,27 @@ router.post('/', (req, res) => {
 
   const info = db
     .prepare(
-      `INSERT INTO letters (sender, recipient, signature, dear_text, unlock_date, body, opened, has_attachment)
-       VALUES (?,?,?,?,?,?,?,?)`
+      `INSERT INTO letters (sender, recipient, signature, dear_text, unlock_date, body, opened, has_attachment, reply_to_id)
+       VALUES ('小晴',?,?,?,?,?,?,?,?)`
     )
-    .run('小晴', recipient || nickname, resolvedSignature, dearText || null, resolvedUnlockDate, trimmed, opened ? 1 : 0, hasAttachment ? 1 : 0);
+    .run(
+      recipient || nickname,
+      resolvedSignature,
+      dearText || null,
+      resolvedUnlockDate,
+      trimmed,
+      opened ? 1 : 0,
+      hasAttachment ? 1 : 0,
+      replyTarget ? replyTarget.id : null
+    );
+
+  // Whether he actually writes back (and how soon) is judged the same way
+  // as before — only a real, substantial reply queues a chance at one;
+  // there's just no explicit button for it anymore, sending the reply is
+  // the trigger.
+  if (replyTarget && trimmed.length >= MIN_REPLY_LENGTH) {
+    db.prepare('INSERT INTO letter_reply_requests (source_letter_id, fire_at) VALUES (?, ?)').run(info.lastInsertRowid, pickReplyFireAt());
+  }
 
   const row = db.prepare('SELECT * FROM letters WHERE id = ?').get(info.lastInsertRowid);
   res.json(serialize(row));
@@ -98,23 +146,6 @@ router.patch('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   db.prepare('DELETE FROM letters WHERE id = ?').run(req.params.id);
-  res.json({ ok: true });
-});
-
-// Queues a request for him to write back to one of your sent letters —
-// fulfilled later by letterScheduler, since deciding whether to actually
-// reply (and writing it) takes a real model call, not something to do
-// synchronously in this request.
-router.post('/:id/request-reply', (req, res) => {
-  const id = Number(req.params.id);
-  const letter = db.prepare('SELECT * FROM letters WHERE id = ?').get(id);
-  if (!letter) return res.status(404).json({ error: 'not found' });
-  if (letter.sender !== '小晴') return res.status(400).json({ error: 'only your own letters can request a reply' });
-  if (letter.body.length < MIN_REPLY_LENGTH) {
-    return res.status(400).json({ error: `这封信有点短，字数不到 ${MIN_REPLY_LENGTH} 字，他大概率不会回信` });
-  }
-
-  db.prepare('INSERT INTO letter_reply_requests (source_letter_id, fire_at) VALUES (?, ?)').run(id, pickReplyFireAt());
   res.json({ ok: true });
 });
 

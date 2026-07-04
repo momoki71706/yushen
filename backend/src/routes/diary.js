@@ -55,6 +55,28 @@ router.get('/unread-summary', (req, res) => {
   res.json({ unreadEntries, unreadComments });
 });
 
+// Debug/manual trigger — forces him to write a diary entry right now
+// instead of waiting for the random 21:00-24:00 window, purely so this (and
+// everything downstream of it, like the delayed reaction it can trigger)
+// can actually be tested on demand. Leaves lastDiaryWriteDate untouched, so
+// the normal autonomous scheduler isn't affected by using this.
+router.post('/trigger-write', async (req, res) => {
+  const written = await writeDiaryEntry();
+  if (!written) return res.status(400).json({ error: '还没有配置好的 AI 供应商' });
+  if (classifyReplyForRetry(written.excerpt).bad) return res.status(502).json({ error: '这次生成失败了，再试一次' });
+
+  const bNow = beijingNow();
+  const dateISO = `${bNow.getUTCFullYear()}-${String(bNow.getUTCMonth() + 1).padStart(2, '0')}-${String(bNow.getUTCDate()).padStart(2, '0')}`;
+  const info = db
+    .prepare(
+      `INSERT INTO diary_entries (author, date_iso, date_label, mood, mood_color, weather, excerpt, read_by_me) VALUES ('them', ?, ?, ?, ?, ?, ?, 0)`
+    )
+    .run(dateISO, diaryDateLabel(bNow), written.mood, moodColorFor(written.mood), written.weather, written.excerpt);
+
+  const row = db.prepare(`${LIST_QUERY} WHERE e.id = ?`).get(info.lastInsertRowid);
+  res.json(serialize(row));
+});
+
 router.post('/', (req, res) => {
   const { text, mood, weather, tag, attachment } = req.body;
   const trimmed = (text || '').trim();

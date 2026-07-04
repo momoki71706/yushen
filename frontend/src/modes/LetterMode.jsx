@@ -28,6 +28,10 @@ function Compose() {
   const editingLetterId = useStore((s) => s.editingLetterId);
   const cancelEditLetter = useStore((s) => s.cancelEditLetter);
   const openReplyPicker = useStore((s) => s.openReplyPicker);
+  const replyToId = useStore((s) => s.replyToId);
+  const cancelReplyToLetter = useStore((s) => s.cancelReplyToLetter);
+
+  const replyTarget = replyToId ? letters.find((l) => l.id === replyToId) : null;
 
   return (
     <div className="letter-scroll">
@@ -35,6 +39,10 @@ function Compose() {
         {editingLetterId ? (
           <button className="letter-editing-cancel" onClick={cancelEditLetter}>
             取消修改
+          </button>
+        ) : replyToId ? (
+          <button className="letter-editing-cancel" onClick={cancelReplyToLetter}>
+            取消回信
           </button>
         ) : (
           <button className="letter-reply-link" onClick={openReplyPicker}>
@@ -47,6 +55,12 @@ function Compose() {
         </button>
       </div>
       <ReplyPicker />
+
+      {replyTarget && (
+        <div className="letter-reply-target">
+          正在回复他的信：{replyTarget.body.length > 40 ? replyTarget.body.slice(0, 40) + '…' : replyTarget.body}
+        </div>
+      )}
 
       <div className="letter-card">
         <div className="letter-dear-row">
@@ -114,7 +128,7 @@ function Compose() {
           style={{ animation: sealPulse ? 'sealStamp 0.42s ease' : 'none' }}
           onClick={sealLetterAnimated}
         >
-          {editingLetterId ? '保存修改' : '发送'}
+          {editingLetterId ? '保存修改' : replyToId ? '发送回信' : '发送'}
         </button>
       </div>
     </div>
@@ -235,14 +249,13 @@ function ReplyPicker() {
   const showReplyPicker = useStore((s) => s.showReplyPicker);
   const closeReplyPicker = useStore((s) => s.closeReplyPicker);
   const letters = useStore((s) => s.letters);
-  const replyRequestMessage = useStore((s) => s.replyRequestMessage);
-  const requestLetterReplyAction = useStore((s) => s.requestLetterReplyAction);
+  const startReplyToLetter = useStore((s) => s.startReplyToLetter);
   const parseLocalDate = useStore((s) => s.parseLocalDate);
 
   if (!showReplyPicker) return null;
 
-  const sentLetters = letters
-    .filter((l) => l.sender === '小晴')
+  const receivedLetters = letters
+    .filter((l) => l.sender === '屿深')
     .slice()
     .sort((a, b) => parseLocalDate(b.unlockDate) - parseLocalDate(a.unlockDate));
 
@@ -250,17 +263,16 @@ function ReplyPicker() {
     <div className="sheet-overlay" onClick={closeReplyPicker}>
       <div className="sheet-panel" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-panel__head">
-          <div className="sheet-panel__title">选一封信让他回信</div>
+          <div className="sheet-panel__title">选一封他寄来的信回复</div>
           <button className="sheet-panel__close" onClick={closeReplyPicker}>
             <CloseIcon />
           </button>
         </div>
-        {replyRequestMessage && <div className="reply-picker-error">{replyRequestMessage}</div>}
-        {sentLetters.length === 0 && (
-          <div className="mailbox__letter-meta">你还没有寄出过信</div>
+        {receivedLetters.length === 0 && (
+          <div className="mailbox__letter-meta">还没有收到过他的信</div>
         )}
-        {sentLetters.map((l) => (
-          <div key={l.id} className="reply-picker-item" onClick={() => requestLetterReplyAction(l.id)}>
+        {receivedLetters.map((l) => (
+          <div key={l.id} className="reply-picker-item" onClick={() => startReplyToLetter(l)}>
             <div className="reply-picker-item-body">{l.body.length > 60 ? l.body.slice(0, 60) + '…' : l.body}</div>
             <div className="reply-picker-item-meta">{l.unlockDate} · {l.body.length} 字</div>
           </div>

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db, setSetting } from '../db.js';
+import { db, getSetting, setSetting } from '../db.js';
 import { getYushenReply } from '../aiReply.js';
 import { maybeCompressChatHistory } from '../compression.js';
 import { formatBeijingClock } from '../time.js';
@@ -27,6 +27,13 @@ function serializeMessage(row) {
 router.get('/', (req, res) => {
   const rows = db.prepare('SELECT * FROM chat_messages ORDER BY id ASC').all();
   res.json(rows.map(serializeMessage));
+});
+
+// Read/unread checkmark next to message bubbles reads off the same
+// watermark the follow-up scheduler uses — this just exposes it so the
+// frontend doesn't have to guess when mark-read last fired.
+router.get('/read-status', (req, res) => {
+  res.json({ lastReadChatMessageId: Number(getSetting('lastReadChatMessageId', '0')) || 0 });
 });
 
 // Called by the frontend whenever the chat screen is actually showing

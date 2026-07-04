@@ -317,16 +317,31 @@ export const useStore = create(
   messages: [],
   chatDraft: '',
   isReplying: false,
+  chatLastReadId: 0,
   loadMessages: async () => {
     const messages = await api.getMessages();
     set({ messages });
   },
+  loadChatReadStatus: async () => {
+    const { lastReadChatMessageId } = await api.getChatReadStatus();
+    set({ chatLastReadId: lastReadChatMessageId });
+  },
   // Called by ChatMode whenever it's actually mounted and showing current
   // messages — feeds the backend's read-but-unanswered follow-up scheduler,
   // which otherwise has no way to know whether a question sitting unreplied
-  // has actually been seen yet.
+  // has actually been seen yet. Also advances chatLastReadId locally so the
+  // ✓/○ marker next to his messages flips to read right after this fires,
+  // instead of waiting for the next full reload.
   markChatRead: () => {
-    api.markChatRead().catch(() => {});
+    api
+      .markChatRead()
+      .then(() => {
+        set((s) => {
+          const maxId = s.messages.reduce((m, msg) => (typeof msg.id === 'number' && msg.id > m ? msg.id : m), 0);
+          return { chatLastReadId: maxId };
+        });
+      })
+      .catch(() => {});
   },
   onChatChange: (value) => set({ chatDraft: value }),
   pushMessage: async (text, kind = 'text', attachment = null) => {
@@ -567,6 +582,22 @@ export const useStore = create(
   showDiaryDatePicker: false,
   showCustomTagInput: false,
   customTagDraft: '',
+  // Debug/manual trigger — forces him to write a diary entry right now
+  // instead of waiting for the random 21:00-24:00 window, purely for
+  // testing this (and whatever it triggers downstream) on demand.
+  diaryTriggerBusy: false,
+  diaryTriggerMessage: '',
+  triggerDiaryWriteAction: async () => {
+    set({ diaryTriggerBusy: true, diaryTriggerMessage: '' });
+    try {
+      const entry = await api.triggerDiaryWrite();
+      set((s) => ({ diaryEntries: [entry, ...s.diaryEntries], diaryTriggerMessage: '他刚写了一篇日记' }));
+    } catch (err) {
+      set({ diaryTriggerMessage: err.message });
+    } finally {
+      set({ diaryTriggerBusy: false });
+    }
+  },
   loadDiaryEntries: async () => {
     const diaryEntries = await api.getDiaryEntries();
     set({ diaryEntries });
@@ -737,19 +768,38 @@ export const useStore = create(
   expandedLetterIds: [],
   showLetterReminder: false,
   editingLetterId: null,
+  replyToId: null,
   showReplyPicker: false,
   replyRequestMessage: '',
   regeneratingLetterIds: [],
   openReplyPicker: () => set({ showReplyPicker: true, replyRequestMessage: '' }),
   closeReplyPicker: () => set({ showReplyPicker: false }),
-  requestLetterReplyAction: async (id) => {
-    try {
-      await api.requestLetterReply(id);
-      set({ showReplyPicker: false, replyRequestMessage: '' });
-    } catch (err) {
-      set({ replyRequestMessage: err.message });
-    }
+  // Picking one of his received letters here doesn't generate anything by
+  // itself — it just sets up Compose so you can write a real reply
+  // yourself; whether he writes back is decided server-side once you
+  // actually send it, same gating as before.
+  startReplyToLetter: (letter) => {
+    set({
+      showReplyPicker: false,
+      replyToId: letter.id,
+      editingLetterId: null,
+      letterText: '',
+      letterRecipient: letter.sender,
+      letterUnlockDate: tomorrowISO(),
+      letterSignature: '',
+      letterDearText: '',
+      letterView: 'compose',
+    });
   },
+  cancelReplyToLetter: () =>
+    set({
+      replyToId: null,
+      letterText: '',
+      letterSignature: '',
+      letterDearText: '',
+      letterUnlockDate: tomorrowISO(),
+      letterRecipient: '屿深',
+    }),
   regenerateLetterAction: async (id) => {
     if (get().regeneratingLetterIds.includes(id)) return;
     set((s) => ({ regeneratingLetterIds: [...s.regeneratingLetterIds, id] }));
@@ -766,6 +816,23 @@ export const useStore = create(
     const letters = await api.getLetters();
     set({ letters });
   },
+  // Debug/manual trigger — there's no autonomous version of this (unlike
+  // diary entries, nothing ever schedules him writing you an unprompted
+  // letter), so this is also the only way to get a first received letter
+  // into the mailbox without going through the reply chain first.
+  letterTriggerBusy: false,
+  letterTriggerMessage: '',
+  triggerLetterWriteAction: async () => {
+    set({ letterTriggerBusy: true, letterTriggerMessage: '' });
+    try {
+      const letter = await api.triggerLetterWrite();
+      set((s) => ({ letters: [letter, ...s.letters], letterTriggerMessage: '他刚给你写了一封信' }));
+    } catch (err) {
+      set({ letterTriggerMessage: err.message });
+    } finally {
+      set({ letterTriggerBusy: false });
+    }
+  },
   onLetterTextChange: (value) => set({ letterText: value }),
   onLetterSignatureChange: (value) => set({ letterSignature: value }),
   onLetterDearChange: (value) => set({ letterDearText: value }),
@@ -781,7 +848,7 @@ export const useStore = create(
     }, 420);
   },
   sealLetter: async () => {
-    const { letterText, letterRecipient, letterUnlockDate, letterSignature, letterDearText, editingLetterId } = get();
+    const { letterText, letterRecipient, letterUnlockDate, letterSignature, letterDearText, editingLetterId, replyToId } = get();
     const trimmed = (letterText || '').trim();
     if (!trimmed) return;
     const payload = {
@@ -790,6 +857,7 @@ export const useStore = create(
       body: trimmed,
       signature: letterSignature,
       dearText: letterDearText,
+      ...(replyToId && !editingLetterId ? { replyToId } : {}),
     };
     const letter = editingLetterId ? await api.updateLetter(editingLetterId, payload) : await api.createLetter(payload);
     set((s) => ({
@@ -801,6 +869,7 @@ export const useStore = create(
       letterView: 'mailbox',
       letterMailboxTab: 'sent',
       editingLetterId: null,
+      replyToId: null,
     }));
   },
   startEditLetter: (id) => {
@@ -808,6 +877,7 @@ export const useStore = create(
     if (!letter || letter.sender !== '小晴') return;
     set({
       editingLetterId: id,
+      replyToId: null,
       letterRecipient: letter.recipient,
       letterUnlockDate: letter.unlockDate,
       letterText: letter.body,
@@ -1146,6 +1216,7 @@ export const useStore = create(
     await Promise.all([
       get().loadSettings(),
       get().loadMessages(),
+      get().loadChatReadStatus(),
       get().loadDiaryEntries(),
       get().loadLetters(),
       get().loadLedgerEntries(),

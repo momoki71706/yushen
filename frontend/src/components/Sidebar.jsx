@@ -122,6 +122,12 @@ export default function Sidebar() {
   const startEditNickname = useStore((s) => s.startEditNickname);
   const onNicknameChange = useStore((s) => s.onNicknameChange);
   const saveNickname = useStore((s) => s.saveNickname);
+  const diaryTriggerBusy = useStore((s) => s.diaryTriggerBusy);
+  const diaryTriggerMessage = useStore((s) => s.diaryTriggerMessage);
+  const triggerDiaryWriteAction = useStore((s) => s.triggerDiaryWriteAction);
+  const letterTriggerBusy = useStore((s) => s.letterTriggerBusy);
+  const letterTriggerMessage = useStore((s) => s.letterTriggerMessage);
+  const triggerLetterWriteAction = useStore((s) => s.triggerLetterWriteAction);
 
   if (!sidebarOpen) return null;
 
@@ -237,6 +243,28 @@ export default function Sidebar() {
           <div className="sidebar-menu-label">清空聊天记录</div>
           <ChevronRight />
         </button>
+        <div className="sidebar-divider" style={{ margin: '4px 0 8px' }} />
+        <button className="sidebar-menu-item" onClick={triggerDiaryWriteAction} disabled={diaryTriggerBusy}>
+          <div className="sidebar-menu-icon" style={{ background: '#D9CBD3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <NoteIcon />
+          </div>
+          <div className="sidebar-menu-label">{diaryTriggerBusy ? '让他写日记中…' : '让他现在写篇日记'}</div>
+          <ChevronRight />
+        </button>
+        <button className="sidebar-menu-item" onClick={triggerLetterWriteAction} disabled={letterTriggerBusy}>
+          <div className="sidebar-menu-icon" style={{ background: '#F1E0E8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <EnvelopeOutlineIcon color="#8C6A72" />
+          </div>
+          <div className="sidebar-menu-label">{letterTriggerBusy ? '让他写信中…' : '让他现在给我写信'}</div>
+          <ChevronRight />
+        </button>
+        {(diaryTriggerMessage || letterTriggerMessage) && (
+          <div className="sidebar-error-text" style={{ color: 'var(--color-text-faint)' }}>
+            {diaryTriggerMessage}
+            {diaryTriggerMessage && letterTriggerMessage && ' · '}
+            {letterTriggerMessage}
+          </div>
+        )}
         <div className="sidebar-divider" style={{ margin: '4px 0 8px' }} />
         <div className="sidebar-reminder-row">
           <div className="sidebar-reminder-icon">

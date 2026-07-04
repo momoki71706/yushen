@@ -1,4 +1,5 @@
 import { db } from './db.js';
+import { readImageAttachment } from './attachmentContent.js';
 
 // Built-in tools, always available regardless of the MCP toggle — these
 // aren't external integrations, they're core app behavior, so they
@@ -27,7 +28,7 @@ export function getLocalTools() {
     {
       qualifiedName: 'read_diary',
       description:
-        '当对话里提到日记相关的内容（比如对方说"我今天写日记了""你看我日记了吗"，或者你自己想看看最近写了什么日记）时调用，用来读取最近几篇日记的内容。不要在普通聊天里没由头地调用。',
+        '当对话里提到日记相关的内容（比如对方说"我今天写日记了""你看我日记了吗"，或者你自己想看看最近写了什么日记）时调用，用来读取最近几篇日记的内容，如果某篇日记附带了图片，也会把图片一起给你看。不要在普通聊天里没由头地调用。',
       inputSchema: {
         type: 'object',
         properties: {
@@ -80,14 +81,22 @@ export function scheduleMessage(delayMinutes, note) {
   return { fireAt, minutes };
 }
 
-function readDiary(count) {
+async function readDiaryContent(count) {
   const limit = Math.max(1, Math.min(Number(count) || 5, 20));
   const rows = db.prepare('SELECT * FROM diary_entries ORDER BY id DESC LIMIT ?').all(limit);
-  if (!rows.length) return '还没有任何日记。';
-  return rows
-    .reverse()
-    .map((r) => `[${r.date_label}｜${r.author === 'me' ? '小晴' : '你'}｜心情：${r.mood}，天气：${r.weather}]\n${r.excerpt}`)
-    .join('\n\n');
+  if (!rows.length) return [{ type: 'text', text: '还没有任何日记。' }];
+  const blocks = [];
+  for (const r of rows.reverse()) {
+    blocks.push({
+      type: 'text',
+      text: `[${r.date_label}｜${r.author === 'me' ? '小晴' : '你'}｜心情：${r.mood}，天气：${r.weather}]\n${r.excerpt}`,
+    });
+    if (r.attachment_url) {
+      const image = await readImageAttachment(r);
+      if (image) blocks.push({ type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.base64 } });
+    }
+  }
+  return blocks;
 }
 
 function readLetters(count) {
@@ -125,7 +134,7 @@ export async function executeLocalTool(toolName, input) {
     return { content: [{ type: 'text', text: `已经记下了，${minutes} 分钟后会提醒。` }] };
   }
   if (toolName === 'read_diary') {
-    return { content: [{ type: 'text', text: readDiary(input?.count) }] };
+    return { content: await readDiaryContent(input?.count) };
   }
   if (toolName === 'comment_on_diary') {
     return { content: [{ type: 'text', text: queueDiaryReview(input?.entry_id) }] };

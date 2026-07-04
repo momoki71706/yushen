@@ -40,6 +40,7 @@ export const api = {
   },
   clearChat: () => request('/chat', { method: 'DELETE' }),
   markChatRead: () => request('/chat/mark-read', { method: 'PATCH' }),
+  getChatReadStatus: () => request('/chat/read-status'),
   regenerateMessage: (id) => request(`/chat/${id}/regenerate`, { method: 'POST' }),
   editChatMessage: (id, text) => request(`/chat/${id}`, { method: 'PATCH', body: JSON.stringify({ text }) }),
   regenerateChatRound: (id) => request(`/chat/${id}/regenerate-round`, { method: 'POST' }),
@@ -54,6 +55,7 @@ export const api = {
   addDiaryComment: (id, text) => request(`/diary/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
   markDiaryEntryRead: (id) => request(`/diary/${id}/read`, { method: 'PATCH' }),
   getDiaryUnreadSummary: () => request('/diary/unread-summary'),
+  triggerDiaryWrite: () => request('/diary/trigger-write', { method: 'POST' }),
 
   getLetters: () => request('/letters'),
   createLetter: (payload) =>
@@ -61,8 +63,8 @@ export const api = {
   openLetter: (id) => request(`/letters/${id}/open`, { method: 'PATCH' }),
   updateLetter: (id, payload) => request(`/letters/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteLetter: (id) => request(`/letters/${id}`, { method: 'DELETE' }),
-  requestLetterReply: (id) => request(`/letters/${id}/request-reply`, { method: 'POST' }),
   regenerateLetter: (id) => request(`/letters/${id}/regenerate`, { method: 'POST' }),
+  triggerLetterWrite: () => request('/letters/trigger-write', { method: 'POST' }),
 
   getSettings: () => request('/settings'),
   updateSettings: (payload) =>

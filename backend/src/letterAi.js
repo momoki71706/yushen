@@ -1,6 +1,8 @@
-import { getSetting } from './db.js';
-import { getProviderWithKeys, getReplyViaProvider } from './providers.js';
+import { db, getSetting } from './db.js';
+import { getProviderWithKeys, getReplyViaProvider, trimTrailingAssistantTurns } from './providers.js';
 import { withReplyRetry, classifyReplyForRetry } from './persona.js';
+import { getContextMessageLimit } from './contextSettings.js';
+import { enrichHistory } from './chatHistory.js';
 
 // Below this, a letter reads as too slight to be worth a written reply —
 // filtered out in code before ever spending a call on it, distinct from
@@ -11,6 +13,18 @@ export const MIN_REPLY_LENGTH = 60;
 function getActiveProvider() {
   const providerId = getSetting('activeProviderId', '');
   return providerId ? getProviderWithKeys(providerId) : null;
+}
+
+// Same recent-history shape diaryAi.js builds for its own unprompted write —
+// kept as its own copy for the same reason (recentHistory lives inside the
+// chat route file, and the existing convention is each scheduler-ish module
+// builds its own rather than sharing across route boundaries).
+async function recentChatHistory() {
+  const rows = db
+    .prepare('SELECT from_who, text, kind, attachment_url, attachment_name, attachment_mime FROM chat_messages ORDER BY id DESC LIMIT ?')
+    .all(getContextMessageLimit())
+    .reverse();
+  return trimTrailingAssistantTurns(await enrichHistory(rows));
 }
 
 const REPLY_INSTRUCTION_TEMPLATE = (letter) => `【回信】小晴写了一封信给你，称呼是"Dear ${letter.dear_text || letter.recipient}"，署名是"${letter.signature}"，内容如下：
@@ -54,5 +68,26 @@ export async function writeLetterReply(sourceLetter) {
   const reply = await withReplyRetry(() => getReplyViaProvider(history, provider, REPLY_INSTRUCTION_TEMPLATE(sourceLetter)));
   if (classifyReplyForRetry(reply.text).bad) return { failed: true, reply: null };
   if (/^不回信/.test(reply.text.trim())) return { failed: false, reply: null };
+  return { failed: false, reply: parseReply(reply.text) };
+}
+
+const FRESH_LETTER_INSTRUCTION = `【主动写信】现在是你自己想给小晴写一封信的时刻——不是在回复她的哪一封具体的信，就是单纯想给她写点什么，可以是想她了、最近的心情、一件小事，基于你们最近的聊天和相处来写，语气自然真诚，像真的提笔写信，不要提到这是被安排/触发的。
+
+请严格按下面的格式输出，不要有多余内容：
+称呼：给这封信选一个称呼小晴的方式（不用固定，可以参考你们最近的相处、她的小名，简单自然为主，偶尔可以有点小花样，别太夸张）
+署名：给这封信选一个自己的署名方式（同样不用固定，简单自然为主）
+正文：信的内容，语气自然真诚`;
+
+// There's no autonomous version of this — unlike diary entries, nothing
+// currently makes him write a letter out of the blue on a schedule; every
+// letter from him has otherwise only ever existed as a reply. This is what
+// backs the manual "让他给我写信" debug trigger, and is also the only way a
+// mailbox can ever get its first received letter at all.
+export async function writeFreshLetter() {
+  const provider = getActiveProvider();
+  if (!provider) return null;
+  const history = await recentChatHistory();
+  const reply = await withReplyRetry(() => getReplyViaProvider(history, provider, FRESH_LETTER_INSTRUCTION));
+  if (classifyReplyForRetry(reply.text).bad) return { failed: true, reply: null };
   return { failed: false, reply: parseReply(reply.text) };
 }
