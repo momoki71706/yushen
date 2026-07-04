@@ -174,15 +174,14 @@ export const useStore = create(
   // ---- export memories ----
   exportBusy: false,
   exportMessage: '',
-  exportMemoriesAction: async () => {
-    if (get().exportBusy) return;
-    set({ exportBusy: true, exportMessage: '' });
-    try {
-      const { content, filename, hasContent } = await api.exportMemories();
-      if (!hasContent) {
-        set({ exportMessage: '这次没有新内容可以导出' });
-        return;
-      }
+  exportChooserOpen: false,
+  openExportChooser: () => set({ exportChooserOpen: true }),
+  closeExportChooser: () => set({ exportChooserOpen: false }),
+  downloadExportResult: (result, emptyMessage) => {
+    const { content, filename, hasContent } = result;
+    if (!hasContent) {
+      set({ exportMessage: emptyMessage });
+    } else {
       const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -193,6 +192,35 @@ export const useStore = create(
       a.remove();
       URL.revokeObjectURL(url);
       set({ exportMessage: `已导出 ${filename}` });
+    }
+    const message = get().exportMessage;
+    setTimeout(() => {
+      if (get().exportMessage === message) set({ exportMessage: '' });
+    }, 30000);
+  },
+  // "本次回忆" — the normal incremental export: everything new since the
+  // last export, which also advances the watermark so it won't show up
+  // in the next one.
+  exportMemoriesAction: async () => {
+    if (get().exportBusy) return;
+    set({ exportBusy: true, exportMessage: '', exportChooserOpen: false });
+    try {
+      const result = await api.exportMemories();
+      get().downloadExportResult(result, '这次没有新内容可以导出');
+    } catch (err) {
+      set({ exportMessage: `导出失败：${err.message}` });
+    } finally {
+      set({ exportBusy: false });
+    }
+  },
+  // "上次回忆" — re-serves whatever the previous export already produced,
+  // without touching any watermark, for recovering a lost/closed download.
+  exportLastMemoriesAction: async () => {
+    if (get().exportBusy) return;
+    set({ exportBusy: true, exportMessage: '', exportChooserOpen: false });
+    try {
+      const result = await api.getLastExport();
+      get().downloadExportResult(result, '还没有导出过任何内容');
     } catch (err) {
       set({ exportMessage: `导出失败：${err.message}` });
     } finally {
@@ -417,6 +445,7 @@ export const useStore = create(
   chatDraft: '',
   isReplying: false,
   chatLastReadId: 0,
+  chatScrollTop: null, // last known scroll position — restored on remount instead of always snapping to bottom
   loadMessages: async () => {
     const messages = await api.getMessages();
     set({ messages });
@@ -1358,7 +1387,7 @@ export const useStore = create(
   // ---- context settings (readable message count + memory-save frequency) ----
   contextPanelOpen: false,
   contextMessageLimit: 30,
-  memorySaveIntervalHours: 6,
+  memorySaveMessageThreshold: 30,
   openContextPanel: () => {
     set({ contextPanelOpen: true });
     get().loadContextSettings();
@@ -1367,12 +1396,12 @@ export const useStore = create(
   loadContextSettings: async () => {
     try {
       const s = await api.getContextSettings();
-      set({ contextMessageLimit: s.contextMessageLimit, memorySaveIntervalHours: s.memorySaveIntervalHours });
+      set({ contextMessageLimit: s.contextMessageLimit, memorySaveMessageThreshold: s.memorySaveMessageThreshold });
     } catch {
       // backend not reachable yet — leave defaults
     }
   },
-  // key is 'contextMessageLimit' or 'memorySaveIntervalHours'
+  // key is 'contextMessageLimit' or 'memorySaveMessageThreshold'
   adjustContextSetting: async (key, delta, min, max) => {
     const current = get()[key];
     const next = Math.max(min, Math.min(max, current + delta));

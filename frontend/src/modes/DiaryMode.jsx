@@ -399,6 +399,7 @@ function DiaryDetail() {
         <div className="diary-comment-input-row">
           <input
             className="diary-comment-input"
+            data-scroll-block="end"
             value={diaryCommentDraft}
             onChange={(e) => onDiaryCommentDraftChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addDiaryCommentAction()}

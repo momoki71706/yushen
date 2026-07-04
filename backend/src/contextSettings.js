@@ -7,7 +7,7 @@ import { getSetting, setSetting } from './db.js';
 // manually kept in sync across chat.js/proactive.js/scheduledMessages.js/
 // compression.js.
 const DEFAULT_CONTEXT_MESSAGE_LIMIT = 30;
-const DEFAULT_MEMORY_SAVE_INTERVAL_HOURS = 6;
+const DEFAULT_MEMORY_SAVE_MESSAGE_THRESHOLD = 30;
 
 // `value || fallback` looks right but silently breaks for a genuinely
 // valid 0 — 0 is falsy, so it'd fall back to the default instead of
@@ -22,24 +22,31 @@ export function getContextMessageLimit() {
   return clampInt(raw, 10, 100, DEFAULT_CONTEXT_MESSAGE_LIMIT);
 }
 
-export function getMemorySaveIntervalHours() {
-  const raw = getSetting('memorySaveIntervalHours', String(DEFAULT_MEMORY_SAVE_INTERVAL_HOURS));
-  return clampInt(raw, 1, 48, DEFAULT_MEMORY_SAVE_INTERVAL_HOURS);
+// How many new chat messages need to pile up before the memory scheduler
+// reviews the backlog (see memoryScheduler.js) — replaces the old fixed
+// wall-clock interval so a quiet week and a chatty afternoon both get
+// reviewed at the same natural cadence instead of on a clock.
+export function getMemorySaveMessageThreshold() {
+  const raw = getSetting('memorySaveMessageThreshold', String(DEFAULT_MEMORY_SAVE_MESSAGE_THRESHOLD));
+  return clampInt(raw, 5, 300, DEFAULT_MEMORY_SAVE_MESSAGE_THRESHOLD);
 }
 
 export function readContextSettings() {
   return {
     contextMessageLimit: getContextMessageLimit(),
-    memorySaveIntervalHours: getMemorySaveIntervalHours(),
+    memorySaveMessageThreshold: getMemorySaveMessageThreshold(),
   };
 }
 
-export function setContextSettings({ contextMessageLimit, memorySaveIntervalHours }) {
+export function setContextSettings({ contextMessageLimit, memorySaveMessageThreshold }) {
   if (contextMessageLimit !== undefined) {
     setSetting('contextMessageLimit', String(clampInt(contextMessageLimit, 10, 100, DEFAULT_CONTEXT_MESSAGE_LIMIT)));
   }
-  if (memorySaveIntervalHours !== undefined) {
-    setSetting('memorySaveIntervalHours', String(clampInt(memorySaveIntervalHours, 1, 48, DEFAULT_MEMORY_SAVE_INTERVAL_HOURS)));
+  if (memorySaveMessageThreshold !== undefined) {
+    setSetting(
+      'memorySaveMessageThreshold',
+      String(clampInt(memorySaveMessageThreshold, 5, 300, DEFAULT_MEMORY_SAVE_MESSAGE_THRESHOLD))
+    );
   }
   return readContextSettings();
 }

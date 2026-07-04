@@ -46,10 +46,14 @@ export function useVisualViewportHeight() {
       // iOS's own "scroll focused input into view" runs against the old
       // layout and our resize runs against the new one — the two races
       // can leave the field scrolled out of view entirely. Re-center it
-      // ourselves once the real keyboard-aware height is in place.
+      // ourselves once the real keyboard-aware height is in place. Some
+      // fields (like the diary comment box, sitting right below a card
+      // worth keeping visible) opt into 'end' via data-scroll-block so
+      // centering doesn't shove everything above them off-screen.
       const active = document.activeElement;
       if (active?.matches?.(FIELD_SELECTOR)) {
-        active.scrollIntoView({ block: 'center', behavior: 'instant' });
+        const block = active.dataset.scrollBlock || 'center';
+        active.scrollIntoView({ block, behavior: 'instant' });
       }
     };
 

@@ -113,6 +113,7 @@ export default function ChatMode() {
 
   const listRef = useRef(null);
   const fileInputRef = useRef(null);
+  const lastMessageIdRef = useRef(undefined);
   const scrollToBottom = () => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -127,8 +128,44 @@ export default function ChatMode() {
     const el = listRef.current;
     if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 120) scrollToBottom();
   };
+  // Persist scroll position (imperatively, not via a subscribed selector —
+  // this only ever gets read back on the next mount) so switching tabs
+  // away and back restores wherever you were instead of snapping to the
+  // bottom every time.
+  const handleScroll = () => {
+    const el = listRef.current;
+    if (el) useStore.setState({ chatScrollTop: el.scrollTop });
+  };
   useEffect(() => {
-    scrollToBottom();
+    const el = listRef.current;
+    const lastId = messages.length ? messages[messages.length - 1].id : null;
+    if (lastMessageIdRef.current === undefined) {
+      // First render after mounting — restore the position from before this
+      // screen was last left, rather than always jumping to the bottom.
+      // Deferred two frames: right at mount, scrollHeight can still reflect
+      // pre-layout (webfonts/line-wrapping not settled yet), so assigning
+      // scrollTop immediately can land short of the real bottom — which
+      // then reads as "jumped to the top" once layout finishes growing
+      // past it.
+      if (el) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const node = listRef.current;
+            if (!node) return;
+            const saved = useStore.getState().chatScrollTop;
+            node.scrollTop = saved != null ? saved : node.scrollHeight;
+          });
+        });
+      }
+    } else if (lastId !== lastMessageIdRef.current || isReplying) {
+      // A genuinely new message landed at the end (sent, received, or a
+      // whole-round regenerate that appended rather than replaced) — or
+      // the "typing…" row just appeared. Either way, follow it down.
+      // Regenerating an existing message in place changes neither of
+      // these, so the scroll position is left untouched.
+      scrollToBottom();
+    }
+    lastMessageIdRef.current = lastId;
   }, [messages, isReplying]);
 
   // Mounting/updating here means this screen is actually showing the
@@ -145,7 +182,7 @@ export default function ChatMode() {
 
   return (
     <div className="chat">
-      <div className="chat__list" ref={listRef}>
+      <div className="chat__list" ref={listRef} onScroll={handleScroll}>
         {messages.map((msg, i) => {
           const mine = msg.from === 'me';
           const tokens = !mine ? msg.tokens : null;

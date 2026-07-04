@@ -115,6 +115,10 @@ export default function Sidebar() {
   const exportBusy = useStore((s) => s.exportBusy);
   const exportMessage = useStore((s) => s.exportMessage);
   const exportMemoriesAction = useStore((s) => s.exportMemoriesAction);
+  const exportLastMemoriesAction = useStore((s) => s.exportLastMemoriesAction);
+  const exportChooserOpen = useStore((s) => s.exportChooserOpen);
+  const openExportChooser = useStore((s) => s.openExportChooser);
+  const closeExportChooser = useStore((s) => s.closeExportChooser);
   const nickname = useStore((s) => s.nickname);
   const nicknameEditing = useStore((s) => s.nicknameEditing);
   const nicknameDraft = useStore((s) => s.nicknameDraft);
@@ -185,13 +189,20 @@ export default function Sidebar() {
             <ChevronRight />
           </button>
         ))}
-        <button className="sidebar-menu-item" onClick={exportMemoriesAction} disabled={exportBusy}>
+        <button className="sidebar-menu-item" onClick={openExportChooser} disabled={exportBusy}>
           <div className="sidebar-menu-icon" style={{ background: '#C9B9BE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <DownloadIcon />
           </div>
           <div className="sidebar-menu-label">{exportBusy ? '导出中…' : '导出回忆'}</div>
           <ChevronRight />
         </button>
+        {exportChooserOpen && (
+          <div className="export-chooser">
+            <button className="export-chooser-option" onClick={exportMemoriesAction}>导出本次回忆</button>
+            <button className="export-chooser-option" onClick={exportLastMemoriesAction}>导出上次回忆</button>
+            <button className="export-chooser-cancel" onClick={closeExportChooser}>取消</button>
+          </div>
+        )}
         {exportMessage && <div className="sidebar-error-text" style={{ color: 'var(--color-text-faint)' }}>{exportMessage}</div>}
         <button className="sidebar-menu-item" onClick={openAiSettings}>
           <div className="sidebar-menu-icon" style={{ background: '#D6C4CB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

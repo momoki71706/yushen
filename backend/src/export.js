@@ -63,6 +63,10 @@ export function generateExport() {
   const hasContent = sections.length > 0;
   const content = hasContent ? `${header}\n${sections.join('\n')}` : `${header}\n（这次没有新内容可以导出）\n`;
 
+  // Precise to the hour (not just the date) so exporting more than once in
+  // a day produces distinct filenames instead of silently colliding.
+  const filename = `回忆导出-${nowLabel.slice(0, 10)}-${nowLabel.slice(11, 13)}时.md`;
+
   if (hasContent) {
     setSetting('lastExportedChatId', String(chat.maxId));
     setSetting('lastExportedDiaryId', String(diary.maxId));
@@ -70,10 +74,22 @@ export function generateExport() {
       const placeholders = letters.ids.map(() => '?').join(',');
       db.prepare(`UPDATE letters SET exported = 1 WHERE id IN (${placeholders})`).run(...letters.ids);
     }
+    // Watermarks only move forward, so once this export is generated its
+    // content can never be produced again — remembered here so a lost or
+    // accidentally-closed download can still be recovered afterwards
+    // instead of the content just being gone.
+    setSetting('lastExportContent', content);
+    setSetting('lastExportFilename', filename);
   }
 
-  // Precise to the hour (not just the date) so exporting more than once in
-  // a day produces distinct filenames instead of silently colliding.
-  const filename = `回忆导出-${nowLabel.slice(0, 10)}-${nowLabel.slice(11, 13)}时.md`;
   return { content, filename, hasContent };
+}
+
+// Re-serves whatever the most recent successful export produced, without
+// touching any watermark — a pure "give me that file again" recovery path
+// for when the last export's download got lost or closed before saving.
+export function getLastExport() {
+  const content = getSetting('lastExportContent', '');
+  const filename = getSetting('lastExportFilename', '');
+  return { content, filename, hasContent: !!content };
 }

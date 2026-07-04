@@ -114,6 +114,7 @@ export const api = {
     request('/settings/context', { method: 'PATCH', body: JSON.stringify(payload) }),
 
   exportMemories: () => request('/export', { method: 'POST' }),
+  getLastExport: () => request('/export/last'),
 
   getRecentMemoryLog: (limit = 20) => request(`/memory/recent?limit=${limit}`),
 

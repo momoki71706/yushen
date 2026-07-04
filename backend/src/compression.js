@@ -57,7 +57,16 @@ export async function maybeCompressChatHistory() {
     const limit = getContextMessageLimit();
     if (newMessages.length <= limit + COMPRESS_BUFFER) return;
 
-    const toCompress = newMessages.slice(0, newMessages.length - limit);
+    // Never compress a message away before the memory scheduler has had a
+    // chance to review it for anything worth remembering long-term —
+    // otherwise a detail could get folded into a lossy rolling summary (or
+    // dropped) before it was ever considered for permanent storage.
+    const memoryReviewedThroughId = Number(getSetting('memoryLastChatId', '0')) || 0;
+    const overflowCount = newMessages.length - limit;
+    const reviewedCount = newMessages.filter((m) => m.id <= memoryReviewedThroughId).length;
+    const compressCount = Math.min(overflowCount, reviewedCount);
+
+    const toCompress = newMessages.slice(0, compressCount);
     if (!toCompress.length) return;
 
     const providerId = getSetting('activeProviderId', '');
