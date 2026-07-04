@@ -18,6 +18,8 @@ export const api = {
     request('/chat', { method: 'POST', body: JSON.stringify({ text, kind }) }),
   clearChat: () => request('/chat', { method: 'DELETE' }),
   regenerateMessage: (id) => request(`/chat/${id}/regenerate`, { method: 'POST' }),
+  editChatMessage: (id, text) => request(`/chat/${id}`, { method: 'PATCH', body: JSON.stringify({ text }) }),
+  regenerateChatRound: (id) => request(`/chat/${id}/regenerate-round`, { method: 'POST' }),
 
   getDiaryEntries: () => request('/diary'),
   createDiaryEntry: (payload) =>

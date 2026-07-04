@@ -326,6 +326,47 @@ export const useStore = create(
         : [...s.expandedThinkingIds, id],
     })),
 
+  // ---- regenerate / edit a round from your own message ----
+  regeneratingRoundIds: [],
+  editingMessageId: null,
+  editDraft: '',
+  startEditMessage: (id, text) => set({ editingMessageId: id, editDraft: text }),
+  cancelEditMessage: () => set({ editingMessageId: null, editDraft: '' }),
+  onEditDraftChange: (value) => set({ editDraft: value }),
+  regenerateRoundAction: async (id) => {
+    if (get().regeneratingRoundIds.includes(id)) return;
+    const pairedReply = get().messages.find((m, i, arr) => arr[i - 1] && arr[i - 1].id === id && m.from === 'them');
+    set((s) => ({
+      regeneratingRoundIds: [...s.regeneratingRoundIds, id],
+      regeneratingIds: pairedReply ? [...s.regeneratingIds, pairedReply.id] : s.regeneratingIds,
+    }));
+    try {
+      const { reply, isNew } = await api.regenerateChatRound(id);
+      set((s) => ({
+        messages: isNew ? [...s.messages, reply] : s.messages.map((m) => (m.id === reply.id ? reply : m)),
+      }));
+    } catch {
+      // eligibility already checked client-side; a stale mismatch here just no-ops
+    } finally {
+      set((s) => ({
+        regeneratingRoundIds: s.regeneratingRoundIds.filter((x) => x !== id),
+        regeneratingIds: pairedReply ? s.regeneratingIds.filter((x) => x !== pairedReply.id) : s.regeneratingIds,
+      }));
+    }
+  },
+  saveEditMessage: async () => {
+    const { editingMessageId, editDraft } = get();
+    const text = editDraft.trim();
+    if (!editingMessageId || !text) return;
+    const updated = await api.editChatMessage(editingMessageId, text);
+    set((s) => ({
+      messages: s.messages.map((m) => (m.id === editingMessageId ? updated : m)),
+      editingMessageId: null,
+      editDraft: '',
+    }));
+    get().regenerateRoundAction(editingMessageId);
+  },
+
   // ---- clear chat (confirmation gated, destructive) ----
   clearChatConfirmOpen: false,
   openClearChatConfirm: () => set({ clearChatConfirmOpen: true, sidebarOpen: false }),

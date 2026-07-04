@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
-import { BowIcon, StarIcon, PlusIcon, RefreshIcon, ChevronDownIcon } from '../components/Icons';
+import { BowIcon, StarIcon, PlusIcon, RefreshIcon, ChevronDownIcon, PencilIcon } from '../components/Icons';
 import ModelSwitcherPopover from '../components/ModelSwitcherPopover';
 
 export default function ChatMode() {
@@ -18,6 +18,14 @@ export default function ChatMode() {
   const expandedThinkingIds = useStore((s) => s.expandedThinkingIds);
   const regenerateMessageAction = useStore((s) => s.regenerateMessageAction);
   const toggleThinkingExpanded = useStore((s) => s.toggleThinkingExpanded);
+  const regeneratingRoundIds = useStore((s) => s.regeneratingRoundIds);
+  const regenerateRoundAction = useStore((s) => s.regenerateRoundAction);
+  const editingMessageId = useStore((s) => s.editingMessageId);
+  const editDraft = useStore((s) => s.editDraft);
+  const startEditMessage = useStore((s) => s.startEditMessage);
+  const cancelEditMessage = useStore((s) => s.cancelEditMessage);
+  const onEditDraftChange = useStore((s) => s.onEditDraftChange);
+  const saveEditMessage = useStore((s) => s.saveEditMessage);
 
   const listRef = useRef(null);
   useEffect(() => {
@@ -28,16 +36,33 @@ export default function ChatMode() {
   return (
     <div className="chat">
       <div className="chat__list" ref={listRef}>
-        {messages.map((msg) => {
+        {messages.map((msg, i) => {
           const mine = msg.from === 'me';
           const tokens = !mine ? msg.tokens : null;
           const timeLabel = !mine && tokens != null ? `${msg.time} · ${tokens} tokens` : msg.time;
           const isRegenerating = !mine && regeneratingIds.includes(msg.id);
           const isExpanded = !mine && expandedThinkingIds.includes(msg.id);
+          const isRoundBusy = mine && regeneratingRoundIds.includes(msg.id);
+          const isEditing = mine && editingMessageId === msg.id;
+          const next = messages[i + 1];
+          const canRegenerateRound = mine && msg.kind !== 'photo' && (!next || next.from === 'them');
           return (
             <div key={msg.id} className="chat__row" style={{ justifyContent: mine ? 'flex-end' : 'flex-start' }}>
               <div className="chat__bubble-wrap" style={{ alignItems: mine ? 'flex-end' : 'flex-start' }}>
-                {msg.kind === 'photo' ? (
+                {isEditing ? (
+                  <div className="chat__edit-wrap">
+                    <textarea
+                      className="chat__edit-input"
+                      value={editDraft}
+                      onChange={(e) => onEditDraftChange(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="chat__edit-actions">
+                      <button className="chat__edit-btn chat__edit-btn--ghost" onClick={cancelEditMessage}>取消</button>
+                      <button className="chat__edit-btn chat__edit-btn--save" onClick={saveEditMessage}>保存并重新生成</button>
+                    </div>
+                  </div>
+                ) : msg.kind === 'photo' ? (
                   <div className="chat__photo-bubble">
                     <svg width="26" height="22" viewBox="0 0 26 22" fill="none">
                       <rect x="1" y="4" width="24" height="17" rx="3" stroke="#C08BA0" strokeWidth="1.8" />
@@ -52,34 +77,56 @@ export default function ChatMode() {
                     style={{
                       background: mine ? 'var(--color-bubble-me)' : 'var(--color-bubble-them)',
                       borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                      opacity: isRegenerating ? 0.5 : 1,
+                      opacity: isRegenerating || isRoundBusy ? 0.5 : 1,
                     }}
                   >
                     {msg.text}
                   </div>
                 )}
-                <div className="chat__time-row">
-                  <div className="chat__time">{timeLabel}</div>
-                  {!mine && msg.kind !== 'photo' && (
-                    <div className="chat__msg-actions">
-                      <button
-                        className="chat__msg-action-btn"
-                        title="重新生成"
-                        onClick={() => regenerateMessageAction(msg.id)}
-                        disabled={isRegenerating}
-                      >
-                        <RefreshIcon color="#8C6A72" width={14} height={14} />
-                      </button>
-                      <button
-                        className="chat__msg-action-btn"
-                        title="思考过程"
-                        onClick={() => toggleThinkingExpanded(msg.id)}
-                      >
-                        <ChevronDownIcon color="#8C6A72" width={14} height={14} expanded={isExpanded} />
-                      </button>
-                    </div>
-                  )}
-                </div>
+                {!isEditing && (
+                  <div className="chat__time-row">
+                    <div className="chat__time">{timeLabel}</div>
+                    {!mine && msg.kind !== 'photo' && (
+                      <div className="chat__msg-actions">
+                        <button
+                          className="chat__msg-action-btn"
+                          title="重新生成"
+                          onClick={() => regenerateMessageAction(msg.id)}
+                          disabled={isRegenerating}
+                        >
+                          <RefreshIcon color="#8C6A72" width={14} height={14} />
+                        </button>
+                        <button
+                          className="chat__msg-action-btn"
+                          title="思考过程"
+                          onClick={() => toggleThinkingExpanded(msg.id)}
+                        >
+                          <ChevronDownIcon color="#8C6A72" width={14} height={14} expanded={isExpanded} />
+                        </button>
+                      </div>
+                    )}
+                    {canRegenerateRound && (
+                      <div className="chat__msg-actions">
+                        <button
+                          className="chat__msg-action-btn"
+                          title="重新生成"
+                          onClick={() => regenerateRoundAction(msg.id)}
+                          disabled={isRoundBusy}
+                        >
+                          <RefreshIcon color="#8C6A72" width={14} height={14} />
+                        </button>
+                        <button
+                          className="chat__msg-action-btn"
+                          title="编辑"
+                          onClick={() => startEditMessage(msg.id, msg.text)}
+                          disabled={isRoundBusy}
+                        >
+                          <PencilIcon />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {isExpanded && (
                   <div className="chat__thinking-bubble">
                     <div className="chat__thinking-label">Thinking：</div>
