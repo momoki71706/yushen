@@ -3,13 +3,26 @@ import { getProviderWithKeys, getReplyViaProvider, trimTrailingAssistantTurns } 
 import { formatBeijingClock, beijingNow } from './time.js';
 import { sendPushToAll, pushConfigured } from './push.js';
 import { classifyReplyForRetry, withReplyRetry } from './persona.js';
+import { getContextMessageLimit } from './contextSettings.js';
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often the scheduler wakes up to check
-const IDLE_THRESHOLD_MS = 4 * 60 * 60 * 1000; // conversation has to be quiet this long before a proactive message is even considered
-const MIN_GAP_BETWEEN_PROACTIVE_MS = 3 * 60 * 60 * 1000; // don't send more than one proactive message this often, regardless of idle time
-const QUIET_HOURS_START = 0; // no proactive messages between 00:00 and 08:00 Beijing time
-const QUIET_HOURS_END = 8;
-const CONTEXT_MESSAGE_LIMIT = 30;
+
+// Defaults for the settings below live in routes/push.js (source of truth
+// for what a fresh install behaves like); read fresh on every check so a
+// change in the settings panel takes effect on the next cycle without a
+// restart.
+function getIdleThresholdMs() {
+  return Number(getSetting('proactiveIdleThresholdHours', '4')) * 3600000;
+}
+function getMinGapMs() {
+  return Number(getSetting('proactiveMinGapHours', '3')) * 3600000;
+}
+function getQuietHourStart() {
+  return Number(getSetting('proactiveQuietHourStart', '0'));
+}
+function getQuietHourEnd() {
+  return Number(getSetting('proactiveQuietHourEnd', '8'));
+}
 
 function buildProactiveInstruction(idleMs) {
   const idleHours = Math.max(1, Math.round(idleMs / 3600000));
@@ -22,7 +35,9 @@ function buildProactiveInstruction(idleMs) {
 
 function isQuietHours() {
   const hour = beijingNow().getUTCHours();
-  return hour >= QUIET_HOURS_START && hour < QUIET_HOURS_END;
+  const start = getQuietHourStart();
+  const end = getQuietHourEnd();
+  return hour >= start && hour < end;
 }
 
 async function maybeSendProactiveMessage() {
@@ -34,10 +49,10 @@ async function maybeSendProactiveMessage() {
     const last = db.prepare('SELECT * FROM chat_messages ORDER BY id DESC LIMIT 1').get();
     if (!last) return;
     const idleMs = Date.now() - new Date(`${last.created_at}Z`).getTime();
-    if (idleMs < IDLE_THRESHOLD_MS) return;
+    if (idleMs < getIdleThresholdMs()) return;
 
     const lastProactiveAt = getSetting('lastProactiveMessageAt', '');
-    if (lastProactiveAt && Date.now() - new Date(lastProactiveAt).getTime() < MIN_GAP_BETWEEN_PROACTIVE_MS) return;
+    if (lastProactiveAt && Date.now() - new Date(lastProactiveAt).getTime() < getMinGapMs()) return;
 
     const providerId = getSetting('activeProviderId', '');
     const provider = providerId ? getProviderWithKeys(providerId) : null;
@@ -45,7 +60,7 @@ async function maybeSendProactiveMessage() {
 
     const rawHistory = db
       .prepare('SELECT from_who, text FROM chat_messages ORDER BY id DESC LIMIT ?')
-      .all(CONTEXT_MESSAGE_LIMIT)
+      .all(getContextMessageLimit())
       .reverse()
       .map((r) => ({ from: r.from_who, text: r.text }));
     const history = trimTrailingAssistantTurns(rawHistory);

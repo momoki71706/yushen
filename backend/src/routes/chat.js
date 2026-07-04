@@ -3,6 +3,7 @@ import { db, setSetting } from '../db.js';
 import { getYushenReply } from '../aiReply.js';
 import { maybeCompressChatHistory } from '../compression.js';
 import { formatBeijingClock } from '../time.js';
+import { getContextMessageLimit } from '../contextSettings.js';
 
 const router = Router();
 
@@ -23,19 +24,18 @@ router.get('/', (req, res) => {
   res.json(rows.map(serializeMessage));
 });
 
-const CONTEXT_MESSAGE_LIMIT = 30;
-
 // History for a reply anchored right after `beforeId` (or the newest
 // messages overall when beforeId is omitted) — shared by both sending a
 // new message and regenerating an existing one. `inclusive` also folds in
 // the message at `beforeId` itself (used when regenerating the reply to a
 // specific user message, since that message's text is the last turn).
 function recentHistory(beforeId, { inclusive = false } = {}) {
+  const limit = getContextMessageLimit();
   const rows = beforeId
     ? db
         .prepare(`SELECT from_who, text FROM chat_messages WHERE id ${inclusive ? '<=' : '<'} ? ORDER BY id DESC LIMIT ?`)
-        .all(beforeId, CONTEXT_MESSAGE_LIMIT)
-    : db.prepare('SELECT from_who, text FROM chat_messages ORDER BY id DESC LIMIT ?').all(CONTEXT_MESSAGE_LIMIT);
+        .all(beforeId, limit)
+    : db.prepare('SELECT from_who, text FROM chat_messages ORDER BY id DESC LIMIT ?').all(limit);
   return rows.reverse().map((r) => ({ from: r.from_who, text: r.text }));
 }
 
@@ -133,6 +133,14 @@ router.post('/:id/regenerate-round', async (req, res) => {
   const info = insertTheirs.run('them', reply.text, 'text', formatBeijingClock(), reply.tokens, reply.thinking || null);
   const inserted = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(info.lastInsertRowid);
   res.json({ reply: serializeMessage(inserted), isNew: true });
+});
+
+// Deletes a single message (either side) — removing it from chat_messages
+// also removes it from every future context-building query, so it's gone
+// from the AI's context the same moment it's gone from the screen.
+router.delete('/:id', (req, res) => {
+  db.prepare('DELETE FROM chat_messages WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
 });
 
 // Wipes the whole conversation and its rolling summary. Mainly useful

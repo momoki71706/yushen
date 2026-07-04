@@ -4,6 +4,7 @@ import * as providers from '../providers.js';
 import { isClaudeCodeAvailable, testClaudeCode } from '../claudeCode.js';
 import * as mcp from '../mcp.js';
 import * as presets from '../presets.js';
+import { readContextSettings, setContextSettings } from '../contextSettings.js';
 
 const router = Router();
 
@@ -148,6 +149,16 @@ router.post('/mcp/servers/:id/test', async (req, res) => {
   } catch (err) {
     res.json({ ok: false, message: err.message || '连接失败' });
   }
+});
+
+// ---- Context: readable message count + memory-save frequency ----
+
+router.get('/context', (req, res) => {
+  res.json(readContextSettings());
+});
+
+router.patch('/context', (req, res) => {
+  res.json(setContextSettings(req.body || {}));
 });
 
 // ---- Global preset instructions (system prompt) ----

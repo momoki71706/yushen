@@ -1,14 +1,16 @@
 import { db, getSetting, setSetting } from './db.js';
 import { getProviderWithKeys, callAnthropic, callOpenAiCompatible, pickKey } from './providers.js';
+import { getContextMessageLimit } from './contextSettings.js';
 
-// Chat context is a rolling window of the most recent KEEP_RECENT messages
-// (kept in sync with chat.js's CONTEXT_MESSAGE_LIMIT). Once more than
-// COMPRESS_TRIGGER messages have piled up since the last compression, the
-// oldest excess is folded into a running text summary instead of being
+// Chat context is a rolling window of the most recent messages (sized by
+// the shared "可读上下文条数" setting — see contextSettings.js). Once that
+// many messages plus this buffer have piled up since the last compression,
+// the oldest excess is folded into a running text summary instead of being
 // dropped outright, so the AI keeps long-term continuity without token
-// cost growing forever.
-const COMPRESS_TRIGGER = 60;
-const KEEP_RECENT = 30;
+// cost growing forever. The buffer (rather than a flat trigger count) keeps
+// this correct even if the context limit is raised well past the old fixed
+// trigger — otherwise "how much is excess" could go negative.
+const COMPRESS_BUFFER = 30;
 
 const SUMMARY_SYSTEM_PROMPT = `你是一个对话摘要助手。请将下面这段聊天记录压缩成一段简洁的中文摘要，用于给AI提供长期背景记忆。
 要求：
@@ -52,9 +54,10 @@ export async function maybeCompressChatHistory() {
       .prepare('SELECT id, from_who, text FROM chat_messages WHERE id > ? ORDER BY id ASC')
       .all(summarizedThroughId);
 
-    if (newMessages.length <= COMPRESS_TRIGGER) return;
+    const limit = getContextMessageLimit();
+    if (newMessages.length <= limit + COMPRESS_BUFFER) return;
 
-    const toCompress = newMessages.slice(0, newMessages.length - KEEP_RECENT);
+    const toCompress = newMessages.slice(0, newMessages.length - limit);
     if (!toCompress.length) return;
 
     const providerId = getSetting('activeProviderId', '');

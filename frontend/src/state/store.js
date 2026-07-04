@@ -97,22 +97,38 @@ export const useStore = create(
     await api.updateSettings({ letterReminderEnabled: enabled });
   },
 
-  // ---- proactive push notifications ----
-  proactiveMessagesEnabled: false,
-  proactiveToggleBusy: false,
-  proactiveToggleError: '',
-  loadProactiveStatus: async () => {
+  // ---- proactive push notifications + tunable settings (sidebar panel) ----
+  pushSettingsOpen: false,
+  pushEnabled: false,
+  pushToggleBusy: false,
+  pushToggleError: '',
+  pushIdleThresholdHours: 4,
+  pushMinGapHours: 3,
+  pushQuietHourStart: 0,
+  pushQuietHourEnd: 8,
+  openPushSettings: () => {
+    set({ pushSettingsOpen: true });
+    get().loadPushSettings();
+  },
+  closePushSettings: () => set({ pushSettingsOpen: false }),
+  loadPushSettings: async () => {
     try {
-      const { enabled } = await api.getProactiveStatus();
-      set({ proactiveMessagesEnabled: enabled });
+      const s = await api.getPushSettings();
+      set({
+        pushEnabled: s.enabled,
+        pushIdleThresholdHours: s.idleThresholdHours,
+        pushMinGapHours: s.minGapHours,
+        pushQuietHourStart: s.quietHourStart,
+        pushQuietHourEnd: s.quietHourEnd,
+      });
     } catch {
-      // backend not reachable yet — leave default
+      // backend not reachable yet — leave defaults
     }
   },
-  toggleProactiveMessages: async () => {
-    if (get().proactiveToggleBusy) return;
-    const next = !get().proactiveMessagesEnabled;
-    set({ proactiveToggleBusy: true, proactiveToggleError: '' });
+  togglePushEnabled: async () => {
+    if (get().pushToggleBusy) return;
+    const next = !get().pushEnabled;
+    set({ pushToggleBusy: true, pushToggleError: '' });
     try {
       if (next) {
         if (!isPushSupported()) throw new Error('这台设备不支持推送通知');
@@ -120,13 +136,22 @@ export const useStore = create(
       } else {
         await unsubscribeFromPush();
       }
-      await api.setProactiveStatus(next);
-      set({ proactiveMessagesEnabled: next });
+      await api.updatePushSettings({ enabled: next });
+      set({ pushEnabled: next });
     } catch (err) {
-      set({ proactiveToggleError: err.message });
+      set({ pushToggleError: err.message });
     } finally {
-      set({ proactiveToggleBusy: false });
+      set({ pushToggleBusy: false });
     }
+  },
+  // key is one of 'idleThresholdHours' | 'minGapHours' | 'quietHourStart' | 'quietHourEnd'
+  adjustPushSetting: async (key, delta, min, max) => {
+    const stateKey = `push${key[0].toUpperCase()}${key.slice(1)}`;
+    const current = get()[stateKey];
+    const next = Math.max(min, Math.min(max, current + delta));
+    if (next === current) return;
+    set({ [stateKey]: next });
+    await api.updatePushSettings({ [key]: next });
   },
 
   // ---- export memories ----
@@ -365,6 +390,20 @@ export const useStore = create(
       editDraft: '',
     }));
     get().regenerateRoundAction(editingMessageId);
+  },
+
+  // ---- delete a single message (either side, confirmation gated) ----
+  deleteConfirmMessageId: null,
+  requestDeleteMessage: (id) => set({ deleteConfirmMessageId: id }),
+  cancelDeleteMessage: () => set({ deleteConfirmMessageId: null }),
+  confirmDeleteMessage: async () => {
+    const { deleteConfirmMessageId } = get();
+    if (!deleteConfirmMessageId) return;
+    await api.deleteChatMessage(deleteConfirmMessageId);
+    set((s) => ({
+      messages: s.messages.filter((m) => m.id !== deleteConfirmMessageId),
+      deleteConfirmMessageId: null,
+    }));
   },
 
   // ---- clear chat (confirmation gated, destructive) ----
@@ -813,6 +852,32 @@ export const useStore = create(
     get().loadPresets();
   },
 
+  // ---- context settings (readable message count + memory-save frequency) ----
+  contextPanelOpen: false,
+  contextMessageLimit: 30,
+  memorySaveIntervalHours: 6,
+  openContextPanel: () => {
+    set({ contextPanelOpen: true });
+    get().loadContextSettings();
+  },
+  closeContextPanel: () => set({ contextPanelOpen: false }),
+  loadContextSettings: async () => {
+    try {
+      const s = await api.getContextSettings();
+      set({ contextMessageLimit: s.contextMessageLimit, memorySaveIntervalHours: s.memorySaveIntervalHours });
+    } catch {
+      // backend not reachable yet — leave defaults
+    }
+  },
+  // key is 'contextMessageLimit' or 'memorySaveIntervalHours'
+  adjustContextSetting: async (key, delta, min, max) => {
+    const current = get()[key];
+    const next = Math.max(min, Math.min(max, current + delta));
+    if (next === current) return;
+    set({ [key]: next });
+    await api.updateContextSettings({ [key]: next });
+  },
+
   // ---- bootstrap ----
   init: async () => {
     await Promise.all([
@@ -825,7 +890,7 @@ export const useStore = create(
     ]);
     get().checkLetterReminder();
     api.getAiMode().then((s) => set({ mcpToolsEnabled: !!s.mcpToolsEnabled })).catch(() => {});
-    get().loadProactiveStatus();
+    get().loadPushSettings();
   },
     }),
     {

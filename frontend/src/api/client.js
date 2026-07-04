@@ -20,6 +20,7 @@ export const api = {
   regenerateMessage: (id) => request(`/chat/${id}/regenerate`, { method: 'POST' }),
   editChatMessage: (id, text) => request(`/chat/${id}`, { method: 'PATCH', body: JSON.stringify({ text }) }),
   regenerateChatRound: (id) => request(`/chat/${id}/regenerate-round`, { method: 'POST' }),
+  deleteChatMessage: (id) => request(`/chat/${id}`, { method: 'DELETE' }),
 
   getDiaryEntries: () => request('/diary'),
   createDiaryEntry: (payload) =>
@@ -69,8 +70,12 @@ export const api = {
   getVapidPublicKey: () => request('/push/vapid-public-key'),
   subscribePush: (subscription) => request('/push/subscribe', { method: 'POST', body: JSON.stringify(subscription) }),
   unsubscribePush: (endpoint) => request('/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) }),
-  getProactiveStatus: () => request('/push/proactive-status'),
-  setProactiveStatus: (enabled) => request('/push/proactive-status', { method: 'PATCH', body: JSON.stringify({ enabled }) }),
+  getPushSettings: () => request('/push/settings'),
+  updatePushSettings: (payload) => request('/push/settings', { method: 'PATCH', body: JSON.stringify(payload) }),
+
+  getContextSettings: () => request('/settings/context'),
+  updateContextSettings: (payload) =>
+    request('/settings/context', { method: 'PATCH', body: JSON.stringify(payload) }),
 
   exportMemories: () => request('/export', { method: 'POST' }),
 

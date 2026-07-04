@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
-import { BowIcon, StarIcon, PlusIcon, RefreshIcon, ChevronDownIcon, PencilIcon } from '../components/Icons';
+import { BowIcon, StarIcon, PlusIcon, RefreshIcon, ChevronDownIcon, PencilIcon, TrashIcon } from '../components/Icons';
 import ModelSwitcherPopover from '../components/ModelSwitcherPopover';
 
 export default function ChatMode() {
@@ -26,6 +26,10 @@ export default function ChatMode() {
   const cancelEditMessage = useStore((s) => s.cancelEditMessage);
   const onEditDraftChange = useStore((s) => s.onEditDraftChange);
   const saveEditMessage = useStore((s) => s.saveEditMessage);
+  const deleteConfirmMessageId = useStore((s) => s.deleteConfirmMessageId);
+  const requestDeleteMessage = useStore((s) => s.requestDeleteMessage);
+  const cancelDeleteMessage = useStore((s) => s.cancelDeleteMessage);
+  const confirmDeleteMessage = useStore((s) => s.confirmDeleteMessage);
 
   const listRef = useRef(null);
   useEffect(() => {
@@ -46,6 +50,7 @@ export default function ChatMode() {
           const isEditing = mine && editingMessageId === msg.id;
           const next = messages[i + 1];
           const canRegenerateRound = mine && msg.kind !== 'photo' && (!next || next.from === 'them');
+          const isDeleteConfirming = deleteConfirmMessageId === msg.id;
           return (
             <div key={msg.id} className="chat__row" style={{ justifyContent: mine ? 'flex-end' : 'flex-start' }}>
               <div className="chat__bubble-wrap" style={{ alignItems: mine ? 'flex-end' : 'flex-start' }}>
@@ -85,45 +90,64 @@ export default function ChatMode() {
                 )}
                 {!isEditing && (
                   <div className="chat__time-row">
-                    <div className="chat__time">{timeLabel}</div>
-                    {!mine && msg.kind !== 'photo' && (
-                      <div className="chat__msg-actions">
-                        <button
-                          className="chat__msg-action-btn"
-                          title="重新生成"
-                          onClick={() => regenerateMessageAction(msg.id)}
-                          disabled={isRegenerating}
-                        >
-                          <RefreshIcon color="#8C6A72" width={14} height={14} />
-                        </button>
-                        <button
-                          className="chat__msg-action-btn"
-                          title="思考过程"
-                          onClick={() => toggleThinkingExpanded(msg.id)}
-                        >
-                          <ChevronDownIcon color="#8C6A72" width={14} height={14} expanded={isExpanded} />
-                        </button>
+                    {isDeleteConfirming ? (
+                      <div className="chat__delete-confirm">
+                        <span className="chat__delete-confirm-text">删除这条消息？</span>
+                        <button className="chat__delete-confirm-btn chat__delete-confirm-btn--cancel" onClick={cancelDeleteMessage}>取消</button>
+                        <button className="chat__delete-confirm-btn chat__delete-confirm-btn--danger" onClick={confirmDeleteMessage}>删除</button>
                       </div>
-                    )}
-                    {canRegenerateRound && (
-                      <div className="chat__msg-actions">
-                        <button
-                          className="chat__msg-action-btn"
-                          title="重新生成"
-                          onClick={() => regenerateRoundAction(msg.id)}
-                          disabled={isRoundBusy}
-                        >
-                          <RefreshIcon color="#8C6A72" width={14} height={14} />
-                        </button>
-                        <button
-                          className="chat__msg-action-btn"
-                          title="编辑"
-                          onClick={() => startEditMessage(msg.id, msg.text)}
-                          disabled={isRoundBusy}
-                        >
-                          <PencilIcon />
-                        </button>
-                      </div>
+                    ) : (
+                      <>
+                        <div className="chat__time">{timeLabel}</div>
+                        <div className="chat__msg-actions">
+                          {!mine && msg.kind !== 'photo' && (
+                            <>
+                              <button
+                                className="chat__msg-action-btn"
+                                title="重新生成"
+                                onClick={() => regenerateMessageAction(msg.id)}
+                                disabled={isRegenerating}
+                              >
+                                <RefreshIcon color="#8C6A72" width={14} height={14} />
+                              </button>
+                              <button
+                                className="chat__msg-action-btn"
+                                title="思考过程"
+                                onClick={() => toggleThinkingExpanded(msg.id)}
+                              >
+                                <ChevronDownIcon color="#8C6A72" width={14} height={14} expanded={isExpanded} />
+                              </button>
+                            </>
+                          )}
+                          {canRegenerateRound && (
+                            <>
+                              <button
+                                className="chat__msg-action-btn"
+                                title="重新生成"
+                                onClick={() => regenerateRoundAction(msg.id)}
+                                disabled={isRoundBusy}
+                              >
+                                <RefreshIcon color="#8C6A72" width={14} height={14} />
+                              </button>
+                              <button
+                                className="chat__msg-action-btn"
+                                title="编辑"
+                                onClick={() => startEditMessage(msg.id, msg.text)}
+                                disabled={isRoundBusy}
+                              >
+                                <PencilIcon />
+                              </button>
+                            </>
+                          )}
+                          <button
+                            className="chat__msg-action-btn"
+                            title="删除"
+                            onClick={() => requestDeleteMessage(msg.id)}
+                          >
+                            <TrashIcon color="#8C6A72" width={14} height={14} />
+                          </button>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}

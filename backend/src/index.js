@@ -11,6 +11,7 @@ import ledgerRouter from './routes/ledger.js';
 import habitsRouter from './routes/habits.js';
 import { startProactiveScheduler } from './proactive.js';
 import { startScheduledMessageChecker } from './scheduledMessages.js';
+import { startMemoryScheduler } from './memoryScheduler.js';
 
 const app = express();
 app.use(cors());
@@ -35,4 +36,5 @@ app.listen(port, () => {
   }
   startProactiveScheduler();
   startScheduledMessageChecker();
+  startMemoryScheduler();
 });

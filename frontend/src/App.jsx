@@ -10,6 +10,8 @@ import LetterReminder from './components/LetterReminder';
 import AiSettingsPanel from './components/AiSettingsPanel';
 import McpPanel from './components/McpPanel';
 import PresetPanel from './components/PresetPanel';
+import ContextPanel from './components/ContextPanel';
+import PushSettingsPanel from './components/PushSettingsPanel';
 import ClearChatConfirm from './components/ClearChatConfirm';
 import ModePill from './components/ModePill';
 import PlaceholderTab from './components/PlaceholderTab';
@@ -81,6 +83,8 @@ function App() {
         <AiSettingsPanel />
         <McpPanel />
         <PresetPanel />
+        <ContextPanel />
+        <PushSettingsPanel />
         <ClearChatConfirm />
       </div>
     </div>

@@ -232,6 +232,11 @@
   opacity: 1;
 }
 .chat__msg-action-btn:disabled { opacity: 0.4; }
+.chat__delete-confirm { display: flex; align-items: center; gap: 6px; }
+.chat__delete-confirm-text { font-size: 11.5px; color: var(--color-text-soft); white-space: nowrap; }
+.chat__delete-confirm-btn { border: none; border-radius: 999px; font-size: 11px; font-weight: 600; padding: 4px 10px; flex-shrink: 0; }
+.chat__delete-confirm-btn--cancel { background: rgba(58, 50, 54, 0.06); color: var(--color-text-soft); }
+.chat__delete-confirm-btn--danger { background: #C4879E; color: #fff; }
 .chat__thinking-bubble {
   max-width: 92%;
   margin-top: 4px;

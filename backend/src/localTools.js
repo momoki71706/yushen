@@ -24,6 +24,20 @@ export function getLocalTools() {
       serverId: null,
       toolName: 'schedule_message',
     },
+    {
+      qualifiedName: 'save_memory',
+      description:
+        '当聊天中出现了以后值得长期记住的信息时调用——比如她的喜好/忌讳、纪念日或重要日期、你们之间的约定、她生活里的重要变化、说过的走心的话。发现这类内容就主动记录，不用等她要求，也不用来回确认。content 写成一句简洁的中文陈述句，只记这一件事。',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          content: { type: 'string', description: '要记住的这一条内容，简洁的中文陈述句，比如"小晴不吃香菜"' },
+        },
+        required: ['content'],
+      },
+      serverId: null,
+      toolName: 'save_memory',
+    },
   ];
 }
 
@@ -38,10 +52,22 @@ export function scheduleMessage(delayMinutes, note) {
   return { fireAt, minutes };
 }
 
+export function saveMemory(content, source = 'event') {
+  const trimmed = String(content || '').trim().slice(0, 300);
+  if (!trimmed) return null;
+  db.prepare('INSERT INTO memories (content, source) VALUES (?, ?)').run(trimmed, source);
+  return trimmed;
+}
+
 export async function executeLocalTool(toolName, input) {
   if (toolName === 'schedule_message') {
     const { minutes } = scheduleMessage(input?.delay_minutes, input?.note);
     return { content: [{ type: 'text', text: `已经记下了，${minutes} 分钟后会提醒。` }] };
+  }
+  if (toolName === 'save_memory') {
+    const saved = saveMemory(input?.content, 'event');
+    if (!saved) return { content: [{ type: 'text', text: '记忆内容是空的，没有记下来' }], isError: true };
+    return { content: [{ type: 'text', text: '记住了' }] };
   }
   return { content: [{ type: 'text', text: `未知本地工具: ${toolName}` }], isError: true };
 }

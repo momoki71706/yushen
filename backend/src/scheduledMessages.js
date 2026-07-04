@@ -3,12 +3,12 @@ import { getProviderWithKeys, getReplyViaProvider, trimTrailingAssistantTurns } 
 import { formatBeijingClock } from './time.js';
 import { sendPushToAll } from './push.js';
 import { classifyReplyForRetry, withReplyRetry } from './persona.js';
+import { getContextMessageLimit } from './contextSettings.js';
 
 // Checked far more often than the idle-based proactive scheduler (15 min)
 // since "in 5 minutes" needs to actually mean roughly 5 minutes, not
 // "sometime in the next 15."
 const CHECK_INTERVAL_MS = 60 * 1000;
-const CONTEXT_MESSAGE_LIMIT = 20;
 
 async function fireDueScheduledMessages() {
   try {
@@ -26,7 +26,7 @@ async function fireDueScheduledMessages() {
 
       const rawHistory = db
         .prepare('SELECT from_who, text FROM chat_messages ORDER BY id DESC LIMIT ?')
-        .all(CONTEXT_MESSAGE_LIMIT)
+        .all(getContextMessageLimit())
         .reverse()
         .map((r) => ({ from: r.from_who, text: r.text }));
       const history = trimTrailingAssistantTurns(rawHistory);

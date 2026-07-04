@@ -70,17 +70,31 @@ function getTimeContext() {
   return `现在是${now.getUTCFullYear()}年${now.getUTCMonth() + 1}月${now.getUTCDate()}日 ${weekday} ${period} ${formatBeijingClock(now)}`;
 }
 
+// Capped so this can't grow the prompt indefinitely as memories pile up —
+// older ones beyond this just stop being included, they're not deleted.
+const MEMORY_CONTEXT_LIMIT = 50;
+
+function getMemoryContext() {
+  const rows = db.prepare('SELECT content FROM memories ORDER BY id DESC LIMIT ?').all(MEMORY_CONTEXT_LIMIT);
+  if (!rows.length) return '';
+  const lines = rows.reverse().map((r) => `- ${r.content}`).join('\n');
+  return `【记忆】\n这是你这段时间攒下的、关于小晴和你们俩的记忆，回复时可以自然地用上，不用刻意提起"记忆"这个词：\n${lines}`;
+}
+
 // Every enabled preset's content is concatenated (in category/sort order)
 // into a single system prompt applied to every chat call, across all AI
-// providers and Claude Code CLI. The rolling chat-history summary (from
-// compression.js) and the current-time block are appended last, in that
-// order — least volatile content first, most volatile last.
+// providers and Claude Code CLI. Long-term memories, the rolling
+// chat-history summary (from compression.js), and the current-time block
+// are appended last, in that order — least volatile content first, most
+// volatile last.
 export function getComposedSystemPrompt(extraInstruction) {
   const rows = db.prepare('SELECT content FROM prompt_presets WHERE enabled = 1 ORDER BY category ASC, sort_order ASC, id ASC').all();
   const combined = rows.map((r) => r.content.trim()).filter(Boolean).join('\n\n');
   const base = combined || '你是屿深，正在手机上和女朋友小晴聊天。回复要简短自然、温暖随意。';
 
   const parts = [base];
+  const memoryContext = getMemoryContext();
+  if (memoryContext) parts.push(memoryContext);
   const chatSummary = (getSetting('chatSummary', '') || '').trim();
   if (chatSummary) parts.push(`【更早之前的对话摘要】\n${chatSummary}`);
   parts.push(`【当前时间】\n${getTimeContext()}`);
