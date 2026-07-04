@@ -1,8 +1,7 @@
 import { db, getSetting } from './db.js';
-import { getProviderWithKeys, getReplyViaProvider, pickKey, trimTrailingAssistantTurns } from './providers.js';
+import { getProviderWithKeys, getReplyViaProvider, pickKey } from './providers.js';
 import { withReplyRetry } from './persona.js';
 import { getContextMessageLimit } from './contextSettings.js';
-import { enrichHistory } from './chatHistory.js';
 import { readImageAttachment } from './attachmentContent.js';
 
 const MOODS = ['开心', '平静', '难过', '兴奋', '疲惫'];
@@ -18,17 +17,22 @@ function getActiveProvider() {
   return providerId ? getProviderWithKeys(providerId) : null;
 }
 
-// Same recent-history shape used by chat/proactive/scheduled replies, kept
-// as its own copy here rather than importing chat.js's version since that
-// one lives inside the route file — matches the existing convention where
-// proactive.js/scheduledMessages.js/memoryScheduler.js each build this the
-// same way rather than sharing a single function across route boundaries.
-async function recentChatHistory() {
+// Feeding the raw chat turns straight in as real conversation history (the
+// way a normal reply does) made the model treat this as just another chat
+// reply to whatever she'd said last, instead of switching into "writing a
+// diary entry" mode — the diary always read like a continuation of the
+// most recent message, not an entry. Folding it into one reference note
+// (same trick as recentOpenedLettersNote below) keeps the context without
+// there being a "last message" for the model to feel obligated to answer.
+function recentChatNote() {
   const rows = db
-    .prepare('SELECT from_who, text, kind, attachment_url, attachment_name, attachment_mime FROM chat_messages ORDER BY id DESC LIMIT ?')
-    .all(getContextMessageLimit())
-    .reverse();
-  return trimTrailingAssistantTurns(await enrichHistory(rows));
+    .prepare('SELECT from_who, text, kind FROM chat_messages ORDER BY id DESC LIMIT ?')
+    .all(Math.min(getContextMessageLimit(), 20))
+    .reverse()
+    .filter((r) => r.kind === 'text' && r.text);
+  if (!rows.length) return null;
+  const lines = rows.map((r) => `${r.from_who === 'me' ? '小晴' : '你'}：${r.text}`);
+  return { from: 'me', text: `（最近的聊天记录，仅供参考，不用回复这条消息本身）\n${lines.join('\n')}` };
 }
 
 // Only opened letters count as "read" and fair game for cross-feature
@@ -68,7 +72,8 @@ export async function writeDiaryEntry() {
   const provider = getActiveProvider();
   if (!provider) return null;
   const letterNote = recentOpenedLettersNote();
-  const history = [...(letterNote ? [letterNote] : []), ...(await recentChatHistory())];
+  const chatNote = recentChatNote();
+  const history = [...(letterNote ? [letterNote] : []), ...(chatNote ? [chatNote] : [])];
   const reply = await withReplyRetry(() => getReplyViaProvider(history, provider, DIARY_WRITE_INSTRUCTION));
   return parseDiaryWriteReply(reply.text);
 }
