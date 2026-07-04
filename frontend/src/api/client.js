@@ -39,6 +39,7 @@ export const api = {
     return res.json();
   },
   clearChat: () => request('/chat', { method: 'DELETE' }),
+  markChatRead: () => request('/chat/mark-read', { method: 'PATCH' }),
   regenerateMessage: (id) => request(`/chat/${id}/regenerate`, { method: 'POST' }),
   editChatMessage: (id, text) => request(`/chat/${id}`, { method: 'PATCH', body: JSON.stringify({ text }) }),
   regenerateChatRound: (id) => request(`/chat/${id}/regenerate-round`, { method: 'POST' }),
@@ -58,6 +59,10 @@ export const api = {
   createLetter: (payload) =>
     request('/letters', { method: 'POST', body: JSON.stringify(payload) }),
   openLetter: (id) => request(`/letters/${id}/open`, { method: 'PATCH' }),
+  updateLetter: (id, payload) => request(`/letters/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteLetter: (id) => request(`/letters/${id}`, { method: 'DELETE' }),
+  requestLetterReply: (id) => request(`/letters/${id}/request-reply`, { method: 'POST' }),
+  regenerateLetter: (id) => request(`/letters/${id}/regenerate`, { method: 'POST' }),
 
   getSettings: () => request('/settings'),
   updateSettings: (payload) =>

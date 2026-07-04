@@ -632,14 +632,43 @@
   box-shadow: 0 3px 10px rgba(58, 50, 54, 0.12);
 }
 .diary-paper-save span { font-size: 12.5px; color: var(--color-accent-strong); font-weight: 600; }
-.diary-attachment-note {
+.diary-attachment-preview {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  margin: -4px 0 16px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+}
+.diary-attachment-preview img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: pointer; }
+.diary-attachment-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: -4px 0 16px;
-  font-size: 12px;
-  color: var(--color-accent-icon);
+  justify-content: center;
+  padding: 0;
 }
+.diary-attachment-error { font-size: 12px; color: #B4645E; margin: -8px 0 16px; }
+.diary-entry-thumb { display: block; width: 100%; max-height: 140px; object-fit: cover; border-radius: 10px; margin-top: 8px; }
+.diary-detail__attachment {
+  display: block;
+  width: 100%;
+  border: none;
+  padding: 0;
+  margin-top: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.diary-detail__attachment img { width: 100%; max-height: 320px; object-fit: cover; display: block; }
 .diary-past-link {
   width: 100%;
   display: flex;
@@ -877,6 +906,36 @@
   padding: 4px;
 }
 .letter-mailbox-link span { font-size: 12.5px; color: var(--color-text-soft); font-weight: 500; }
+.letter-editing-cancel {
+  border: none;
+  background: rgba(196, 100, 94, 0.1);
+  color: #B4645E;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  margin-right: auto;
+}
+.letter-reply-link {
+  border: none;
+  background: rgba(200, 137, 158, 0.12);
+  color: var(--color-accent-strong);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  margin-right: 10px;
+}
+.reply-picker-error { font-size: 12px; color: #B4645E; margin-bottom: 10px; }
+.reply-picker-item {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--glass-mid);
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.reply-picker-item-body { font-size: 13.5px; color: var(--color-text); line-height: 1.5; margin-bottom: 4px; }
+.reply-picker-item-meta { font-size: 11px; color: var(--color-text-faint); }
 
 .letter-card {
   border-radius: 12px;
@@ -1051,6 +1110,17 @@
 .mailbox__letter-dear { font-size: 14px; color: #8A7A6E; font-weight: 500; margin-bottom: 8px; padding-right: 26px; }
 .mailbox__letter-body { font-size: 14px; color: var(--color-text); line-height: 1.7; white-space: pre-wrap; }
 .mailbox__letter-signature { text-align: right; margin-top: 12px; font-size: 14px; color: #8A7A6E; font-weight: 500; }
+.mailbox__letter-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.mailbox__letter-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 /* ---------- sidebar ---------- */
 .sidebar-layer { position: absolute; inset: 0; z-index: 45; display: flex; }

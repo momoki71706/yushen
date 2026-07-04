@@ -1,5 +1,5 @@
 import { useStore } from '../state/store';
-import { EnvelopeOutlineIcon, EnvelopeIcon, BackChevronIcon } from '../components/Icons';
+import { EnvelopeOutlineIcon, EnvelopeIcon, BackChevronIcon, PencilIcon, TrashIcon, RefreshIcon, CloseIcon } from '../components/Icons';
 
 const RECIPIENTS = ['屿深', '小晴'];
 
@@ -9,7 +9,6 @@ export default function LetterMode() {
 }
 
 function Compose() {
-  const nickname = useStore((s) => s.nickname);
   const letters = useStore((s) => s.letters);
   const openMailbox = useStore((s) => s.openMailbox);
   const letterDearText = useStore((s) => s.letterDearText);
@@ -26,15 +25,28 @@ function Compose() {
   const onUnlockDateChange = useStore((s) => s.onUnlockDateChange);
   const sealLetterAnimated = useStore((s) => s.sealLetterAnimated);
   const sealPulse = useStore((s) => s.sealPulse);
+  const editingLetterId = useStore((s) => s.editingLetterId);
+  const cancelEditLetter = useStore((s) => s.cancelEditLetter);
+  const openReplyPicker = useStore((s) => s.openReplyPicker);
 
   return (
     <div className="letter-scroll">
       <div className="letter-mailbox-link">
+        {editingLetterId ? (
+          <button className="letter-editing-cancel" onClick={cancelEditLetter}>
+            取消修改
+          </button>
+        ) : (
+          <button className="letter-reply-link" onClick={openReplyPicker}>
+            去回信
+          </button>
+        )}
         <button onClick={openMailbox}>
           <EnvelopeOutlineIcon color="#6B6268" />
           <span>我的信箱 {letters.length}</span>
         </button>
       </div>
+      <ReplyPicker />
 
       <div className="letter-card">
         <div className="letter-dear-row">
@@ -90,7 +102,7 @@ function Compose() {
               className="letter-signature-input"
               value={letterSignature || ''}
               onChange={(e) => onLetterSignatureChange(e.target.value)}
-              placeholder={nickname}
+              placeholder="小晴"
             />
           </div>
         </div>
@@ -102,7 +114,7 @@ function Compose() {
           style={{ animation: sealPulse ? 'sealStamp 0.42s ease' : 'none' }}
           onClick={sealLetterAnimated}
         >
-          发送
+          {editingLetterId ? '保存修改' : '发送'}
         </button>
       </div>
     </div>
@@ -118,6 +130,10 @@ function Mailbox() {
   const expandedLetterIds = useStore((s) => s.expandedLetterIds);
   const isDateDue = useStore((s) => s.isDateDue);
   const parseLocalDate = useStore((s) => s.parseLocalDate);
+  const startEditLetter = useStore((s) => s.startEditLetter);
+  const deleteLetterAction = useStore((s) => s.deleteLetterAction);
+  const regenerateLetterAction = useStore((s) => s.regenerateLetterAction);
+  const regeneratingLetterIds = useStore((s) => s.regeneratingLetterIds);
 
   const todayMid = new Date();
   todayMid.setHours(0, 0, 0, 0);
@@ -185,12 +201,71 @@ function Mailbox() {
                   <div className="mailbox__letter-dear">Dear {l.dearText || l.recipient}</div>
                   <div className="mailbox__letter-body">{l.body}</div>
                   <div className="mailbox__letter-signature">{l.signature || l.sender}</div>
+                  <div className="mailbox__letter-actions" onClick={(e) => e.stopPropagation()}>
+                    {l.sender === '小晴' && (
+                      <button className="mailbox__letter-action-btn" title="修改" onClick={() => startEditLetter(l.id)}>
+                        <PencilIcon />
+                      </button>
+                    )}
+                    {l.sender === '屿深' && (
+                      <button
+                        className="mailbox__letter-action-btn"
+                        title="重新生成"
+                        onClick={() => regenerateLetterAction(l.id)}
+                        disabled={regeneratingLetterIds.includes(l.id)}
+                      >
+                        <RefreshIcon color="#8C6A72" width={14} height={14} />
+                      </button>
+                    )}
+                    <button className="mailbox__letter-action-btn" title="删除" onClick={() => deleteLetterAction(l.id)}>
+                      <TrashIcon color="#8C6A72" width={14} height={14} />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function ReplyPicker() {
+  const showReplyPicker = useStore((s) => s.showReplyPicker);
+  const closeReplyPicker = useStore((s) => s.closeReplyPicker);
+  const letters = useStore((s) => s.letters);
+  const replyRequestMessage = useStore((s) => s.replyRequestMessage);
+  const requestLetterReplyAction = useStore((s) => s.requestLetterReplyAction);
+  const parseLocalDate = useStore((s) => s.parseLocalDate);
+
+  if (!showReplyPicker) return null;
+
+  const sentLetters = letters
+    .filter((l) => l.sender === '小晴')
+    .slice()
+    .sort((a, b) => parseLocalDate(b.unlockDate) - parseLocalDate(a.unlockDate));
+
+  return (
+    <div className="sheet-overlay" onClick={closeReplyPicker}>
+      <div className="sheet-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-panel__head">
+          <div className="sheet-panel__title">选一封信让他回信</div>
+          <button className="sheet-panel__close" onClick={closeReplyPicker}>
+            <CloseIcon />
+          </button>
+        </div>
+        {replyRequestMessage && <div className="reply-picker-error">{replyRequestMessage}</div>}
+        {sentLetters.length === 0 && (
+          <div className="mailbox__letter-meta">你还没有寄出过信</div>
+        )}
+        {sentLetters.map((l) => (
+          <div key={l.id} className="reply-picker-item" onClick={() => requestLetterReplyAction(l.id)}>
+            <div className="reply-picker-item-body">{l.body.length > 60 ? l.body.slice(0, 60) + '…' : l.body}</div>
+            <div className="reply-picker-item-meta">{l.unlockDate} · {l.body.length} 字</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

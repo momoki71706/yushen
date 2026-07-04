@@ -29,6 +29,16 @@ router.get('/', (req, res) => {
   res.json(rows.map(serializeMessage));
 });
 
+// Called by the frontend whenever the chat screen is actually showing
+// current messages — feeds the read-but-unanswered follow-up scheduler
+// (chatFollowUp.js), which otherwise has no way to know whether a message
+// sitting unreplied has actually been seen yet.
+router.patch('/mark-read', (req, res) => {
+  const row = db.prepare('SELECT MAX(id) AS maxId FROM chat_messages').get();
+  setSetting('lastReadChatMessageId', String(row?.maxId || 0));
+  res.json({ ok: true });
+});
+
 // History for a reply anchored right after `beforeId` (or the newest
 // messages overall when beforeId is omitted) — shared by both sending a
 // new message and regenerating an existing one. `inclusive` also folds in

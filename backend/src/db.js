@@ -75,6 +75,19 @@ CREATE TABLE IF NOT EXISTS letters (
   body TEXT NOT NULL,
   opened INTEGER NOT NULL DEFAULT 0,
   has_attachment INTEGER NOT NULL DEFAULT 0,
+  reply_to_id INTEGER,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Queued when you tap "去回信" on one of your sent letters — fulfilled
+-- later (see letterScheduler.js) with a real reply letter from him, or
+-- nothing at all if he decides (or the letter's too short) not to reply.
+CREATE TABLE IF NOT EXISTS letter_reply_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_letter_id INTEGER NOT NULL,
+  fire_at TEXT NOT NULL,
+  done INTEGER NOT NULL DEFAULT 0,
+  attempts INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -168,11 +181,16 @@ ensureColumn('chat_messages', 'attachment_mime', 'TEXT');
 ensureColumn('chat_messages', 'attachment_size', 'INTEGER');
 ensureColumn('chat_messages', 'tool_calls', 'TEXT');
 ensureColumn('letters', 'exported', 'INTEGER NOT NULL DEFAULT 0');
+ensureColumn('letters', 'reply_to_id', 'INTEGER');
 ensureColumn('diary_entries', 'author', "TEXT NOT NULL DEFAULT 'me'");
 ensureColumn('diary_entries', 'reacted', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('diary_entries', 'react_at', 'TEXT');
 ensureColumn('diary_entries', 'react_attempts', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('diary_review_requests', 'attempts', 'INTEGER NOT NULL DEFAULT 0');
+ensureColumn('diary_entries', 'attachment_url', 'TEXT');
+ensureColumn('diary_entries', 'attachment_name', 'TEXT');
+ensureColumn('diary_entries', 'attachment_mime', 'TEXT');
+ensureColumn('diary_entries', 'attachment_size', 'INTEGER');
 // Defaults to 1 (read) here specifically so this migration doesn't
 // retroactively mark every pre-existing entry/comment as unread — new rows
 // going forward explicitly set 0 or 1 per-author at insert time instead of
@@ -199,21 +217,24 @@ function cleanupFakeDiarySeed() {
   setSetting('fakeDiarySeedCleaned', '1');
 }
 
-function seedIfEmpty() {
-  const letterCount = db.prepare('SELECT COUNT(*) AS c FROM letters').get().c;
-  if (letterCount === 0) {
-    const insert = db.prepare(`INSERT INTO letters (sender, recipient, signature, dear_text, unlock_date, body, opened, has_attachment) VALUES (?,?,?,?,?,?,?,?)`);
-    const today = new Date().toISOString().slice(0, 10);
-    const seed = [
-      ['小晴', '屿深', '小晴', null, '2026-12-25', '写给一年后的我们：希望那时我们还是这样，愿意为对方多走一点路。', 0, 0],
-      ['小晴', '屿深', '小晴', null, '2026-09-10', '生日快乐，这是我提前藏起来的话——谢谢你出现在我的世界里。', 0, 0],
-      ['屿深', '小晴', '屿深', null, '2026-06-20', '对不起，那天不该那么说话。其实我一直都记得你怕黑，以后我尽量早点回家。', 1, 0],
-      ['屿深', '小晴', '屿深', null, today, '写这封信的时候还没到日子，但如果你现在看到——今天也要好好吃饭呀。', 0, 0],
-    ];
-    const tx = db.transaction((rows) => rows.forEach((r) => insert.run(...r)));
-    tx(seed);
-  }
+// Same idea as cleanupFakeDiarySeed, for the first release's 4 placeholder
+// letters — matched by exact body text so it can never touch anything
+// genuinely written later.
+function cleanupFakeLetterSeed() {
+  if (getSetting('fakeLetterSeedCleaned', '0') === '1') return;
+  const FAKE_SEED_BODIES = [
+    '写给一年后的我们：希望那时我们还是这样，愿意为对方多走一点路。',
+    '生日快乐，这是我提前藏起来的话——谢谢你出现在我的世界里。',
+    '对不起，那天不该那么说话。其实我一直都记得你怕黑，以后我尽量早点回家。',
+    '写这封信的时候还没到日子，但如果你现在看到——今天也要好好吃饭呀。',
+  ];
+  const del = db.prepare('DELETE FROM letters WHERE body = ?');
+  const tx = db.transaction((texts) => texts.forEach((t) => del.run(t)));
+  tx(FAKE_SEED_BODIES);
+  setSetting('fakeLetterSeedCleaned', '1');
+}
 
+function seedIfEmpty() {
   const presetCount = db.prepare('SELECT COUNT(*) AS c FROM prompt_presets').get().c;
   if (presetCount === 0) {
     db.prepare(`INSERT INTO prompt_presets (category, name, content, enabled, sort_order) VALUES (?,?,?,?,?)`).run(
@@ -269,6 +290,8 @@ function seedIfEmpty() {
     diaryNotifyEnabled: '0',
     lastDiaryWriteDate: '',
     diaryWriteFireAt: '',
+    lastReadChatMessageId: '0',
+    chatFollowUpCount: '0',
   };
   const getSetting = db.prepare('SELECT value FROM settings WHERE key = ?');
   const setSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');
@@ -279,6 +302,7 @@ function seedIfEmpty() {
 
 seedIfEmpty();
 cleanupFakeDiarySeed();
+cleanupFakeLetterSeed();
 
 export function getSetting(key, fallback = null) {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);

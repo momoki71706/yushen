@@ -14,6 +14,8 @@ import { startProactiveScheduler } from './proactive.js';
 import { startScheduledMessageChecker } from './scheduledMessages.js';
 import { startMemoryScheduler } from './memoryScheduler.js';
 import { startDiaryScheduler } from './diaryScheduler.js';
+import { startLetterScheduler } from './letterScheduler.js';
+import { startChatFollowUpScheduler } from './chatFollowUp.js';
 
 const app = express();
 app.use(cors());
@@ -43,4 +45,6 @@ app.listen(port, () => {
   startScheduledMessageChecker();
   startMemoryScheduler();
   startDiaryScheduler();
+  startLetterScheduler();
+  startChatFollowUpScheduler();
 });

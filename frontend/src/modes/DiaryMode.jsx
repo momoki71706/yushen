@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
-import { MoodIcon, WeatherIcon, PlusIcon, CheckIcon, CalendarIcon, SearchIcon, BackChevronIcon, RefreshIcon } from '../components/Icons';
+import { attachmentUrl } from '../api/client';
+import { MoodIcon, WeatherIcon, PlusIcon, CheckIcon, CalendarIcon, SearchIcon, BackChevronIcon, RefreshIcon, CloseIcon } from '../components/Icons';
 
 const MOODS = ['开心', '平静', '难过', '兴奋', '疲惫'];
 const WEATHERS = ['晴', '多云', '雨', '雪', '风'];
@@ -19,8 +20,13 @@ function DiaryList() {
   const diarySelectedTags = useStore((s) => s.diarySelectedTags);
   const isDiaryTagSelected = useStore((s) => s.isDiaryTagSelected);
   const toggleDiaryTag = useStore((s) => s.toggleDiaryTag);
-  const diaryHasAttachment = useStore((s) => s.diaryHasAttachment);
-  const toggleDiaryAttachment = useStore((s) => s.toggleDiaryAttachment);
+  const diaryAttachmentPreviewUrl = useStore((s) => s.diaryAttachmentPreviewUrl);
+  const diaryAttachmentUploading = useStore((s) => s.diaryAttachmentUploading);
+  const diaryAttachmentError = useStore((s) => s.diaryAttachmentError);
+  const pickDiaryAttachment = useStore((s) => s.pickDiaryAttachment);
+  const removeDiaryAttachment = useStore((s) => s.removeDiaryAttachment);
+  const openImageViewer = useStore((s) => s.openImageViewer);
+  const fileInputRef = useRef(null);
   const showCustomTagInput = useStore((s) => s.showCustomTagInput);
   const toggleCustomTagInput = useStore((s) => s.toggleCustomTagInput);
   const customTagDraft = useStore((s) => s.customTagDraft);
@@ -128,9 +134,23 @@ function DiaryList() {
           onChange={(e) => onDiaryTextChange(e.target.value)}
           placeholder="写下此刻…"
         />
-        <button className="diary-paper-attach" onClick={toggleDiaryAttachment}>
+        <button
+          className="diary-paper-attach"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={diaryAttachmentUploading}
+        >
           <PlusIcon color="#8C7A82" width={13} height={13} />
         </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            pickDiaryAttachment(e.target.files);
+            e.target.value = '';
+          }}
+        />
         <button
           className="diary-paper-save"
           onClick={() => {
@@ -142,18 +162,26 @@ function DiaryList() {
             document.activeElement?.blur();
             saveDiaryEntry();
           }}
+          disabled={diaryAttachmentUploading}
         >
           <CheckIcon />
           <span>保存</span>
         </button>
       </div>
 
-      {diaryHasAttachment && (
-        <div className="diary-attachment-note">
-          <PlusIcon color="#C08BA0" width={11} height={11} />
-          已附加一张照片
+      {diaryAttachmentPreviewUrl && (
+        <div className="diary-attachment-preview">
+          <img
+            src={diaryAttachmentPreviewUrl}
+            alt=""
+            onClick={() => openImageViewer(diaryAttachmentPreviewUrl)}
+          />
+          <button className="diary-attachment-remove" onClick={removeDiaryAttachment}>
+            <CloseIcon />
+          </button>
         </div>
       )}
+      {diaryAttachmentError && <div className="diary-attachment-error">{diaryAttachmentError}</div>}
 
       <button className="diary-past-link" onClick={scrollToPastDiary}>
         <span>往期日记</span>
@@ -212,6 +240,9 @@ function DiaryList() {
                 <div className="diary-entry-date">{entry.dateLabel}</div>
               </div>
               <div className="diary-entry-preview">{preview}</div>
+              {entry.attachment && (
+                <img className="diary-entry-thumb" src={attachmentUrl(entry.attachment.url)} alt="" />
+              )}
             </div>
           );
         })}
@@ -233,6 +264,7 @@ function DiaryDetail() {
   const addDiaryCommentAction = useStore((s) => s.addDiaryCommentAction);
   const diaryRegeneratingIds = useStore((s) => s.diaryRegeneratingIds);
   const regenerateDiaryEntryAction = useStore((s) => s.regenerateDiaryEntryAction);
+  const openImageViewer = useStore((s) => s.openImageViewer);
 
   const entry = diaryEntries.find((e) => e.id === diaryDetailId);
   if (!entry) return null;
@@ -270,6 +302,11 @@ function DiaryDetail() {
             )}
           </div>
           <div className="diary-detail__excerpt" style={{ opacity: isRegenerating ? 0.5 : 1 }}>{entry.excerpt}</div>
+          {entry.attachment && (
+            <button className="diary-detail__attachment" onClick={() => openImageViewer(attachmentUrl(entry.attachment.url))}>
+              <img src={attachmentUrl(entry.attachment.url)} alt="" />
+            </button>
+          )}
         </div>
 
         <div className="diary-comments">

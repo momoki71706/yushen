@@ -78,6 +78,7 @@ function AttachmentDraftStrip() {
 export default function ChatMode() {
   const messages = useStore((s) => s.messages);
   const isReplying = useStore((s) => s.isReplying);
+  const markChatRead = useStore((s) => s.markChatRead);
   const chatDraft = useStore((s) => s.chatDraft);
   const onChatChange = useStore((s) => s.onChatChange);
   const sendChat = useStore((s) => s.sendChat);
@@ -115,6 +116,13 @@ export default function ChatMode() {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, isReplying]);
+
+  // Mounting/updating here means this screen is actually showing the
+  // current messages right now — mark them read so a question sitting
+  // unreplied is known to have actually been seen.
+  useEffect(() => {
+    if (messages.length) markChatRead();
+  }, [messages, markChatRead]);
 
   const handleFileChange = (e) => {
     addAttachmentDraftFiles(e.target.files);

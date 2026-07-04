@@ -321,6 +321,13 @@ export const useStore = create(
     const messages = await api.getMessages();
     set({ messages });
   },
+  // Called by ChatMode whenever it's actually mounted and showing current
+  // messages — feeds the backend's read-but-unanswered follow-up scheduler,
+  // which otherwise has no way to know whether a question sitting unreplied
+  // has actually been seen yet.
+  markChatRead: () => {
+    api.markChatRead().catch(() => {});
+  },
   onChatChange: (value) => set({ chatDraft: value }),
   pushMessage: async (text, kind = 'text', attachment = null) => {
     set((s) => ({
@@ -548,7 +555,10 @@ export const useStore = create(
   diaryEntries: [],
   diaryText: '',
   diarySelectedTags: [],
-  diaryHasAttachment: false,
+  diaryAttachmentFile: null,
+  diaryAttachmentPreviewUrl: null,
+  diaryAttachmentUploading: false,
+  diaryAttachmentError: '',
   diaryView: 'list',
   diaryDetailId: null,
   diaryListScrollTop: 0,
@@ -572,7 +582,20 @@ export const useStore = create(
           : [...s.diarySelectedTags, { type, key }],
       };
     }),
-  toggleDiaryAttachment: () => set((s) => ({ diaryHasAttachment: !s.diaryHasAttachment })),
+  // Diary only supports one photo at a time (unlike chat's multi-attachment
+  // strip) — picking a new one just replaces whatever was staged before.
+  pickDiaryAttachment: (fileList) => {
+    const file = fileList?.[0];
+    if (!file) return;
+    const prev = get().diaryAttachmentPreviewUrl;
+    if (prev) URL.revokeObjectURL(prev);
+    set({ diaryAttachmentFile: file, diaryAttachmentPreviewUrl: URL.createObjectURL(file), diaryAttachmentError: '' });
+  },
+  removeDiaryAttachment: () => {
+    const prev = get().diaryAttachmentPreviewUrl;
+    if (prev) URL.revokeObjectURL(prev);
+    set({ diaryAttachmentFile: null, diaryAttachmentPreviewUrl: null });
+  },
   toggleCustomTagInput: () => set((s) => ({ showCustomTagInput: !s.showCustomTagInput, customTagDraft: '' })),
   onCustomTagDraftChange: (value) => set({ customTagDraft: value }),
   addCustomTag: () => {
@@ -589,7 +612,7 @@ export const useStore = create(
   onDiarySearchDateChange: (value) => set({ diarySearchDate: value }),
   clearDiarySearchDate: () => set({ diarySearchDate: '' }),
   saveDiaryEntry: async () => {
-    const { diaryText, diarySelectedTags, diaryHasAttachment } = get();
+    const { diaryText, diarySelectedTags, diaryAttachmentFile, diaryAttachmentPreviewUrl } = get();
     const trimmed = (diaryText || '').trim();
     if (!trimmed) return;
     const moodTag = diarySelectedTags.find((t) => t.type === 'mood');
@@ -597,19 +620,30 @@ export const useStore = create(
     const customTag = diarySelectedTags.find((t) => t.type === 'custom');
     const mood = moodTag ? moodTag.key : '平静';
     const weather = weatherTag ? weatherTag.key : '晴';
-    const entry = await api.createDiaryEntry({
-      text: trimmed,
-      mood,
-      weather,
-      tag: customTag ? customTag.key : null,
-      hasAttachment: diaryHasAttachment,
-    });
-    set((s) => ({
-      diaryEntries: [entry, ...s.diaryEntries],
-      diaryText: '',
-      diarySelectedTags: [],
-      diaryHasAttachment: false,
-    }));
+
+    set({ diaryAttachmentUploading: true, diaryAttachmentError: '' });
+    try {
+      const attachment = diaryAttachmentFile ? await api.uploadAttachment(diaryAttachmentFile) : null;
+      const entry = await api.createDiaryEntry({
+        text: trimmed,
+        mood,
+        weather,
+        tag: customTag ? customTag.key : null,
+        attachment,
+      });
+      if (diaryAttachmentPreviewUrl) URL.revokeObjectURL(diaryAttachmentPreviewUrl);
+      set((s) => ({
+        diaryEntries: [entry, ...s.diaryEntries],
+        diaryText: '',
+        diarySelectedTags: [],
+        diaryAttachmentFile: null,
+        diaryAttachmentPreviewUrl: null,
+      }));
+    } catch (err) {
+      set({ diaryAttachmentError: err.message });
+    } finally {
+      set({ diaryAttachmentUploading: false });
+    }
   },
   openDiaryDetail: (id, scrollTop) => {
     set({ diaryView: 'detail', diaryDetailId: id, diaryListScrollTop: scrollTop || 0, diaryComments: [] });
@@ -702,6 +736,32 @@ export const useStore = create(
   sealPulse: false,
   expandedLetterIds: [],
   showLetterReminder: false,
+  editingLetterId: null,
+  showReplyPicker: false,
+  replyRequestMessage: '',
+  regeneratingLetterIds: [],
+  openReplyPicker: () => set({ showReplyPicker: true, replyRequestMessage: '' }),
+  closeReplyPicker: () => set({ showReplyPicker: false }),
+  requestLetterReplyAction: async (id) => {
+    try {
+      await api.requestLetterReply(id);
+      set({ showReplyPicker: false, replyRequestMessage: '' });
+    } catch (err) {
+      set({ replyRequestMessage: err.message });
+    }
+  },
+  regenerateLetterAction: async (id) => {
+    if (get().regeneratingLetterIds.includes(id)) return;
+    set((s) => ({ regeneratingLetterIds: [...s.regeneratingLetterIds, id] }));
+    try {
+      const updated = await api.regenerateLetter(id);
+      set((s) => ({ letters: s.letters.map((l) => (l.id === id ? updated : l)) }));
+    } catch (err) {
+      set({ replyRequestMessage: err.message });
+    } finally {
+      set((s) => ({ regeneratingLetterIds: s.regeneratingLetterIds.filter((x) => x !== id) }));
+    }
+  },
   loadLetters: async () => {
     const letters = await api.getLetters();
     set({ letters });
@@ -721,22 +781,55 @@ export const useStore = create(
     }, 420);
   },
   sealLetter: async () => {
-    const { letterText, letterRecipient, letterUnlockDate, letterSignature, letterDearText } = get();
+    const { letterText, letterRecipient, letterUnlockDate, letterSignature, letterDearText, editingLetterId } = get();
     const trimmed = (letterText || '').trim();
     if (!trimmed) return;
-    const letter = await api.createLetter({
+    const payload = {
       recipient: letterRecipient,
       unlockDate: letterUnlockDate || tomorrowISO(),
       body: trimmed,
       signature: letterSignature,
       dearText: letterDearText,
-    });
+    };
+    const letter = editingLetterId ? await api.updateLetter(editingLetterId, payload) : await api.createLetter(payload);
     set((s) => ({
-      letters: [letter, ...s.letters],
+      letters: editingLetterId
+        ? s.letters.map((l) => (l.id === editingLetterId ? letter : l))
+        : [letter, ...s.letters],
       letterText: '',
       letterUnlockDate: tomorrowISO(),
       letterView: 'mailbox',
       letterMailboxTab: 'sent',
+      editingLetterId: null,
+    }));
+  },
+  startEditLetter: (id) => {
+    const letter = get().letters.find((l) => l.id === id);
+    if (!letter || letter.sender !== '小晴') return;
+    set({
+      editingLetterId: id,
+      letterRecipient: letter.recipient,
+      letterUnlockDate: letter.unlockDate,
+      letterText: letter.body,
+      letterSignature: letter.signature,
+      letterDearText: letter.dearText || '',
+      letterView: 'compose',
+    });
+  },
+  cancelEditLetter: () =>
+    set({
+      editingLetterId: null,
+      letterText: '',
+      letterSignature: '',
+      letterDearText: '',
+      letterUnlockDate: tomorrowISO(),
+      letterRecipient: '屿深',
+    }),
+  deleteLetterAction: async (id) => {
+    await api.deleteLetter(id);
+    set((s) => ({
+      letters: s.letters.filter((l) => l.id !== id),
+      expandedLetterIds: s.expandedLetterIds.filter((x) => x !== id),
     }));
   },
   openMailbox: () => set({ letterView: 'mailbox' }),

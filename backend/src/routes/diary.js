@@ -19,8 +19,10 @@ function serialize(row) {
     weather: row.weather,
     tag: row.tag,
     excerpt: row.excerpt,
-    hasAttachment: !!row.has_attachment,
     hasUnread: !!row.has_unread,
+    attachment: row.attachment_url
+      ? { url: row.attachment_url, name: row.attachment_name, mime: row.attachment_mime, size: row.attachment_size }
+      : null,
   };
 }
 
@@ -54,7 +56,7 @@ router.get('/unread-summary', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { text, mood, weather, tag, hasAttachment } = req.body;
+  const { text, mood, weather, tag, attachment } = req.body;
   const trimmed = (text || '').trim();
   if (!trimmed) return res.status(400).json({ error: 'text is required' });
 
@@ -65,10 +67,23 @@ router.post('/', (req, res) => {
 
   const info = db
     .prepare(
-      `INSERT INTO diary_entries (author, date_iso, date_label, mood, mood_color, weather, tag, excerpt, has_attachment, reacted, react_at, read_by_me)
-       VALUES ('me',?,?,?,?,?,?,?,?,0,?,1)`
+      `INSERT INTO diary_entries (author, date_iso, date_label, mood, mood_color, weather, tag, excerpt, reacted, react_at, read_by_me, attachment_url, attachment_name, attachment_mime, attachment_size)
+       VALUES ('me',?,?,?,?,?,?,?,0,?,1,?,?,?,?)`
     )
-    .run(dateISO, diaryDateLabel(bNow), resolvedMood, moodColorFor(resolvedMood), weather || '晴', tag || null, trimmed, hasAttachment ? 1 : 0, reactAt);
+    .run(
+      dateISO,
+      diaryDateLabel(bNow),
+      resolvedMood,
+      moodColorFor(resolvedMood),
+      weather || '晴',
+      tag || null,
+      trimmed,
+      reactAt,
+      attachment?.url || null,
+      attachment?.name || null,
+      attachment?.mime || null,
+      attachment?.size || null
+    );
 
   const row = db.prepare(`${LIST_QUERY} WHERE e.id = ?`).get(info.lastInsertRowid);
   res.json(serialize(row));

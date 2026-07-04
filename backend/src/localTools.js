@@ -52,6 +52,20 @@ export function getLocalTools() {
       serverId: null,
       toolName: 'comment_on_diary',
     },
+    {
+      qualifiedName: 'read_letters',
+      description:
+        '当对话里提到信件相关的内容（比如对方说"我给你写信了""你收到我的信了吗""回信怎么说的"）时调用，用来读取最近已经拆开过的信。只能看到已经拆开的信，没拆开的时间胶囊信件不会出现。',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          count: { type: 'number', description: '想看最近几封，默认 5' },
+        },
+        required: [],
+      },
+      serverId: null,
+      toolName: 'read_letters',
+    },
   ];
 }
 
@@ -73,6 +87,16 @@ function readDiary(count) {
   return rows
     .reverse()
     .map((r) => `[${r.date_label}｜${r.author === 'me' ? '小晴' : '你'}｜心情：${r.mood}，天气：${r.weather}]\n${r.excerpt}`)
+    .join('\n\n');
+}
+
+function readLetters(count) {
+  const limit = Math.max(1, Math.min(Number(count) || 5, 20));
+  const rows = db.prepare('SELECT * FROM letters WHERE opened = 1 ORDER BY id DESC LIMIT ?').all(limit);
+  if (!rows.length) return '还没有已经拆开的信。';
+  return rows
+    .reverse()
+    .map((r) => `[${r.unlock_date}｜${r.sender === '小晴' ? '小晴写给' + r.recipient : '你写给小晴'}｜署名：${r.signature}]\n${r.body}`)
     .join('\n\n');
 }
 
@@ -105,6 +129,9 @@ export async function executeLocalTool(toolName, input) {
   }
   if (toolName === 'comment_on_diary') {
     return { content: [{ type: 'text', text: queueDiaryReview(input?.entry_id) }] };
+  }
+  if (toolName === 'read_letters') {
+    return { content: [{ type: 'text', text: readLetters(input?.count) }] };
   }
   return { content: [{ type: 'text', text: `未知本地工具: ${toolName}` }], isError: true };
 }
