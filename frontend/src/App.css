@@ -1115,7 +1115,7 @@
 .bottom-nav {
   flex-shrink: 0;
   display: flex;
-  padding: 2px 8px max(env(safe-area-inset-bottom), 4px);
+  padding: 6px 8px max(env(safe-area-inset-bottom), 6px);
   background: var(--glass-soft);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -1128,8 +1128,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 2px 0;
+  gap: 3px;
+  padding: 6px 0;
   background: none;
   border: none;
 }
