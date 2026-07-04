@@ -1,5 +1,6 @@
-import { db } from './db.js';
-import { writeLetterReply } from './letterAi.js';
+import { db, getSetting, setSetting } from './db.js';
+import { writeLetterReply, writeFreshLetter } from './letterAi.js';
+import { classifyReplyForRetry } from './persona.js';
 
 const CHECK_INTERVAL_MS = 60 * 1000;
 // Letters read as slower and more deliberate than a quick diary comment —
@@ -9,14 +10,65 @@ const MIN_REPLY_DELAY_MINUTES = 10;
 const MAX_REPLY_DELAY_MINUTES = 60;
 const MAX_REPLY_ATTEMPTS = 3; // 1 original attempt + 2 retries, same cap as diaryScheduler
 
+// Unlike diary entries (once a day, in a fixed evening window), an
+// unprompted letter is meant to read as rare and a little unexpected —
+// spaced days apart rather than daily, with no fixed time of day.
+const MIN_FRESH_LETTER_DAYS = 3;
+const MAX_FRESH_LETTER_DAYS = 7;
+// A failed attempt (network/model error) retries soon after, same spirit as
+// everywhere else — it just doesn't wait out the whole multi-day span again.
+const FRESH_LETTER_RETRY_MINUTES = 30;
+
 export function pickReplyFireAt() {
   const minutes = MIN_REPLY_DELAY_MINUTES + Math.random() * (MAX_REPLY_DELAY_MINUTES - MIN_REPLY_DELAY_MINUTES);
   return new Date(Date.now() + minutes * 60 * 1000).toISOString();
 }
 
+function pickFreshLetterFireEpoch() {
+  const days = MIN_FRESH_LETTER_DAYS + Math.random() * (MAX_FRESH_LETTER_DAYS - MIN_FRESH_LETTER_DAYS);
+  return Date.now() + days * 24 * 60 * 60 * 1000;
+}
+
+function ensureFreshLetterFireEpoch() {
+  const stored = Number(getSetting('letterFreshFireAt', ''));
+  if (Number.isFinite(stored) && stored > 0) return stored;
+  const next = pickFreshLetterFireEpoch();
+  setSetting('letterFreshFireAt', String(next));
+  return next;
+}
+
 const insertReplyLetter = db.prepare(
   `INSERT INTO letters (sender, recipient, signature, dear_text, unlock_date, body, opened, reply_to_id) VALUES ('屿深','小晴',?,?,?,?,0,?)`
 );
+const insertFreshLetter = db.prepare(
+  `INSERT INTO letters (sender, recipient, signature, dear_text, unlock_date, body, opened) VALUES ('屿深','小晴',?,?,?,?,0)`
+);
+
+// Autonomous counterpart to the manual "让他现在给我写信" debug trigger —
+// picks a random multi-day gap and, once it elapses, has him write an
+// unprompted letter with no specific reply target. Without this, a letter
+// from him only ever existed as a reply, which meant a mailbox could never
+// get its very first received letter without the manual trigger.
+export async function maybeWriteFreshLetter() {
+  try {
+    const fireEpoch = ensureFreshLetterFireEpoch();
+    if (Date.now() < fireEpoch) return;
+
+    const result = await writeFreshLetter();
+    if (!result) return; // no provider configured yet — keep waiting, don't reschedule
+
+    if (result.failed || !result.reply || classifyReplyForRetry(result.reply?.body || '').bad) {
+      setSetting('letterFreshFireAt', String(Date.now() + FRESH_LETTER_RETRY_MINUTES * 60 * 1000));
+      return;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    insertFreshLetter.run(result.reply.signature, result.reply.dearText, today, result.reply.body);
+    setSetting('letterFreshFireAt', String(pickFreshLetterFireEpoch()));
+  } catch (err) {
+    console.error('[letters] fresh-letter scheduler error:', err.message);
+  }
+}
 
 // Fulfills a "去回信" request queued from the letter compose screen — same
 // bounded-retry shape as diaryScheduler's review requests: a failed attempt
@@ -65,5 +117,8 @@ export async function maybeFulfillLetterReplyRequests() {
 }
 
 export function startLetterScheduler() {
-  setInterval(maybeFulfillLetterReplyRequests, CHECK_INTERVAL_MS);
+  setInterval(() => {
+    maybeWriteFreshLetter();
+    maybeFulfillLetterReplyRequests();
+  }, CHECK_INTERVAL_MS);
 }
