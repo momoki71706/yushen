@@ -72,6 +72,8 @@ export function generateExport() {
     }
   }
 
-  const filename = `回忆导出-${nowLabel.slice(0, 10)}.md`;
+  // Precise to the hour (not just the date) so exporting more than once in
+  // a day produces distinct filenames instead of silently colliding.
+  const filename = `回忆导出-${nowLabel.slice(0, 10)}-${nowLabel.slice(11, 13)}时.md`;
   return { content, filename, hasContent };
 }

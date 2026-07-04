@@ -14,6 +14,9 @@ import PresetPanel from './components/PresetPanel';
 import ContextPanel from './components/ContextPanel';
 import PushSettingsPanel from './components/PushSettingsPanel';
 import ClearChatConfirm from './components/ClearChatConfirm';
+import ImageViewer from './components/ImageViewer';
+import MemoryPanel from './components/MemoryPanel';
+import MemoryToast from './components/MemoryToast';
 import ModePill from './components/ModePill';
 import PlaceholderTab from './components/PlaceholderTab';
 import ChatMode from './modes/ChatMode';
@@ -47,9 +50,17 @@ function App() {
     };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
+
+    // The periodic memory-review pass runs entirely server-side with no
+    // reply to surface — polling is the only way an already-open tab finds
+    // out a save just happened, so it can show the in-app toast.
+    const memoryPoll = setInterval(() => useStore.getState().pollMemoryLog(), 60 * 1000);
+    useStore.getState().pollMemoryLog();
+
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
+      clearInterval(memoryPoll);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -87,6 +98,9 @@ function App() {
         <ContextPanel />
         <PushSettingsPanel />
         <ClearChatConfirm />
+        <ImageViewer />
+        <MemoryPanel />
+        <MemoryToast />
       </div>
     </div>
   );

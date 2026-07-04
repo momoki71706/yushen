@@ -87,8 +87,6 @@ function ContextIcon() {
   );
 }
 
-const MEMORY_LIBRARY_URL = 'https://yushen.zeabur.app/';
-
 const MENU_ITEMS = [
   { label: '主题装扮', bg: '#EDD9E1' },
   { label: '纪念日管理', bg: '#D9CBD3' },
@@ -109,6 +107,7 @@ export default function Sidebar() {
   const pushEnabled = useStore((s) => s.pushEnabled);
   const openPushSettings = useStore((s) => s.openPushSettings);
   const openContextPanel = useStore((s) => s.openContextPanel);
+  const openMemoryPanel = useStore((s) => s.openMemoryPanel);
   const openAiSettings = useStore((s) => s.openAiSettings);
   const openMcpPanel = useStore((s) => s.openMcpPanel);
   const openPresetPanel = useStore((s) => s.openPresetPanel);
@@ -222,13 +221,13 @@ export default function Sidebar() {
           <div className="sidebar-menu-label">上下文</div>
           <ChevronRight />
         </button>
-        <a className="sidebar-menu-item" href={MEMORY_LIBRARY_URL} target="_blank" rel="noopener noreferrer">
+        <button className="sidebar-menu-item" onClick={openMemoryPanel}>
           <div className="sidebar-menu-icon" style={{ background: '#D9CBD3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <BrainIcon />
           </div>
           <div className="sidebar-menu-label">记忆库</div>
           <ChevronRight />
-        </a>
+        </button>
         <button className="sidebar-menu-item" onClick={openPushSettings}>
           <div className="sidebar-menu-icon" style={{ background: '#F1E0E8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <BellIcon />

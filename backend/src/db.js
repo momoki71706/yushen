@@ -188,6 +188,18 @@ CREATE TABLE IF NOT EXISTS habit_checkins (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(habit_id, date_iso)
 );
+
+-- One row per successful tool call made during the periodic memory-review
+-- pass (memoryScheduler.js) — that scheduled call exists solely to save
+-- memories into whatever external MCP server is registered, so every tool
+-- call it makes counts as a real save. Nothing here tracks memory saves
+-- that happen to occur mid-ordinary-chat.
+CREATE TABLE IF NOT EXISTS memory_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tool_name TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `);
 
 // Additive column migrations — CREATE TABLE IF NOT EXISTS above doesn't
@@ -222,6 +234,7 @@ ensureColumn('diary_entries', 'attachment_size', 'INTEGER');
 // relying on this table-level default.
 ensureColumn('diary_entries', 'read_by_me', 'INTEGER NOT NULL DEFAULT 1');
 ensureColumn('diary_comments', 'read_by_me', 'INTEGER NOT NULL DEFAULT 1');
+ensureColumn('diary_comments', 'reply_to_id', 'INTEGER');
 
 // The very first release seeded 4 placeholder diary entries so the page
 // wasn't empty on first launch — now that real entries from both sides

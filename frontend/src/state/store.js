@@ -594,6 +594,18 @@ export const useStore = create(
     get().regenerateRoundAction(editingMessageId);
   },
 
+  // ---- regenerate confirmation (either the reply-only or whole-round kind) ----
+  regenerateConfirm: null, // { id, kind: 'reply' | 'round' }
+  requestRegenerateMessage: (id, kind) => set({ regenerateConfirm: { id, kind } }),
+  cancelRegenerateMessage: () => set({ regenerateConfirm: null }),
+  confirmRegenerateMessage: () => {
+    const confirm = get().regenerateConfirm;
+    set({ regenerateConfirm: null });
+    if (!confirm) return;
+    if (confirm.kind === 'round') get().regenerateRoundAction(confirm.id);
+    else get().regenerateMessageAction(confirm.id);
+  },
+
   // ---- delete a single message (either side, confirmation gated) ----
   deleteConfirmMessageId: null,
   requestDeleteMessage: (id) => set({ deleteConfirmMessageId: id }),
@@ -668,7 +680,11 @@ export const useStore = create(
     set({ diaryTriggerBusy: true, diaryTriggerMessage: '' });
     try {
       const entry = await api.triggerDiaryWrite();
-      set((s) => ({ diaryEntries: [entry, ...s.diaryEntries], diaryTriggerMessage: '他刚写了一篇日记' }));
+      const message = '他刚写了一篇日记';
+      set((s) => ({ diaryEntries: [entry, ...s.diaryEntries], diaryTriggerMessage: message }));
+      setTimeout(() => {
+        if (get().diaryTriggerMessage === message) set({ diaryTriggerMessage: '' });
+      }, 30000);
     } catch (err) {
       set({ diaryTriggerMessage: err.message });
     } finally {
@@ -787,17 +803,33 @@ export const useStore = create(
     }
   },
   onDiaryCommentDraftChange: (value) => set({ diaryCommentDraft: value }),
+  diaryCommentReplyTarget: null,
+  startReplyToDiaryComment: (comment) => set({ diaryCommentReplyTarget: comment }),
+  cancelReplyToDiaryComment: () => set({ diaryCommentReplyTarget: null }),
   addDiaryCommentAction: async () => {
-    const { diaryDetailId, diaryCommentDraft, diaryCommentSending } = get();
+    const { diaryDetailId, diaryCommentDraft, diaryCommentSending, diaryCommentReplyTarget } = get();
     const trimmed = (diaryCommentDraft || '').trim();
     if (!trimmed || diaryCommentSending || !diaryDetailId) return;
-    set({ diaryCommentSending: true, diaryCommentDraft: '' });
+    set({ diaryCommentSending: true, diaryCommentDraft: '', diaryCommentReplyTarget: null });
     try {
-      const { mine, reply } = await api.addDiaryComment(diaryDetailId, trimmed);
+      const { mine, reply } = await api.addDiaryComment(diaryDetailId, trimmed, diaryCommentReplyTarget?.id ?? null);
       set((s) => ({ diaryComments: [...s.diaryComments, mine, ...(reply ? [reply] : [])] }));
     } finally {
       set({ diaryCommentSending: false });
     }
+  },
+  diaryCommentDeleteConfirmId: null,
+  requestDeleteDiaryComment: (id) => set({ diaryCommentDeleteConfirmId: id }),
+  cancelDeleteDiaryComment: () => set({ diaryCommentDeleteConfirmId: null }),
+  confirmDeleteDiaryComment: async () => {
+    const id = get().diaryCommentDeleteConfirmId;
+    if (!id) return;
+    await api.deleteDiaryComment(id);
+    set((s) => ({
+      diaryComments: s.diaryComments.filter((c) => c.id !== id),
+      diaryCommentDeleteConfirmId: null,
+      diaryCommentReplyTarget: s.diaryCommentReplyTarget?.id === id ? null : s.diaryCommentReplyTarget,
+    }));
   },
   regenerateDiaryEntryAction: async (id) => {
     if (get().diaryRegeneratingIds.includes(id)) return;
@@ -903,7 +935,11 @@ export const useStore = create(
     set({ letterTriggerBusy: true, letterTriggerMessage: '' });
     try {
       const letter = await api.triggerLetterWrite();
-      set((s) => ({ letters: [letter, ...s.letters], letterTriggerMessage: '他刚给你写了一封信' }));
+      const message = '他刚给你写了一封信';
+      set((s) => ({ letters: [letter, ...s.letters], letterTriggerMessage: message }));
+      setTimeout(() => {
+        if (get().letterTriggerMessage === message) set({ letterTriggerMessage: '' });
+      }, 30000);
     } catch (err) {
       set({ letterTriggerMessage: err.message });
     } finally {
@@ -1211,6 +1247,41 @@ export const useStore = create(
     }
   },
 
+  // ---- memory library panel (recent Ombre Brain saves) + in-app toast ----
+  memoryPanelOpen: false,
+  memoryLogEntries: [],
+  openMemoryPanel: () => {
+    set({ memoryPanelOpen: true });
+    get().loadMemoryLog();
+  },
+  closeMemoryPanel: () => set({ memoryPanelOpen: false }),
+  loadMemoryLog: async () => {
+    const memoryLogEntries = await api.getRecentMemoryLog();
+    set({ memoryLogEntries });
+  },
+  lastSeenMemoryLogId: 0,
+  memoryToast: null,
+  // Polled periodically while the app is open (see App.jsx) — anything
+  // newer than the last id we've shown a toast for gets one now. Compares
+  // against a persisted id (not just in-memory) so a reload doesn't
+  // re-announce something already seen in an earlier session.
+  pollMemoryLog: async () => {
+    try {
+      const entries = await api.getRecentMemoryLog(5);
+      const lastSeenId = get().lastSeenMemoryLogId;
+      const unseen = entries.filter((e) => e.id > lastSeenId).sort((a, b) => a.id - b.id);
+      if (!unseen.length) return;
+      set({ lastSeenMemoryLogId: unseen[unseen.length - 1].id });
+      const latest = unseen[unseen.length - 1];
+      set({ memoryToast: latest.summary });
+      setTimeout(() => {
+        if (get().memoryToast === latest.summary) set({ memoryToast: null });
+      }, 5000);
+    } catch {
+      // backend not reachable this tick — try again next poll
+    }
+  },
+
   // ---- preset instructions (global system prompt) ----
   presetPanelOpen: false,
   presets: [],
@@ -1320,6 +1391,7 @@ export const useStore = create(
         screenThreshold: s.screenThreshold,
         screenAppThresholds: s.screenAppThresholds,
         screenAppReminders: s.screenAppReminders,
+        lastSeenMemoryLogId: s.lastSeenMemoryLogId,
       }),
     }
   )

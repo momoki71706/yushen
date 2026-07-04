@@ -87,19 +87,15 @@ export default function ChatMode() {
   const attachmentUploading = useStore((s) => s.attachmentUploading);
   const attachmentError = useStore((s) => s.attachmentError);
   const clearAttachmentError = useStore((s) => s.clearAttachmentError);
-  const imageViewerUrl = useStore((s) => s.imageViewerUrl);
   const openImageViewer = useStore((s) => s.openImageViewer);
-  const closeImageViewer = useStore((s) => s.closeImageViewer);
   const mcpToolsEnabled = useStore((s) => s.mcpToolsEnabled);
   const toggleMcpToolsQuick = useStore((s) => s.toggleMcpToolsQuick);
   const modelSwitcherOpen = useStore((s) => s.modelSwitcherOpen);
   const toggleModelSwitcher = useStore((s) => s.toggleModelSwitcher);
   const regeneratingIds = useStore((s) => s.regeneratingIds);
   const expandedThinkingIds = useStore((s) => s.expandedThinkingIds);
-  const regenerateMessageAction = useStore((s) => s.regenerateMessageAction);
   const toggleThinkingExpanded = useStore((s) => s.toggleThinkingExpanded);
   const regeneratingRoundIds = useStore((s) => s.regeneratingRoundIds);
-  const regenerateRoundAction = useStore((s) => s.regenerateRoundAction);
   const editingMessageId = useStore((s) => s.editingMessageId);
   const editDraft = useStore((s) => s.editDraft);
   const startEditMessage = useStore((s) => s.startEditMessage);
@@ -110,12 +106,29 @@ export default function ChatMode() {
   const requestDeleteMessage = useStore((s) => s.requestDeleteMessage);
   const cancelDeleteMessage = useStore((s) => s.cancelDeleteMessage);
   const confirmDeleteMessage = useStore((s) => s.confirmDeleteMessage);
+  const regenerateConfirm = useStore((s) => s.regenerateConfirm);
+  const requestRegenerateMessage = useStore((s) => s.requestRegenerateMessage);
+  const cancelRegenerateMessage = useStore((s) => s.cancelRegenerateMessage);
+  const confirmRegenerateMessage = useStore((s) => s.confirmRegenerateMessage);
 
   const listRef = useRef(null);
   const fileInputRef = useRef(null);
-  useEffect(() => {
+  const scrollToBottom = () => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
+  };
+  // A photo bubble finishing its load after the initial scroll-to-bottom
+  // grows the list's height without anything re-triggering the scroll,
+  // which is what left the view stuck partway up instead of at the true
+  // bottom whenever a recent message had an image in it. Only re-snaps if
+  // already at (or very near) the bottom, so it doesn't yank you back down
+  // while you're scrolled up reading an older photo.
+  const handleImageLoad = () => {
+    const el = listRef.current;
+    if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 120) scrollToBottom();
+  };
+  useEffect(() => {
+    scrollToBottom();
   }, [messages, isReplying]);
 
   // Mounting/updating here means this screen is actually showing the
@@ -144,6 +157,7 @@ export default function ChatMode() {
           const next = messages[i + 1];
           const canRegenerateRound = mine && msg.kind === 'text' && (!next || next.from === 'them');
           const isDeleteConfirming = deleteConfirmMessageId === msg.id;
+          const isRegenerateConfirming = regenerateConfirm?.id === msg.id;
           return (
             <div key={msg.id} className="chat__row" style={{ justifyContent: mine ? 'flex-end' : 'flex-start' }}>
               <div className="chat__bubble-wrap" style={{ alignItems: mine ? 'flex-end' : 'flex-start' }}>
@@ -171,7 +185,7 @@ export default function ChatMode() {
                   </div>
                 ) : msg.kind === 'image' ? (
                   <button className="chat__image-bubble" onClick={() => openImageViewer(attachmentUrl(msg.attachment.url))}>
-                    <img src={attachmentUrl(msg.attachment.url)} alt={msg.attachment.name || '图片'} />
+                    <img src={attachmentUrl(msg.attachment.url)} alt={msg.attachment.name || '图片'} onLoad={handleImageLoad} />
                   </button>
                 ) : msg.kind === 'file' ? (
                   <a
@@ -209,6 +223,12 @@ export default function ChatMode() {
                         <button className="chat__delete-confirm-btn chat__delete-confirm-btn--cancel" onClick={cancelDeleteMessage}>取消</button>
                         <button className="chat__delete-confirm-btn chat__delete-confirm-btn--danger" onClick={confirmDeleteMessage}>删除</button>
                       </div>
+                    ) : isRegenerateConfirming ? (
+                      <div className="chat__delete-confirm">
+                        <span className="chat__delete-confirm-text">重新生成这条回复？</span>
+                        <button className="chat__delete-confirm-btn chat__delete-confirm-btn--cancel" onClick={cancelRegenerateMessage}>取消</button>
+                        <button className="chat__delete-confirm-btn chat__delete-confirm-btn--danger" onClick={confirmRegenerateMessage}>确定</button>
+                      </div>
                     ) : (
                       <>
                         <div className="chat__time">{timeLabel}</div>
@@ -223,7 +243,7 @@ export default function ChatMode() {
                               <button
                                 className="chat__msg-action-btn"
                                 title="重新生成"
-                                onClick={() => regenerateMessageAction(msg.id)}
+                                onClick={() => requestRegenerateMessage(msg.id, 'reply')}
                                 disabled={isRegenerating}
                               >
                                 <RefreshIcon color="#8C6A72" width={14} height={14} />
@@ -242,7 +262,7 @@ export default function ChatMode() {
                               <button
                                 className="chat__msg-action-btn"
                                 title="重新生成"
-                                onClick={() => regenerateRoundAction(msg.id)}
+                                onClick={() => requestRegenerateMessage(msg.id, 'round')}
                                 disabled={isRoundBusy}
                               >
                                 <RefreshIcon color="#8C6A72" width={14} height={14} />
@@ -361,11 +381,6 @@ export default function ChatMode() {
         </div>
       </div>
 
-      {imageViewerUrl && (
-        <div className="image-viewer-overlay" onClick={closeImageViewer}>
-          <img src={imageViewerUrl} alt="" className="image-viewer-img" />
-        </div>
-      )}
     </div>
   );
 }

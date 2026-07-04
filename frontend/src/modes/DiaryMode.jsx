@@ -265,6 +265,13 @@ function DiaryDetail() {
   const diaryRegeneratingIds = useStore((s) => s.diaryRegeneratingIds);
   const regenerateDiaryEntryAction = useStore((s) => s.regenerateDiaryEntryAction);
   const openImageViewer = useStore((s) => s.openImageViewer);
+  const diaryCommentReplyTarget = useStore((s) => s.diaryCommentReplyTarget);
+  const startReplyToDiaryComment = useStore((s) => s.startReplyToDiaryComment);
+  const cancelReplyToDiaryComment = useStore((s) => s.cancelReplyToDiaryComment);
+  const diaryCommentDeleteConfirmId = useStore((s) => s.diaryCommentDeleteConfirmId);
+  const requestDeleteDiaryComment = useStore((s) => s.requestDeleteDiaryComment);
+  const cancelDeleteDiaryComment = useStore((s) => s.cancelDeleteDiaryComment);
+  const confirmDeleteDiaryComment = useStore((s) => s.confirmDeleteDiaryComment);
 
   const entry = diaryEntries.find((e) => e.id === diaryDetailId);
   if (!entry) return null;
@@ -314,16 +321,51 @@ function DiaryDetail() {
           {!diaryCommentsLoading && diaryComments.length === 0 && (
             <div className="diary-comments__empty">还没有留言</div>
           )}
-          {diaryComments.map((c) => (
-            <div key={c.id} className="diary-comment-row">
-              <div className="diary-comment-author">{c.author === 'me' ? '小晴' : '对方'}</div>
-              <div className="diary-comment-text">{c.text}</div>
-              <div className="diary-comment-time">{c.time}</div>
-            </div>
-          ))}
+          {diaryComments.map((c) => {
+            const quoteTarget = c.replyToId ? diaryComments.find((t) => t.id === c.replyToId) : null;
+            const isConfirming = diaryCommentDeleteConfirmId === c.id;
+            return (
+              <div key={c.id} className="diary-comment-row">
+                <div className="diary-comment-top">
+                  <div className="diary-comment-author">{c.author === 'me' ? '小晴' : '对方'}</div>
+                  <div className="diary-comment-time">{c.time}</div>
+                </div>
+                {quoteTarget && (
+                  <div className="diary-comment-quote">
+                    回复{quoteTarget.author === 'me' ? '小晴' : '对方'}：
+                    {quoteTarget.text.length > 24 ? quoteTarget.text.slice(0, 24) + '…' : quoteTarget.text}
+                  </div>
+                )}
+                <div className="diary-comment-text">{c.text}</div>
+                {isConfirming ? (
+                  <div className="diary-comment-delete-confirm">
+                    <span>删除这条留言？</span>
+                    <button className="diary-comment-delete-cancel" onClick={cancelDeleteDiaryComment}>取消</button>
+                    <button className="diary-comment-delete-danger" onClick={confirmDeleteDiaryComment}>删除</button>
+                  </div>
+                ) : (
+                  <div className="diary-comment-actions">
+                    <button className="diary-comment-action-link" onClick={() => startReplyToDiaryComment(c)}>回复</button>
+                    <button className="diary-comment-action-link diary-comment-action-link--danger" onClick={() => requestDeleteDiaryComment(c.id)}>删除</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
       <div className="diary-detail__footer">
+        {diaryCommentReplyTarget && (
+          <div className="diary-comment-reply-banner">
+            <span>
+              回复{diaryCommentReplyTarget.author === 'me' ? '小晴' : '对方'}：
+              {diaryCommentReplyTarget.text.length > 20 ? diaryCommentReplyTarget.text.slice(0, 20) + '…' : diaryCommentReplyTarget.text}
+            </span>
+            <button onClick={cancelReplyToDiaryComment}>
+              <CloseIcon />
+            </button>
+          </div>
+        )}
         <div className="diary-comment-input-row">
           <input
             className="diary-comment-input"

@@ -52,7 +52,9 @@ export const api = {
   deleteDiaryEntry: (id) => request(`/diary/${id}`, { method: 'DELETE' }),
   regenerateDiaryEntry: (id) => request(`/diary/${id}/regenerate`, { method: 'POST' }),
   getDiaryComments: (id) => request(`/diary/${id}/comments`),
-  addDiaryComment: (id, text) => request(`/diary/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
+  addDiaryComment: (id, text, replyToId = null) =>
+    request(`/diary/${id}/comments`, { method: 'POST', body: JSON.stringify({ text, replyToId }) }),
+  deleteDiaryComment: (id) => request(`/diary/comments/${id}`, { method: 'DELETE' }),
   markDiaryEntryRead: (id) => request(`/diary/${id}/read`, { method: 'PATCH' }),
   getDiaryUnreadSummary: () => request('/diary/unread-summary'),
   triggerDiaryWrite: () => request('/diary/trigger-write', { method: 'POST' }),
@@ -112,6 +114,8 @@ export const api = {
     request('/settings/context', { method: 'PATCH', body: JSON.stringify(payload) }),
 
   exportMemories: () => request('/export', { method: 'POST' }),
+
+  getRecentMemoryLog: (limit = 20) => request(`/memory/recent?limit=${limit}`),
 
   getLedgerEntries: () => request('/ledger'),
   addLedgerEntry: (payload) => request('/ledger', { method: 'POST', body: JSON.stringify(payload) }),

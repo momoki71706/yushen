@@ -27,7 +27,7 @@ function serialize(row) {
 }
 
 function serializeComment(row) {
-  return { id: row.id, entryId: row.entry_id, author: row.author, text: row.text, time: row.time_label };
+  return { id: row.id, entryId: row.entry_id, author: row.author, text: row.text, time: row.time_label, replyToId: row.reply_to_id };
 }
 
 function diaryDateLabel(bNow) {
@@ -141,13 +141,22 @@ router.post('/:id/comments', async (req, res) => {
   const entryId = Number(req.params.id);
   const entry = db.prepare('SELECT * FROM diary_entries WHERE id = ?').get(entryId);
   if (!entry) return res.status(404).json({ error: 'entry not found' });
-  const { text } = req.body;
+  const { text, replyToId } = req.body;
   const trimmed = (text || '').trim();
   if (!trimmed) return res.status(400).json({ error: 'text is required' });
 
+  // A reply target has to actually belong to this entry's own thread —
+  // otherwise the quoted snippet the UI shows would point at the wrong
+  // conversation.
+  let resolvedReplyToId = null;
+  if (replyToId) {
+    const target = db.prepare('SELECT id FROM diary_comments WHERE id = ? AND entry_id = ?').get(replyToId, entryId);
+    if (target) resolvedReplyToId = target.id;
+  }
+
   const mineInfo = db
-    .prepare('INSERT INTO diary_comments (entry_id, author, text, time_label, read_by_me) VALUES (?, ?, ?, ?, 1)')
-    .run(entryId, 'me', trimmed, formatBeijingClock());
+    .prepare('INSERT INTO diary_comments (entry_id, author, text, time_label, read_by_me, reply_to_id) VALUES (?, ?, ?, ?, 1, ?)')
+    .run(entryId, 'me', trimmed, formatBeijingClock(), resolvedReplyToId);
   const mine = db.prepare('SELECT * FROM diary_comments WHERE id = ?').get(mineInfo.lastInsertRowid);
 
   const comments = db.prepare('SELECT * FROM diary_comments WHERE entry_id = ? ORDER BY id ASC').all(entryId);
@@ -156,10 +165,17 @@ router.post('/:id/comments', async (req, res) => {
     return res.json({ mine: serializeComment(mine), reply: null });
   }
   const theirsInfo = db
-    .prepare('INSERT INTO diary_comments (entry_id, author, text, time_label, read_by_me) VALUES (?, ?, ?, ?, 1)')
-    .run(entryId, 'them', replyText, formatBeijingClock());
+    .prepare('INSERT INTO diary_comments (entry_id, author, text, time_label, read_by_me, reply_to_id) VALUES (?, ?, ?, ?, 1, ?)')
+    .run(entryId, 'them', replyText, formatBeijingClock(), mine.id);
   const theirs = db.prepare('SELECT * FROM diary_comments WHERE id = ?').get(theirsInfo.lastInsertRowid);
   res.json({ mine: serializeComment(mine), reply: serializeComment(theirs) });
+});
+
+// Deletes a single comment from either side — the frontend handles the
+// two-step "are you sure" confirmation, this just does the deletion.
+router.delete('/comments/:id', (req, res) => {
+  db.prepare('DELETE FROM diary_comments WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
 });
 
 // Re-writes one of the AI's own diary entries from scratch, overwriting it

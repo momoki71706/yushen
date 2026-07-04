@@ -835,15 +835,50 @@
 .diary-comment-row {
   padding: 10px 0;
   border-bottom: 1px solid var(--glass-border);
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 .diary-comment-row:last-child { border-bottom: none; }
+.diary-comment-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
 .diary-comment-author { font-size: 12px; font-weight: 600; color: var(--color-accent-strong); flex-shrink: 0; }
-.diary-comment-text { font-size: 13.5px; color: var(--color-text); line-height: 1.5; flex: 1; min-width: 120px; }
-.diary-comment-time { font-size: 10.5px; color: var(--color-text-faint); flex-shrink: 0; }
+.diary-comment-text { font-size: 13.5px; color: var(--color-text); line-height: 1.5; }
+.diary-comment-time { font-size: 10.5px; color: var(--color-text-faint); margin-left: auto; flex-shrink: 0; }
+.diary-comment-quote {
+  font-size: 11.5px;
+  color: var(--color-text-faint);
+  background: var(--glass-mid);
+  border-radius: 8px;
+  padding: 5px 9px;
+  margin-bottom: 4px;
+}
+.diary-comment-actions { display: flex; gap: 14px; margin-top: 4px; }
+.diary-comment-action-link { border: none; background: transparent; font-size: 11.5px; font-weight: 600; color: var(--color-text-faint); padding: 0; }
+.diary-comment-action-link--danger { color: #C4645E; }
+.diary-comment-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--color-text-soft);
+  background: rgba(196,100,94,0.08);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-top: 4px;
+}
+.diary-comment-delete-cancel, .diary-comment-delete-danger { border: none; background: transparent; font-size: 11.5px; font-weight: 600; padding: 2px 4px; }
+.diary-comment-delete-danger { color: #C4645E; }
+.diary-comment-delete-cancel { color: var(--color-text-faint); }
+.diary-comment-reply-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-soft);
+  background: var(--glass-mid);
+  border-radius: 10px;
+  padding: 7px 10px;
+  margin-bottom: 8px;
+}
+.diary-comment-reply-banner button { border: none; background: transparent; display: flex; flex-shrink: 0; }
 
 .diary-comment-input-row {
   display: flex;
@@ -1384,6 +1419,32 @@
   flex-shrink: 0;
 }
 .ai-key-status { font-size: 12.5px; color: var(--color-text-soft); margin-top: 8px; }
+
+/* ---------- memory library panel + toast ---------- */
+.memory-log-row {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(58,50,54,0.08);
+}
+.memory-log-row:last-child { border-bottom: none; }
+.memory-log-time { font-size: 10.5px; color: var(--color-text-faint); margin-bottom: 2px; }
+.memory-log-summary { font-size: 13px; color: var(--color-text); line-height: 1.5; }
+.memory-toast {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 82%;
+  background: rgba(58,50,54,0.88);
+  color: #fff;
+  font-size: 12.5px;
+  line-height: 1.5;
+  padding: 10px 16px;
+  border-radius: 999px;
+  z-index: 55;
+  box-shadow: 0 8px 20px rgba(58,50,54,0.25);
+  text-align: center;
+}
+.memory-toast__label { font-weight: 600; opacity: 0.8; }
 .ai-cli-hint {
   font-size: 12.5px;
   color: var(--color-text-soft);

@@ -205,7 +205,7 @@ function Mailbox() {
                 <div className="mailbox__letter-meta">{statusText}</div>
               </div>
             </div>
-            <div className="mailbox__letter-expand" style={{ maxHeight: expanded ? 600 : 0 }}>
+            <div className="mailbox__letter-expand" style={{ maxHeight: expanded ? 4000 : 0 }}>
               {showHint && (
                 <div className="mailbox__letter-hint">还有 {daysLeft} 天解锁 · 还不能打开哦</div>
               )}

@@ -15,6 +15,20 @@ const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often the scheduler wakes up to
 // model happens to reach for it mid-chat on its own.
 const MEMORY_REVIEW_INSTRUCTION = `【定时记忆整理】请回顾最近这段对话，如果有什么以后值得长期记住的信息——比如小晴的喜好/忌讳、纪念日或重要日期、你们之间的约定、她生活里的重要变化、说过的走心的话——请调用你可以用的记忆相关工具，把这些内容分别记录下来。已经记住过的内容不用重复记。如果没有什么新的、值得记的内容，就不用调用任何工具。`;
 
+const insertMemoryLog = db.prepare('INSERT INTO memory_log (tool_name, summary) VALUES (?, ?)');
+
+// Tool call inputs vary by whatever the registered memory MCP server's
+// schema looks like — this just picks the most readable field it can find
+// rather than assuming one exact shape.
+function summarizeToolInput(input) {
+  if (!input || typeof input !== 'object') return String(input ?? '');
+  const preferredKeys = ['content', 'text', 'memory', 'note', 'summary', 'value'];
+  for (const key of preferredKeys) {
+    if (typeof input[key] === 'string' && input[key].trim()) return input[key].trim();
+  }
+  return JSON.stringify(input);
+}
+
 async function maybeSaveMemory() {
   try {
     const intervalMs = getMemorySaveIntervalHours() * 3600000;
@@ -46,17 +60,26 @@ async function maybeSaveMemory() {
     const history = trimTrailingAssistantTurns(rawHistory);
     if (!history.length) return;
 
-    const tools = [...getLocalTools(), ...(await getEnabledTools())];
+    const localTools = getLocalTools();
+    const tools = [...localTools, ...(await getEnabledTools())];
     if (!tools.length) return;
 
-    if (provider.type === 'openai') {
-      await runOpenAiToolLoop(history, apiKey, provider.baseUrl, provider.selectedModel, tools, MEMORY_REVIEW_INSTRUCTION);
-    } else {
-      await runAnthropicToolLoop(history, apiKey, provider.selectedModel, provider.baseUrl || undefined, tools, MEMORY_REVIEW_INSTRUCTION);
-    }
+    const result =
+      provider.type === 'openai'
+        ? await runOpenAiToolLoop(history, apiKey, provider.baseUrl, provider.selectedModel, tools, MEMORY_REVIEW_INSTRUCTION)
+        : await runAnthropicToolLoop(history, apiKey, provider.selectedModel, provider.baseUrl || undefined, tools, MEMORY_REVIEW_INSTRUCTION);
     // Whatever was worth keeping just got saved via a tool call against
     // the registered memory server — there's no local storage step and no
-    // reply text to show anyone; this never touches the visible chat.
+    // reply text to show anyone; this never touches the visible chat. What
+    // does get logged (for the 记忆库 panel + in-app popup) is a record of
+    // that call itself — every real (non-local, non-error) tool call this
+    // specific pass makes is by construction a memory save, since saving
+    // memories is this whole prompt's only purpose.
+    const localToolNames = new Set(localTools.map((t) => t.qualifiedName));
+    for (const trace of result.toolTrace || []) {
+      if (trace.isError || localToolNames.has(trace.name)) continue;
+      insertMemoryLog.run(trace.name, summarizeToolInput(trace.input));
+    }
   } catch (err) {
     console.error('[memory] error:', err.message);
   }
