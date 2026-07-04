@@ -132,8 +132,8 @@ const toOpenAiTool = (t) => ({
 // available tools out in plain language in the system prompt makes
 // proactive tool use far more reliable than relying on the tools[]
 // parameter alone.
-function buildToolAwareSystemPrompt(tools) {
-  const base = getComposedSystemPrompt();
+function buildToolAwareSystemPrompt(tools, extraInstruction) {
+  const base = getComposedSystemPrompt(extraInstruction);
   if (!tools.length) return base;
   const toolList = tools.map((t) => `- ${t.qualifiedName}：${t.description || '（无描述）'}`).join('\n');
   return `${base}\n\n【可用工具】\n你现在可以主动调用以下工具，只要对话内容和某个工具相关（比如对方让你查记忆、记点什么事、看看之前聊过什么），就应该直接调用对应工具，不要因为不确定而跳过或者只凭自己猜测回答：\n${toolList}`;
@@ -175,12 +175,12 @@ function mcpContentToText(content) {
 // attached, execute any tool_use blocks against the originating MCP
 // server, feed results back, and repeat until Claude returns a plain
 // text reply or the iteration cap is hit.
-export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tools) {
+export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tools, extraInstruction) {
   if (!apiKey) return { text: FALLBACK_REPLY, tokens: estimateTokens(FALLBACK_REPLY) };
 
   const anthropic = new Anthropic({ apiKey, ...(baseURL ? { baseURL } : {}) });
   const anthropicTools = tools.map(toAnthropicTool);
-  const systemPrompt = buildToolAwareSystemPrompt(tools);
+  const systemPrompt = buildToolAwareSystemPrompt(tools, extraInstruction);
   const messages = history.map((m) => ({
     role: m.from === 'me' ? 'user' : 'assistant',
     content: m.text,
@@ -237,12 +237,12 @@ function joinUrl(base, path) {
 
 // Same agentic loop, but speaking OpenAI's function-calling format
 // (tools/tool_calls/role:"tool") for OpenAI-compatible relay providers.
-export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools) {
+export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools, extraInstruction) {
   if (!apiKey) return { text: FALLBACK_REPLY, tokens: estimateTokens(FALLBACK_REPLY) };
 
   const openAiTools = tools.map(toOpenAiTool);
   const messages = [
-    { role: 'system', content: buildToolAwareSystemPrompt(tools) },
+    { role: 'system', content: buildToolAwareSystemPrompt(tools, extraInstruction) },
     ...history.map((m) => ({ role: m.from === 'me' ? 'user' : 'assistant', content: m.text })),
   ];
 

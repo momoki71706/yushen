@@ -122,13 +122,6 @@ CREATE TABLE IF NOT EXISTS habit_checkins (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(habit_id, date_iso)
 );
-
-CREATE TABLE IF NOT EXISTS memories (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  content TEXT NOT NULL,
-  source TEXT NOT NULL DEFAULT 'auto',
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
 `);
 
 // Additive column migrations — CREATE TABLE IF NOT EXISTS above doesn't
