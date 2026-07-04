@@ -50,7 +50,7 @@ function DiaryList() {
   const diarySelectedTags = useStore((s) => s.diarySelectedTags);
   const isDiaryTagSelected = useStore((s) => s.isDiaryTagSelected);
   const toggleDiaryTag = useStore((s) => s.toggleDiaryTag);
-  const diaryAttachmentPreviewUrl = useStore((s) => s.diaryAttachmentPreviewUrl);
+  const diaryAttachmentDraft = useStore((s) => s.diaryAttachmentDraft);
   const diaryAttachmentUploading = useStore((s) => s.diaryAttachmentUploading);
   const diaryAttachmentError = useStore((s) => s.diaryAttachmentError);
   const pickDiaryAttachment = useStore((s) => s.pickDiaryAttachment);
@@ -175,6 +175,7 @@ function DiaryList() {
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          multiple
           style={{ display: 'none' }}
           onChange={(e) => {
             pickDiaryAttachment(e.target.files);
@@ -199,16 +200,16 @@ function DiaryList() {
         </button>
       </div>
 
-      {diaryAttachmentPreviewUrl && (
-        <div className="diary-attachment-preview">
-          <img
-            src={diaryAttachmentPreviewUrl}
-            alt=""
-            onClick={() => openImageViewer(diaryAttachmentPreviewUrl)}
-          />
-          <button className="diary-attachment-remove" onClick={removeDiaryAttachment}>
-            <CloseIcon />
-          </button>
+      {diaryAttachmentDraft.length > 0 && (
+        <div className="diary-attachment-preview-strip">
+          {diaryAttachmentDraft.map((a) => (
+            <div key={a.id} className="diary-attachment-preview">
+              <img src={a.previewUrl} alt="" onClick={() => openImageViewer(a.previewUrl)} />
+              <button className="diary-attachment-remove" onClick={() => removeDiaryAttachment(a.id)}>
+                <CloseIcon />
+              </button>
+            </div>
+          ))}
         </div>
       )}
       {diaryAttachmentError && <div className="diary-attachment-error">{diaryAttachmentError}</div>}
@@ -270,8 +271,13 @@ function DiaryList() {
                 <div className="diary-entry-date">{entry.dateLabel}</div>
               </div>
               <div className="diary-entry-preview">{preview}</div>
-              {entry.attachment && (
-                <RetryImage className="diary-entry-thumb" src={attachmentUrl(entry.attachment.url)} />
+              {entry.attachments?.length > 0 && (
+                <div className="diary-entry-thumb-wrap">
+                  <RetryImage className="diary-entry-thumb" src={attachmentUrl(entry.attachments[0].url)} />
+                  {entry.attachments.length > 1 && (
+                    <div className="diary-entry-thumb-count">+{entry.attachments.length - 1}</div>
+                  )}
+                </div>
               )}
             </div>
           );
@@ -339,10 +345,14 @@ function DiaryDetail() {
             )}
           </div>
           <div className="diary-detail__excerpt" style={{ opacity: isRegenerating ? 0.5 : 1 }}>{entry.excerpt}</div>
-          {entry.attachment && (
-            <button className="diary-detail__attachment" onClick={() => openImageViewer(attachmentUrl(entry.attachment.url))}>
-              <RetryImage src={attachmentUrl(entry.attachment.url)} />
-            </button>
+          {entry.attachments?.length > 0 && (
+            <div className="diary-detail__attachments">
+              {entry.attachments.map((a, i) => (
+                <button key={i} className="diary-detail__attachment-thumb" onClick={() => openImageViewer(attachmentUrl(a.url))}>
+                  <RetryImage src={attachmentUrl(a.url)} />
+                </button>
+              ))}
+            </div>
           )}
         </div>
 

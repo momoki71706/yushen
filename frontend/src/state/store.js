@@ -319,7 +319,7 @@ export const useStore = create(
       ledgerShowAdd: true,
       ledgerDraft: { type: 'expense', category: get().expenseCategories[0]?.key || '', amount: '', note: '', dateISO: todayISOLocal() },
     }),
-  closeLedgerAdd: () => set({ ledgerShowAdd: false, ledgerDraft: null, editingLedgerEntryId: null }),
+  closeLedgerAdd: () => set({ ledgerShowAdd: false, ledgerDraft: null, editingLedgerEntryId: null, ledgerEntryDeleteConfirmId: null }),
   startEditLedgerEntry: (entry) =>
     set({
       ledgerShowAdd: true,
@@ -361,6 +361,18 @@ export const useStore = create(
   deleteLedgerEntryAction: async (id) => {
     await api.deleteLedgerEntry(id);
     set((s) => ({ ledgerEntries: s.ledgerEntries.filter((e) => e.id !== id) }));
+  },
+  // Delete now lives inside the edit sheet itself (see LedgerView.jsx)
+  // rather than a separate swipe gesture — same request/confirm/cancel
+  // shape as the category delete confirm above.
+  ledgerEntryDeleteConfirmId: null,
+  requestDeleteLedgerEntry: (id) => set({ ledgerEntryDeleteConfirmId: id }),
+  cancelDeleteLedgerEntry: () => set({ ledgerEntryDeleteConfirmId: null }),
+  confirmDeleteLedgerEntry: async () => {
+    const id = get().ledgerEntryDeleteConfirmId;
+    if (!id) return;
+    await get().deleteLedgerEntryAction(id);
+    set({ ledgerEntryDeleteConfirmId: null, ledgerShowAdd: false, ledgerDraft: null, editingLedgerEntryId: null });
   },
 
   ledgerBudgets: [],
@@ -710,8 +722,7 @@ export const useStore = create(
   diaryEntries: [],
   diaryText: '',
   diarySelectedTags: [],
-  diaryAttachmentFile: null,
-  diaryAttachmentPreviewUrl: null,
+  diaryAttachmentDraft: [], // [{ id, file, previewUrl }]
   diaryAttachmentUploading: false,
   diaryAttachmentError: '',
   diaryView: 'list',
@@ -757,19 +768,18 @@ export const useStore = create(
           : [...s.diarySelectedTags, { type, key }],
       };
     }),
-  // Diary only supports one photo at a time (unlike chat's multi-attachment
-  // strip) — picking a new one just replaces whatever was staged before.
   pickDiaryAttachment: (fileList) => {
-    const file = fileList?.[0];
-    if (!file) return;
-    const prev = get().diaryAttachmentPreviewUrl;
-    if (prev) URL.revokeObjectURL(prev);
-    set({ diaryAttachmentFile: file, diaryAttachmentPreviewUrl: URL.createObjectURL(file), diaryAttachmentError: '' });
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    const items = files.map((file) => ({ id: `${Date.now()}-${Math.random()}`, file, previewUrl: URL.createObjectURL(file) }));
+    set((s) => ({ diaryAttachmentDraft: [...s.diaryAttachmentDraft, ...items], diaryAttachmentError: '' }));
   },
-  removeDiaryAttachment: () => {
-    const prev = get().diaryAttachmentPreviewUrl;
-    if (prev) URL.revokeObjectURL(prev);
-    set({ diaryAttachmentFile: null, diaryAttachmentPreviewUrl: null });
+  removeDiaryAttachment: (id) => {
+    set((s) => {
+      const target = s.diaryAttachmentDraft.find((a) => a.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return { diaryAttachmentDraft: s.diaryAttachmentDraft.filter((a) => a.id !== id) };
+    });
   },
   toggleCustomTagInput: () => set((s) => ({ showCustomTagInput: !s.showCustomTagInput, customTagDraft: '' })),
   onCustomTagDraftChange: (value) => set({ customTagDraft: value }),
@@ -787,7 +797,7 @@ export const useStore = create(
   onDiarySearchDateChange: (value) => set({ diarySearchDate: value }),
   clearDiarySearchDate: () => set({ diarySearchDate: '' }),
   saveDiaryEntry: async () => {
-    const { diaryText, diarySelectedTags, diaryAttachmentFile, diaryAttachmentPreviewUrl } = get();
+    const { diaryText, diarySelectedTags, diaryAttachmentDraft } = get();
     const trimmed = (diaryText || '').trim();
     if (!trimmed) return;
     const moodTag = diarySelectedTags.find((t) => t.type === 'mood');
@@ -798,21 +808,20 @@ export const useStore = create(
 
     set({ diaryAttachmentUploading: true, diaryAttachmentError: '' });
     try {
-      const attachment = diaryAttachmentFile ? await api.uploadAttachment(diaryAttachmentFile) : null;
+      const attachments = await Promise.all(diaryAttachmentDraft.map((a) => api.uploadAttachment(a.file)));
       const entry = await api.createDiaryEntry({
         text: trimmed,
         mood,
         weather,
         tag: customTag ? customTag.key : null,
-        attachment,
+        attachments,
       });
-      if (diaryAttachmentPreviewUrl) URL.revokeObjectURL(diaryAttachmentPreviewUrl);
+      diaryAttachmentDraft.forEach((a) => URL.revokeObjectURL(a.previewUrl));
       set((s) => ({
         diaryEntries: [entry, ...s.diaryEntries],
         diaryText: '',
         diarySelectedTags: [],
-        diaryAttachmentFile: null,
-        diaryAttachmentPreviewUrl: null,
+        diaryAttachmentDraft: [],
       }));
     } catch (err) {
       set({ diaryAttachmentError: err.message });

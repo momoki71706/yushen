@@ -3,8 +3,6 @@ import { useStore } from '../../state/store';
 import { BackChevronIcon, CloseIcon, PencilIcon, PlusIcon, TrashIcon } from '../../components/Icons';
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-const SWIPE_DELETE_WIDTH = 72;
-const SWIPE_ACTIONS_WIDTH = SWIPE_DELETE_WIDTH * 2;
 
 function monthLabelFor(date) {
   return `${date.getFullYear()}年${date.getMonth() + 1}月`;
@@ -17,6 +15,46 @@ function dateLabelFor(iso) {
   const dt = new Date(y, m - 1, d);
   return `${m}月${d}日 · ${WEEKDAYS[dt.getDay()]}`;
 }
+function formatLedgerDate(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  return `${y}年${m}月${d}日`;
+}
+
+// Native <input type="date"> renders its value through browser-owned
+// shadow DOM (::-webkit-date-and-time-value etc.) whose internal
+// alignment can't be pinned down reliably across engines — this shows our
+// own fully-controlled, always-left-aligned text instead, backed by a
+// visually hidden native input just for its picker + value behavior.
+function LedgerDateField({ value, onChange }) {
+  const inputRef = useRef(null);
+  const openPicker = () => {
+    const el = inputRef.current;
+    if (!el) return;
+    if (typeof el.showPicker === 'function') {
+      try {
+        el.showPicker();
+        return;
+      } catch {
+        // falls through to focus/click below
+      }
+    }
+    el.focus();
+    el.click();
+  };
+  return (
+    <div className="ledger-date-field" onClick={openPicker}>
+      <span className="ledger-date-field-text">{formatLedgerDate(value)}</span>
+      <input
+        ref={inputRef}
+        type="date"
+        className="ledger-date-input-native"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
 function buildPieGradient(breakdown) {
   if (!breakdown.length) return 'transparent';
   let acc = 0;
@@ -28,67 +66,20 @@ function buildPieGradient(breakdown) {
   return `conic-gradient(${stops.join(', ')})`;
 }
 
-// Swipe-to-reveal on a single ledger row — dragging left reveals an edit
-// button and a delete button underneath (edit on the left of delete), same
-// convention as iOS Mail/WeChat.
-function SwipeableLedgerItem({ item, categoryColor, onDelete, onEdit }) {
-  const [translateX, setTranslateX] = useState(0);
-  const draggingRef = useRef(false);
-  const startXRef = useRef(0);
-  const baseXRef = useRef(0);
-
-  const handleDown = (e) => {
-    startXRef.current = e.clientX;
-    baseXRef.current = translateX;
-    draggingRef.current = true;
-  };
-  const handleMove = (e) => {
-    if (!draggingRef.current) return;
-    const delta = e.clientX - startXRef.current;
-    setTranslateX(Math.min(0, Math.max(-SWIPE_ACTIONS_WIDTH, baseXRef.current + delta)));
-  };
-  const handleUp = () => {
-    if (!draggingRef.current) return;
-    draggingRef.current = false;
-    setTranslateX((x) => (x < -SWIPE_ACTIONS_WIDTH / 2 ? -SWIPE_ACTIONS_WIDTH : 0));
-  };
-
+// Tapping a ledger row opens it straight into the edit sheet — deleting
+// now lives inside that sheet instead of a separate swipe gesture.
+function LedgerItemRow({ item, categoryColor, onEdit }) {
   return (
-    <div className="ledger-item-swipe-wrap">
-      <div className="ledger-item-swipe-actions" style={{ width: SWIPE_ACTIONS_WIDTH }}>
-        <button
-          className="ledger-item-swipe-edit"
-          style={{ width: SWIPE_DELETE_WIDTH }}
-          onClick={() => onEdit(item)}
-        >
-          <PencilIcon color="#fff" width={15} height={15} />
-        </button>
-        <button
-          className="ledger-item-swipe-delete"
-          style={{ width: SWIPE_DELETE_WIDTH }}
-          onClick={() => onDelete(item.id)}
-        >
-          <TrashIcon color="#fff" width={16} height={16} />
-        </button>
+    <button className="ledger-item ledger-item--tappable" onClick={() => onEdit(item)}>
+      <div className="ledger-item-glyph" style={{ background: categoryColor(item.category) }}>{item.category.slice(0, 1)}</div>
+      <div className="ledger-item-info">
+        <div className="ledger-item-note">{item.note || item.category}</div>
+        <div className="ledger-item-meta">{item.category} · {item.time}</div>
       </div>
-      <div
-        className="ledger-item"
-        style={{ transform: `translateX(${translateX}px)`, touchAction: 'pan-y' }}
-        onPointerDown={handleDown}
-        onPointerMove={handleMove}
-        onPointerUp={handleUp}
-        onPointerCancel={handleUp}
-      >
-        <div className="ledger-item-glyph" style={{ background: categoryColor(item.category) }}>{item.category.slice(0, 1)}</div>
-        <div className="ledger-item-info">
-          <div className="ledger-item-note">{item.note || item.category}</div>
-          <div className="ledger-item-meta">{item.category} · {item.time}</div>
-        </div>
-        <div className="ledger-item-amount" style={{ color: item.type === 'income' ? '#8FA88E' : '#4A4048' }}>
-          {item.type === 'income' ? '+' : '-'}¥{item.amount.toFixed(2)}
-        </div>
+      <div className="ledger-item-amount" style={{ color: item.type === 'income' ? '#8FA88E' : '#4A4048' }}>
+        {item.type === 'income' ? '+' : '-'}¥{item.amount.toFixed(2)}
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -96,7 +87,7 @@ function SubTabPill() {
   const ledgerSubTab = useStore((s) => s.ledgerSubTab);
   const setLedgerSubTab = useStore((s) => s.setLedgerSubTab);
   return (
-    <div className="mode-pill" style={{ margin: '0 0 14px' }}>
+    <div className="mode-pill mode-pill--hollow" style={{ margin: '0 0 14px' }}>
       {[{ key: 'entries', label: '记账' }, { key: 'budget', label: '预算' }].map((t) => {
         const active = ledgerSubTab === t.key;
         return (
@@ -125,11 +116,10 @@ export default function LedgerView() {
   return (
     <div className="manage-sub">
       <div className="manage-sub__head">
-        <div className="manage-sub__back-pill">
-          <button className="manage-sub__back-btn" onClick={closeManageSubview}>
+        <div className="manage-sub__back-pill manage-sub__back-pill--hollow">
+          <button className="manage-sub__back-btn manage-sub__back-btn--hollow" onClick={closeManageSubview}>
             <BackChevronIcon />
           </button>
-          <div className="manage-sub__title">记账</div>
         </div>
       </div>
       {ledgerSubTab === 'budget' ? <BudgetSection /> : <EntriesSection />}
@@ -160,7 +150,10 @@ function EntriesSection() {
   const startEditLedgerEntry = useStore((s) => s.startEditLedgerEntry);
   const onLedgerDraftChange = useStore((s) => s.onLedgerDraftChange);
   const saveLedgerEntry = useStore((s) => s.saveLedgerEntry);
-  const deleteLedgerEntryAction = useStore((s) => s.deleteLedgerEntryAction);
+  const ledgerEntryDeleteConfirmId = useStore((s) => s.ledgerEntryDeleteConfirmId);
+  const requestDeleteLedgerEntry = useStore((s) => s.requestDeleteLedgerEntry);
+  const cancelDeleteLedgerEntry = useStore((s) => s.cancelDeleteLedgerEntry);
+  const confirmDeleteLedgerEntry = useStore((s) => s.confirmDeleteLedgerEntry);
   const addLedgerCategoryAction = useStore((s) => s.addLedgerCategoryAction);
   const ledgerCategoryDeleteConfirmId = useStore((s) => s.ledgerCategoryDeleteConfirmId);
   const requestDeleteLedgerCategory = useStore((s) => s.requestDeleteLedgerCategory);
@@ -343,7 +336,7 @@ function EntriesSection() {
               <div className="ledger-group-label">{g.dateLabel}</div>
               <div className="ledger-group-card">
                 {g.items.map((t) => (
-                  <SwipeableLedgerItem key={t.id} item={t} categoryColor={categoryColor} onDelete={deleteLedgerEntryAction} onEdit={startEditLedgerEntry} />
+                  <LedgerItemRow key={t.id} item={t} categoryColor={categoryColor} onEdit={startEditLedgerEntry} />
                 ))}
               </div>
             </div>
@@ -454,14 +447,21 @@ function EntriesSection() {
               onChange={(e) => onLedgerDraftChange('note', e.target.value)}
               placeholder="备注…"
             />
-            <input
-              className="provider-form-input ledger-date-input"
-              style={{ marginBottom: 20 }}
-              type="date"
-              value={ledgerDraft.dateISO}
-              onChange={(e) => onLedgerDraftChange('dateISO', e.target.value)}
-            />
+            <LedgerDateField value={ledgerDraft.dateISO} onChange={(v) => onLedgerDraftChange('dateISO', v)} />
             <button className="ai-key-save-btn" style={{ width: '100%', padding: '13px 0' }} onClick={saveLedgerEntry}>保存</button>
+            {editingLedgerEntryId && (
+              ledgerEntryDeleteConfirmId === editingLedgerEntryId ? (
+                <div className="ledger-entry-delete-confirm">
+                  <span>删除这条记账记录？</span>
+                  <button className="ledger-category-delete-cancel" onClick={cancelDeleteLedgerEntry}>取消</button>
+                  <button className="ledger-category-delete-danger" onClick={confirmDeleteLedgerEntry}>删除</button>
+                </div>
+              ) : (
+                <button className="ledger-entry-delete-btn" onClick={() => requestDeleteLedgerEntry(editingLedgerEntryId)}>
+                  删除这条记账记录
+                </button>
+              )
+            )}
           </div>
         </div>
       )}

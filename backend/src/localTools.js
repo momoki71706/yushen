@@ -81,6 +81,13 @@ export function scheduleMessage(delayMinutes, note) {
   return { fireAt, minutes };
 }
 
+function attachmentsForEntry(entryId, row) {
+  const rows = db.prepare('SELECT * FROM diary_attachments WHERE entry_id = ? ORDER BY sort_order ASC, id ASC').all(entryId);
+  if (rows.length) return rows.map((a) => ({ attachment_url: a.url, attachment_mime: a.mime }));
+  if (row.attachment_url) return [{ attachment_url: row.attachment_url, attachment_mime: row.attachment_mime }];
+  return [];
+}
+
 async function readDiaryContent(count) {
   const limit = Math.max(1, Math.min(Number(count) || 5, 20));
   const rows = db.prepare('SELECT * FROM diary_entries ORDER BY id DESC LIMIT ?').all(limit);
@@ -91,8 +98,8 @@ async function readDiaryContent(count) {
       type: 'text',
       text: `[${r.date_label}｜${r.author === 'me' ? '小晴' : '你'}｜心情：${r.mood}，天气：${r.weather}]\n${r.excerpt}`,
     });
-    if (r.attachment_url) {
-      const image = await readImageAttachment(r);
+    for (const attachmentRow of attachmentsForEntry(r.id, r)) {
+      const image = await readImageAttachment(attachmentRow);
       if (image) blocks.push({ type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.base64 } });
     }
   }

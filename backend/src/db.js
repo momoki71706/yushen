@@ -65,6 +65,20 @@ CREATE TABLE IF NOT EXISTS diary_review_requests (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Supersedes the single attachment_url/name/mime/size columns on
+-- diary_entries — one row per photo, so an entry can carry more than one.
+-- Old entries keep reading through those legacy columns as a fallback
+-- (see routes/diary.js) rather than needing a backfill migration.
+CREATE TABLE IF NOT EXISTS diary_attachments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  entry_id INTEGER NOT NULL,
+  url TEXT NOT NULL,
+  name TEXT,
+  mime TEXT,
+  size INTEGER,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS letters (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   sender TEXT NOT NULL,

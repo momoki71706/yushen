@@ -8,7 +8,19 @@ const router = Router();
 
 const REACT_DELAY_MAX_MINUTES = 30;
 
+// New entries store every photo in diary_attachments (one row each); old
+// entries never got backfilled into it, so they fall back to whatever's
+// still sitting in the legacy singular attachment_url/name/mime/size
+// columns on diary_entries itself.
+function attachmentsForEntry(entryId, row) {
+  const rows = db.prepare('SELECT * FROM diary_attachments WHERE entry_id = ? ORDER BY sort_order ASC, id ASC').all(entryId);
+  if (rows.length) return rows.map((a) => ({ url: a.url, name: a.name, mime: a.mime, size: a.size }));
+  if (row.attachment_url) return [{ url: row.attachment_url, name: row.attachment_name, mime: row.attachment_mime, size: row.attachment_size }];
+  return [];
+}
+
 function serialize(row) {
+  const attachments = attachmentsForEntry(row.id, row);
   return {
     id: row.id,
     author: row.author,
@@ -20,9 +32,8 @@ function serialize(row) {
     tag: row.tag,
     excerpt: row.excerpt,
     hasUnread: !!row.has_unread,
-    attachment: row.attachment_url
-      ? { url: row.attachment_url, name: row.attachment_name, mime: row.attachment_mime, size: row.attachment_size }
-      : null,
+    attachments,
+    attachment: attachments[0] || null,
   };
 }
 
@@ -77,10 +88,18 @@ router.post('/trigger-write', async (req, res) => {
   res.json(serialize(row));
 });
 
+const insertAttachmentStmt = db.prepare(
+  'INSERT INTO diary_attachments (entry_id, url, name, mime, size, sort_order) VALUES (?,?,?,?,?,?)'
+);
+
 router.post('/', (req, res) => {
-  const { text, mood, weather, tag, attachment } = req.body;
+  const { text, mood, weather, tag, attachment, attachments } = req.body;
   const trimmed = (text || '').trim();
   if (!trimmed) return res.status(400).json({ error: 'text is required' });
+
+  // Accepts either the new `attachments` array or the older singular
+  // `attachment` field, so nothing else calling this route needs to change.
+  const resolvedAttachments = Array.isArray(attachments) ? attachments : attachment ? [attachment] : [];
 
   const bNow = beijingNow();
   const dateISO = `${bNow.getUTCFullYear()}-${String(bNow.getUTCMonth() + 1).padStart(2, '0')}-${String(bNow.getUTCDate()).padStart(2, '0')}`;
@@ -89,23 +108,15 @@ router.post('/', (req, res) => {
 
   const info = db
     .prepare(
-      `INSERT INTO diary_entries (author, date_iso, date_label, mood, mood_color, weather, tag, excerpt, reacted, react_at, read_by_me, attachment_url, attachment_name, attachment_mime, attachment_size)
-       VALUES ('me',?,?,?,?,?,?,?,0,?,1,?,?,?,?)`
+      `INSERT INTO diary_entries (author, date_iso, date_label, mood, mood_color, weather, tag, excerpt, reacted, react_at, read_by_me)
+       VALUES ('me',?,?,?,?,?,?,?,0,?,1)`
     )
-    .run(
-      dateISO,
-      diaryDateLabel(bNow),
-      resolvedMood,
-      moodColorFor(resolvedMood),
-      weather || '晴',
-      tag || null,
-      trimmed,
-      reactAt,
-      attachment?.url || null,
-      attachment?.name || null,
-      attachment?.mime || null,
-      attachment?.size || null
-    );
+    .run(dateISO, diaryDateLabel(bNow), resolvedMood, moodColorFor(resolvedMood), weather || '晴', tag || null, trimmed, reactAt);
+
+  resolvedAttachments.forEach((a, i) => {
+    if (!a?.url) return;
+    insertAttachmentStmt.run(info.lastInsertRowid, a.url, a.name || null, a.mime || null, a.size || null, i);
+  });
 
   const row = db.prepare(`${LIST_QUERY} WHERE e.id = ?`).get(info.lastInsertRowid);
   res.json(serialize(row));
@@ -122,6 +133,7 @@ router.patch('/:id/read', (req, res) => {
 
 router.delete('/:id', (req, res) => {
   db.prepare('DELETE FROM diary_comments WHERE entry_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM diary_attachments WHERE entry_id = ?').run(req.params.id);
   db.prepare('DELETE FROM diary_entries WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });

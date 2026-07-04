@@ -633,14 +633,15 @@
   box-shadow: 0 3px 10px rgba(58, 50, 54, 0.12);
 }
 .diary-paper-save span { font-size: 12.5px; color: var(--color-accent-strong); font-weight: 600; }
+.diary-attachment-preview-strip { display: flex; flex-wrap: wrap; gap: 8px; margin: -4px 0 16px; }
 .diary-attachment-preview {
   position: relative;
   width: 72px;
   height: 72px;
-  margin: -4px 0 16px;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: var(--shadow-soft);
+  flex-shrink: 0;
 }
 .diary-attachment-preview img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: pointer; }
 .diary-attachment-remove {
@@ -659,17 +660,30 @@
   padding: 0;
 }
 .diary-attachment-error { font-size: 12px; color: #B4645E; margin: -8px 0 16px; }
-.diary-entry-thumb { display: block; width: 100%; max-height: 140px; object-fit: cover; border-radius: 10px; margin-top: 8px; }
-.diary-detail__attachment {
-  display: block;
-  width: 100%;
+.diary-entry-thumb-wrap { position: relative; margin-top: 8px; }
+.diary-entry-thumb { display: block; width: 100%; max-height: 140px; object-fit: cover; border-radius: 10px; }
+.diary-entry-thumb-count {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+.diary-detail__attachments { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.diary-detail__attachment-thumb {
+  width: 90px;
+  height: 90px;
   border: none;
   padding: 0;
-  margin-top: 12px;
   border-radius: 12px;
   overflow: hidden;
+  flex-shrink: 0;
 }
-.diary-detail__attachment img { width: 100%; max-height: 320px; object-fit: cover; display: block; }
+.diary-detail__attachment-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .diary-past-link {
   width: 100%;
   display: flex;
@@ -970,14 +984,14 @@
 }
 .letter-reply-link {
   border: none;
-  background: var(--color-send);
+  background: var(--color-accent);
   color: #fff;
   font-size: 12px;
   font-weight: 600;
   padding: 5px 12px;
   border-radius: 999px;
   margin-right: 10px;
-  box-shadow: 0 3px 10px rgba(232, 196, 212, 0.5);
+  box-shadow: 0 3px 10px rgba(200, 137, 158, 0.45);
 }
 .reply-picker-error { font-size: 12px; color: #B4645E; margin-bottom: 10px; }
 .reply-picker-item {
@@ -1105,12 +1119,12 @@
 
 .mailbox__floating-head {
   position: sticky;
-  top: -14px;
+  top: -34px;
   z-index: 6;
-  margin: -14px -4px 14px;
+  margin: -34px -4px 10px;
   padding: 14px 4px 0;
 }
-.mailbox__floating-head .pill-back { margin-bottom: 10px; }
+.mailbox__floating-head .pill-back { margin-bottom: 8px; }
 .mailbox__tabs {
   display: flex;
   background: var(--glass-mid);
@@ -1709,6 +1723,11 @@
 .manage-sub__title { font-size: 15px; font-weight: 500; color: var(--color-text); }
 .manage-sub__add-btn { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.32); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; }
 .manage-sub__body { flex: 1; overflow-y: auto; padding: 0 20px 90px; }
+/* "镂空" — no glass fill at all, just the icon floating over whatever's
+   actually behind it, instead of the usual frosted-pill look. */
+.manage-sub__back-pill--hollow { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; border: none; padding: 5px; }
+.manage-sub__back-btn--hollow { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; border: none; }
+.mode-pill--hollow { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; border: none; box-shadow: none; }
 
 /* ---------- ledger ---------- */
 .ledger-summary-card { background: rgba(255,255,255,0.45); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border); border-radius: 16px; padding: 18px 16px; margin: 12px 0 14px; }
@@ -1739,25 +1758,36 @@
 .ledger-group-card { background: rgba(255,255,255,0.35); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--glass-border); border-radius: 14px; overflow: hidden; }
 .ledger-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid rgba(58,50,54,0.06); position: relative; background: #FAF6F8; }
 .ledger-item:last-child { border-bottom: none; }
+.ledger-item--tappable { width: 100%; border: none; text-align: left; }
 .ledger-item-glyph { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; font-weight: 700; color: #fff; }
 .ledger-item-info { flex: 1; min-width: 0; }
 .ledger-item-note { font-size: 14px; color: var(--color-text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ledger-item-meta { font-size: 11.5px; color: var(--color-text-faint); margin-top: 2px; }
 .ledger-item-amount { font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 14.5px; flex-shrink: 0; }
-.ledger-item-swipe-wrap { position: relative; overflow: hidden; }
-.ledger-item-swipe-actions { position: absolute; top: 0; right: 0; height: 100%; display: flex; }
-.ledger-item-swipe-edit,
-.ledger-item-swipe-delete {
-  border: none;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.ledger-item-swipe-edit { background: #B79A8C; }
-.ledger-item-swipe-delete { background: #C4645E; }
 .ledger-fab { position: absolute; bottom: 16px; right: 20px; width: 52px; height: 52px; border-radius: 50%; border: none; background: var(--color-accent); box-shadow: 0 6px 16px rgba(200,137,158,0.45); display: flex; align-items: center; justify-content: center; z-index: 8; }
 .ledger-empty { text-align: center; color: var(--color-text-faint); font-size: 13px; padding: 24px 0; }
+.ledger-entry-delete-btn {
+  width: 100%;
+  margin-top: 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: rgba(196, 100, 94, 0.08);
+  color: #C4645E;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 11px 0;
+}
+.ledger-entry-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--color-text-soft);
+  background: rgba(196,100,94,0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 10px;
+}
 .ledger-bar-row-btn { display: block; width: 100%; border: none; background: transparent; padding: 0; text-align: left; }
 .ledger-drilldown { padding: 8px 4px 2px 4px; display: flex; flex-direction: column; gap: 6px; }
 .ledger-drilldown-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
@@ -1787,9 +1817,20 @@
 .ledger-category-delete-danger { color: #C4645E; }
 .ledger-category-delete-cancel { color: var(--color-text-faint); }
 .category-chip--add { border-style: dashed; }
-.ledger-date-input { display: flex; align-items: center; line-height: 40px; }
-.ledger-date-input::-webkit-date-and-time-value { text-align: left; }
-.ledger-date-input::-webkit-datetime-edit { text-align: left; }
+.ledger-date-field {
+  position: relative;
+  width: 100%;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid rgba(58, 50, 54, 0.1);
+  background: rgba(58, 50, 54, 0.03);
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.ledger-date-field-text { font-size: 16px; color: var(--color-text); pointer-events: none; }
+.ledger-date-input-native { position: absolute; inset: 0; opacity: 0; border: none; padding: 0; margin: 0; width: 100%; height: 100%; }
 
 /* ---------- ledger: budget ---------- */
 .budget-row { background: rgba(255,255,255,0.4); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--glass-border); border-radius: 14px; padding: 14px 16px 36px; margin-bottom: 10px; position: relative; }
