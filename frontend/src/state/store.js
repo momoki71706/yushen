@@ -233,6 +233,7 @@ export const useStore = create(
   ledgerDrilldownCategory: null,
   ledgerShowAdd: false,
   ledgerDraft: null,
+  editingLedgerEntryId: null,
   ledgerCardMessage: pickDaily(LEDGER_MESSAGES),
   loadLedgerCardMessage: async () => {
     try {
@@ -290,7 +291,19 @@ export const useStore = create(
       ledgerShowAdd: true,
       ledgerDraft: { type: 'expense', category: get().expenseCategories[0]?.key || '', amount: '', note: '', dateISO: todayISOLocal() },
     }),
-  closeLedgerAdd: () => set({ ledgerShowAdd: false, ledgerDraft: null }),
+  closeLedgerAdd: () => set({ ledgerShowAdd: false, ledgerDraft: null, editingLedgerEntryId: null }),
+  startEditLedgerEntry: (entry) =>
+    set({
+      ledgerShowAdd: true,
+      editingLedgerEntryId: entry.id,
+      ledgerDraft: {
+        type: entry.type,
+        category: entry.category,
+        amount: String(entry.amount),
+        note: entry.note || '',
+        dateISO: entry.dateISO,
+      },
+    }),
   onLedgerDraftChange: (field, value) =>
     set((s) => ({
       ledgerDraft: {
@@ -302,11 +315,20 @@ export const useStore = create(
       },
     })),
   saveLedgerEntry: async () => {
-    const { ledgerDraft } = get();
+    const { ledgerDraft, editingLedgerEntryId } = get();
     const amount = parseFloat(ledgerDraft.amount);
     if (!amount || amount <= 0) return;
-    const entry = await api.addLedgerEntry({ ...ledgerDraft, amount });
-    set((s) => ({ ledgerEntries: [entry, ...s.ledgerEntries], ledgerShowAdd: false, ledgerDraft: null }));
+    const entry = editingLedgerEntryId
+      ? await api.updateLedgerEntry(editingLedgerEntryId, { ...ledgerDraft, amount })
+      : await api.addLedgerEntry({ ...ledgerDraft, amount });
+    set((s) => ({
+      ledgerEntries: editingLedgerEntryId
+        ? s.ledgerEntries.map((e) => (e.id === editingLedgerEntryId ? entry : e))
+        : [entry, ...s.ledgerEntries],
+      ledgerShowAdd: false,
+      ledgerDraft: null,
+      editingLedgerEntryId: null,
+    }));
   },
   deleteLedgerEntryAction: async (id) => {
     await api.deleteLedgerEntry(id);

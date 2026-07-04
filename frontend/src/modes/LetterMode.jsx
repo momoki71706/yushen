@@ -49,7 +49,7 @@ function Compose() {
             去回信
           </button>
         )}
-        <button onClick={openMailbox}>
+        <button className="letter-mailbox-btn" onClick={openMailbox}>
           <EnvelopeOutlineIcon color="#6B6268" />
           <span>我的信箱 {letters.length}</span>
         </button>
@@ -159,30 +159,32 @@ function Mailbox() {
 
   return (
     <div className="letter-scroll">
-      <div className="mailbox__head">
-        <button className="circle-back-btn" style={{ background: 'rgba(255,255,255,0.55)', border: 'none' }} onClick={closeMailbox}>
-          <BackChevronIcon />
-        </button>
-        <div className="mailbox__head-title">我的信箱</div>
-      </div>
+      <div className="mailbox__floating-head">
+        <div className="pill-back">
+          <button className="circle-back-btn" onClick={closeMailbox}>
+            <BackChevronIcon />
+          </button>
+          <div className="pill-back-title">去写信</div>
+        </div>
 
-      <div className="mailbox__tabs">
-        {[
-          { key: 'sent', label: '寄出的信' },
-          { key: 'received', label: '收到的信' },
-        ].map((tb) => {
-          const active = letterMailboxTab === tb.key;
-          return (
-            <button
-              key={tb.key}
-              className="mailbox__tab"
-              style={{ background: active ? '#fff' : 'transparent', color: active ? '#5C4A54' : '#6B6268' }}
-              onClick={() => setMailboxTab(tb.key)}
-            >
-              {tb.label}
-            </button>
-          );
-        })}
+        <div className="mailbox__tabs">
+          {[
+            { key: 'sent', label: '寄出的信' },
+            { key: 'received', label: '收到的信' },
+          ].map((tb) => {
+            const active = letterMailboxTab === tb.key;
+            return (
+              <button
+                key={tb.key}
+                className="mailbox__tab"
+                style={{ background: active ? '#fff' : 'transparent', color: active ? '#5C4A54' : '#6B6268' }}
+                onClick={() => setMailboxTab(tb.key)}
+              >
+                {tb.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {filtered.map((l) => {

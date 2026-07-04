@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../../state/store';
-import { BackChevronIcon, CloseIcon, PlusIcon, TrashIcon } from '../../components/Icons';
+import { BackChevronIcon, CloseIcon, PencilIcon, PlusIcon, TrashIcon } from '../../components/Icons';
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-const LONG_PRESS_MS = 550;
 const SWIPE_DELETE_WIDTH = 72;
+const SWIPE_ACTIONS_WIDTH = SWIPE_DELETE_WIDTH * 2;
 
 function monthLabelFor(date) {
   return `${date.getFullYear()}年${date.getMonth() + 1}月`;
@@ -28,9 +28,10 @@ function buildPieGradient(breakdown) {
   return `conic-gradient(${stops.join(', ')})`;
 }
 
-// Swipe-to-delete on a single ledger row — dragging left reveals a delete
-// button underneath on the right, same convention as iOS Mail/WeChat.
-function SwipeableLedgerItem({ item, categoryColor, onDelete }) {
+// Swipe-to-reveal on a single ledger row — dragging left reveals an edit
+// button and a delete button underneath (edit on the left of delete), same
+// convention as iOS Mail/WeChat.
+function SwipeableLedgerItem({ item, categoryColor, onDelete, onEdit }) {
   const [translateX, setTranslateX] = useState(0);
   const draggingRef = useRef(false);
   const startXRef = useRef(0);
@@ -44,23 +45,32 @@ function SwipeableLedgerItem({ item, categoryColor, onDelete }) {
   const handleMove = (e) => {
     if (!draggingRef.current) return;
     const delta = e.clientX - startXRef.current;
-    setTranslateX(Math.min(0, Math.max(-SWIPE_DELETE_WIDTH, baseXRef.current + delta)));
+    setTranslateX(Math.min(0, Math.max(-SWIPE_ACTIONS_WIDTH, baseXRef.current + delta)));
   };
   const handleUp = () => {
     if (!draggingRef.current) return;
     draggingRef.current = false;
-    setTranslateX((x) => (x < -SWIPE_DELETE_WIDTH / 2 ? -SWIPE_DELETE_WIDTH : 0));
+    setTranslateX((x) => (x < -SWIPE_ACTIONS_WIDTH / 2 ? -SWIPE_ACTIONS_WIDTH : 0));
   };
 
   return (
     <div className="ledger-item-swipe-wrap">
-      <button
-        className="ledger-item-swipe-delete"
-        style={{ width: SWIPE_DELETE_WIDTH }}
-        onClick={() => onDelete(item.id)}
-      >
-        <TrashIcon color="#fff" width={16} height={16} />
-      </button>
+      <div className="ledger-item-swipe-actions" style={{ width: SWIPE_ACTIONS_WIDTH }}>
+        <button
+          className="ledger-item-swipe-edit"
+          style={{ width: SWIPE_DELETE_WIDTH }}
+          onClick={() => onEdit(item)}
+        >
+          <PencilIcon color="#fff" width={15} height={15} />
+        </button>
+        <button
+          className="ledger-item-swipe-delete"
+          style={{ width: SWIPE_DELETE_WIDTH }}
+          onClick={() => onDelete(item.id)}
+        >
+          <TrashIcon color="#fff" width={16} height={16} />
+        </button>
+      </div>
       <div
         className="ledger-item"
         style={{ transform: `translateX(${translateX}px)`, touchAction: 'pan-y' }}
@@ -75,7 +85,7 @@ function SwipeableLedgerItem({ item, categoryColor, onDelete }) {
           <div className="ledger-item-meta">{item.category} · {item.time}</div>
         </div>
         <div className="ledger-item-amount" style={{ color: item.type === 'income' ? '#8FA88E' : '#4A4048' }}>
-          {item.type === 'income' ? '+' : '-'}¥{item.amount.toFixed(0)}
+          {item.type === 'income' ? '+' : '-'}¥{item.amount.toFixed(2)}
         </div>
       </div>
     </div>
@@ -122,9 +132,6 @@ export default function LedgerView() {
           <div className="manage-sub__title">记账</div>
         </div>
       </div>
-      <div className="manage-sub__body" style={{ paddingBottom: 0 }}>
-        <SubTabPill />
-      </div>
       {ledgerSubTab === 'budget' ? <BudgetSection /> : <EntriesSection />}
     </div>
   );
@@ -138,6 +145,7 @@ function EntriesSection() {
   const ledgerDrilldownCategory = useStore((s) => s.ledgerDrilldownCategory);
   const ledgerShowAdd = useStore((s) => s.ledgerShowAdd);
   const ledgerDraft = useStore((s) => s.ledgerDraft);
+  const editingLedgerEntryId = useStore((s) => s.editingLedgerEntryId);
   const expenseCategories = useStore((s) => s.expenseCategories);
   const incomeCategories = useStore((s) => s.incomeCategories);
   const categoryColor = useStore((s) => s.categoryColor);
@@ -149,6 +157,7 @@ function EntriesSection() {
   const toggleLedgerDrilldown = useStore((s) => s.toggleLedgerDrilldown);
   const openLedgerAdd = useStore((s) => s.openLedgerAdd);
   const closeLedgerAdd = useStore((s) => s.closeLedgerAdd);
+  const startEditLedgerEntry = useStore((s) => s.startEditLedgerEntry);
   const onLedgerDraftChange = useStore((s) => s.onLedgerDraftChange);
   const saveLedgerEntry = useStore((s) => s.saveLedgerEntry);
   const deleteLedgerEntryAction = useStore((s) => s.deleteLedgerEntryAction);
@@ -160,7 +169,7 @@ function EntriesSection() {
 
   const [addingCategory, setAddingCategory] = useState(false);
   const [categoryDraft, setCategoryDraft] = useState('');
-  const longPressTimer = useRef(null);
+  const [categoryEditMode, setCategoryEditMode] = useState(false);
 
   const monthDate = new Date();
   monthDate.setDate(1);
@@ -202,12 +211,6 @@ function EntriesSection() {
 
   const draftCategories = ledgerDraft?.type === 'income' ? incomeCategories : expenseCategories;
 
-  const startLongPress = (id) => {
-    longPressTimer.current = setTimeout(() => requestDeleteLedgerCategory(id), LONG_PRESS_MS);
-  };
-  const cancelLongPress = () => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-  };
   const confirmAddCategory = async () => {
     if (!categoryDraft.trim()) return;
     await addLedgerCategoryAction(ledgerDraft.type, categoryDraft);
@@ -218,6 +221,7 @@ function EntriesSection() {
   return (
     <>
       <div className="manage-sub__body">
+        <SubTabPill />
         <div className="ledger-summary-card">
           <div className="ledger-month-nav">
             <button className="ledger-month-nav-btn" onClick={ledgerPrevMonth}>
@@ -231,15 +235,15 @@ function EntriesSection() {
           <div className="ledger-totals-row">
             <div>
               <div className="ledger-totals-label">收入</div>
-              <div className="ledger-totals-value">¥{monthIncome.toFixed(0)}</div>
+              <div className="ledger-totals-value">¥{monthIncome.toFixed(2)}</div>
             </div>
             <div>
               <div className="ledger-totals-label">支出</div>
-              <div className="ledger-totals-value">¥{monthExpense.toFixed(0)}</div>
+              <div className="ledger-totals-value">¥{monthExpense.toFixed(2)}</div>
             </div>
             <div>
               <div className="ledger-totals-label">结余</div>
-              <div className="ledger-totals-value" style={{ color: 'var(--color-accent)' }}>¥{monthBalance.toFixed(0)}</div>
+              <div className="ledger-totals-value" style={{ color: 'var(--color-accent)' }}>¥{monthBalance.toFixed(2)}</div>
             </div>
           </div>
 
@@ -306,7 +310,7 @@ function EntriesSection() {
                       >
                         <div className="ledger-bar-head">
                           <span>{c.label}</span>
-                          <span className="ledger-bar-value">¥{c.amount.toFixed(0)}</span>
+                          <span className="ledger-bar-value">¥{c.amount.toFixed(2)}</span>
                         </div>
                         <div className="ledger-bar-track">
                           <div className="ledger-bar-fill" style={{ width: `${Math.max(6, (c.amount / maxCategoryAmount) * 100)}%`, background: c.color }} />
@@ -319,7 +323,7 @@ function EntriesSection() {
                               <span className="ledger-drilldown-date">{e.dateISO.slice(5)}</span>
                               <span className="ledger-drilldown-note">{e.note || e.category}</span>
                               <span className="ledger-drilldown-amount" style={{ color: e.type === 'income' ? '#8FA88E' : '#4A4048' }}>
-                                {e.type === 'income' ? '+' : '-'}¥{e.amount.toFixed(0)}
+                                {e.type === 'income' ? '+' : '-'}¥{e.amount.toFixed(2)}
                               </span>
                             </div>
                           ))}
@@ -339,7 +343,7 @@ function EntriesSection() {
               <div className="ledger-group-label">{g.dateLabel}</div>
               <div className="ledger-group-card">
                 {g.items.map((t) => (
-                  <SwipeableLedgerItem key={t.id} item={t} categoryColor={categoryColor} onDelete={deleteLedgerEntryAction} />
+                  <SwipeableLedgerItem key={t.id} item={t} categoryColor={categoryColor} onDelete={deleteLedgerEntryAction} onEdit={startEditLedgerEntry} />
                 ))}
               </div>
             </div>
@@ -357,7 +361,7 @@ function EntriesSection() {
         <div className="sheet-overlay" onClick={closeLedgerAdd}>
           <div className="sheet-panel" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-panel__head">
-              <div className="sheet-panel__title">记一笔</div>
+              <div className="sheet-panel__title">{editingLedgerEntryId ? '' : '记一笔'}</div>
               <button className="sheet-panel__close" onClick={closeLedgerAdd}>
                 <CloseIcon />
               </button>
@@ -383,6 +387,7 @@ function EntriesSection() {
               <input
                 className="amount-input"
                 type="number"
+                step="0.01"
                 value={ledgerDraft.amount}
                 onChange={(e) => onLedgerDraftChange('amount', e.target.value)}
                 placeholder="0.00"
@@ -402,20 +407,31 @@ function EntriesSection() {
                   <button
                     key={c.id || c.key}
                     className="category-chip"
-                    style={{ borderColor: active ? c.color : 'rgba(58,50,54,0.12)', background: active ? `${c.color}33` : 'transparent', color: active ? '#4A4048' : '#6B6268' }}
-                    onClick={() => onLedgerDraftChange('category', c.key)}
-                    onContextMenu={(e) => { e.preventDefault(); requestDeleteLedgerCategory(c.id); }}
-                    onPointerDown={() => startLongPress(c.id)}
-                    onPointerUp={cancelLongPress}
-                    onPointerLeave={cancelLongPress}
+                    style={{
+                      borderColor: categoryEditMode ? '#C4645E' : active ? c.color : 'rgba(58,50,54,0.12)',
+                      background: active && !categoryEditMode ? `${c.color}33` : 'transparent',
+                      color: categoryEditMode ? '#C4645E' : active ? '#4A4048' : '#6B6268',
+                    }}
+                    onClick={() => (categoryEditMode ? requestDeleteLedgerCategory(c.id) : onLedgerDraftChange('category', c.key))}
                   >
-                    <span className="category-chip-dot" style={{ background: c.color }} />
+                    {categoryEditMode ? (
+                      <TrashIcon color="#C4645E" width={10} height={10} />
+                    ) : (
+                      <span className="category-chip-dot" style={{ background: c.color }} />
+                    )}
                     {c.key}
                   </button>
                 );
               })}
               <button className="category-chip category-chip--add" onClick={() => setAddingCategory(true)}>
                 <PlusIcon color="#8C7A82" width={12} height={12} />
+              </button>
+              <button
+                className="category-chip category-chip--add"
+                style={{ borderColor: categoryEditMode ? '#C4645E' : 'rgba(58,50,54,0.12)' }}
+                onClick={() => setCategoryEditMode((v) => !v)}
+              >
+                <PencilIcon color={categoryEditMode ? '#C4645E' : '#8C7A82'} width={12} height={12} />
               </button>
             </div>
             {addingCategory && (
@@ -491,6 +507,7 @@ function BudgetSection() {
 
   return (
     <div className="manage-sub__body">
+      <SubTabPill />
       <div className="ledger-summary-card">
         <div className="ledger-month-nav">
           <button className="ledger-month-nav-btn" onClick={() => shiftMonth(-1)}>
@@ -517,7 +534,7 @@ function BudgetSection() {
               <span className="category-chip-dot" style={{ background: c.color }} />
               <span className="budget-row-name">{c.key}</span>
               <span className="budget-row-amounts" style={{ color: over ? '#C4645E' : 'var(--color-text)' }}>
-                ¥{spent.toFixed(0)}{hasBudget ? ` / ¥${budget.toFixed(0)}` : ''}
+                ¥{spent.toFixed(2)}{hasBudget ? ` / ¥${budget.toFixed(2)}` : ''}
               </span>
             </div>
             {hasBudget && (
@@ -530,6 +547,7 @@ function BudgetSection() {
                 <input
                   className="provider-form-input"
                   type="number"
+                  step="0.01"
                   value={draftAmount}
                   onChange={(e) => setDraftAmount(e.target.value)}
                   placeholder="预算金额"
@@ -547,7 +565,7 @@ function BudgetSection() {
               </div>
             ) : (
               <button
-                className="budget-row-edit-link"
+                className="budget-row-edit-link budget-row-edit-link--corner"
                 onClick={() => {
                   setEditingCategory(c.key);
                   setDraftAmount(hasBudget ? String(budget) : '');

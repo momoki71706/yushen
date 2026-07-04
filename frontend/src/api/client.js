@@ -119,6 +119,7 @@ export const api = {
 
   getLedgerEntries: () => request('/ledger'),
   addLedgerEntry: (payload) => request('/ledger', { method: 'POST', body: JSON.stringify(payload) }),
+  updateLedgerEntry: (id, payload) => request(`/ledger/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   deleteLedgerEntry: (id) => request(`/ledger/${id}`, { method: 'DELETE' }),
 
   getLedgerCategories: () => request('/ledger/categories'),

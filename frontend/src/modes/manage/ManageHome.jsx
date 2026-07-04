@@ -100,7 +100,7 @@ export default function ManageHome() {
         <CardHead icon={<LedgerGlyph />} title="记账" />
         <div className="manage-card__body">
           <div className="manage-card__stat">
-            <div className="manage-card__stat-value">{todayTotal > 0 ? `¥${todayTotal.toFixed(0)}` : '—'}</div>
+            <div className="manage-card__stat-value">{todayTotal > 0 ? `¥${todayTotal.toFixed(2)}` : '—'}</div>
             <div className="manage-card__stat-label">今日支出</div>
           </div>
           <div className="manage-card__mini">

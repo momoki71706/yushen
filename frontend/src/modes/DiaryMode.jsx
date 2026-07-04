@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { attachmentUrl } from '../api/client';
 import { MoodIcon, WeatherIcon, PlusIcon, CheckIcon, CalendarIcon, SearchIcon, BackChevronIcon, RefreshIcon, CloseIcon } from '../components/Icons';
@@ -6,6 +6,36 @@ import { MoodIcon, WeatherIcon, PlusIcon, CheckIcon, CalendarIcon, SearchIcon, B
 const MOODS = ['开心', '平静', '难过', '兴奋', '疲惫'];
 const WEATHERS = ['晴', '多云', '雨', '雪', '风'];
 const GLOW = '0 0 0 7px rgba(200,137,158,0.22)';
+const IMAGE_RETRY_LIMIT = 3;
+const IMAGE_RETRY_DELAY_MS = 1200;
+
+// Diary photos have been intermittently failing to load — appears to be a
+// transient thing (network hiccup, or the storage volume not being fully
+// consistent yet right after a write) rather than the file genuinely being
+// gone, since reloading the page usually fixes it. Retrying a few times
+// with a cache-busting query param (express.static ignores it, so it still
+// resolves to the same file) covers that without needing a page reload.
+function RetryImage({ src, className, alt = '' }) {
+  const [attempt, setAttempt] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setAttempt(0);
+    setFailed(false);
+  }, [src]);
+
+  const handleError = () => {
+    if (attempt < IMAGE_RETRY_LIMIT) {
+      setTimeout(() => setAttempt((a) => a + 1), IMAGE_RETRY_DELAY_MS);
+    } else {
+      setFailed(true);
+    }
+  };
+
+  if (failed || !src) return null;
+  const url = attempt === 0 ? src : `${src}${src.includes('?') ? '&' : '?'}retry=${attempt}`;
+  return <img key={url} className={className} src={url} alt={alt} onError={handleError} />;
+}
 
 export default function DiaryMode() {
   const diaryView = useStore((s) => s.diaryView);
@@ -241,7 +271,7 @@ function DiaryList() {
               </div>
               <div className="diary-entry-preview">{preview}</div>
               {entry.attachment && (
-                <img className="diary-entry-thumb" src={attachmentUrl(entry.attachment.url)} alt="" />
+                <RetryImage className="diary-entry-thumb" src={attachmentUrl(entry.attachment.url)} />
               )}
             </div>
           );
@@ -311,7 +341,7 @@ function DiaryDetail() {
           <div className="diary-detail__excerpt" style={{ opacity: isRegenerating ? 0.5 : 1 }}>{entry.excerpt}</div>
           {entry.attachment && (
             <button className="diary-detail__attachment" onClick={() => openImageViewer(attachmentUrl(entry.attachment.url))}>
-              <img src={attachmentUrl(entry.attachment.url)} alt="" />
+              <RetryImage src={attachmentUrl(entry.attachment.url)} />
             </button>
           )}
         </div>

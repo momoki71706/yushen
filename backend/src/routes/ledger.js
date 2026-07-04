@@ -51,6 +51,18 @@ router.post('/', (req, res) => {
   res.json(serialize(row));
 });
 
+router.patch('/:id', (req, res) => {
+  const { dateISO, type, category, amount, note } = req.body;
+  const amt = Number(amount);
+  if (!dateISO || !category || !Number.isFinite(amt) || amt <= 0) {
+    return res.status(400).json({ error: 'dateISO, category and a positive amount are required' });
+  }
+  db.prepare('UPDATE ledger_entries SET date_iso = ?, type = ?, category = ?, amount = ?, note = ? WHERE id = ?')
+    .run(dateISO, type === 'income' ? 'income' : 'expense', category, amt, (note || '').trim(), req.params.id);
+  const row = db.prepare('SELECT * FROM ledger_entries WHERE id = ?').get(req.params.id);
+  res.json(serialize(row));
+});
+
 router.delete('/:id', (req, res) => {
   db.prepare('DELETE FROM ledger_entries WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
