@@ -331,6 +331,9 @@ export const useStore = create(
   },
 
   // ---- attachments (real image/file uploads via the chat "+" button) ----
+  attachmentMenuOpen: false,
+  toggleAttachmentMenu: () => set((s) => ({ attachmentMenuOpen: !s.attachmentMenuOpen })),
+  closeAttachmentMenu: () => set({ attachmentMenuOpen: false }),
   attachmentUploading: false,
   attachmentError: '',
   sendAttachment: async (file) => {

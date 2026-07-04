@@ -50,19 +50,16 @@
   pointer-events: none;
 }
 
-.phone__safe-top {
-  flex-shrink: 0;
-  height: max(env(safe-area-inset-top), 6px);
-  background: rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  position: relative;
-  z-index: 2;
-}
-
 /* ---------- header ---------- */
+/* Used to be two stacked siblings (a plain safe-area strip + the header
+   itself), each with its own independent backdrop-filter over the busy
+   background photo — blur is computed per-element, so two adjacent blurred
+   boxes over high-detail content can show a faint seam right at the shared
+   edge. Folding the safe-area inset into this element's own top padding
+   makes it one continuous blurred surface instead, with no boundary to
+   show a seam at. */
 .phone__header {
-  padding: 8px 20px 10px;
+  padding: calc(max(env(safe-area-inset-top), 6px) + 8px) 20px 10px;
   flex-shrink: 0;
   background: rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(20px);
@@ -414,6 +411,37 @@
   margin-bottom: 10px;
 }
 .model-switcher-cc--active { border-color: var(--color-accent); background: rgba(200, 137, 158, 0.1); font-weight: 600; }
+
+.attachment-menu-popover {
+  position: absolute;
+  z-index: 31;
+  left: 14px;
+  bottom: calc(100% + 8px);
+  display: flex;
+  gap: 10px;
+  background: var(--glass-solid);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: 0 10px 30px rgba(58, 50, 54, 0.18);
+  animation: fadeIn 0.15s ease;
+}
+.attachment-menu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  background: var(--glass-weak);
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-size: 12px;
+  color: var(--color-text);
+  min-width: 64px;
+}
 
 /* ---------- diary ---------- */
 .diary-scroll { flex: 1; overflow-y: auto; padding: 52px 20px 20px; }
@@ -1033,7 +1061,7 @@
 .bottom-nav {
   flex-shrink: 0;
   display: flex;
-  padding: 6px 8px max(env(safe-area-inset-bottom), 6px);
+  padding: 2px 8px max(env(safe-area-inset-bottom), 4px);
   background: var(--glass-soft);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -1046,8 +1074,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 6px 0;
+  gap: 2px;
+  padding: 2px 0;
   background: none;
   border: none;
 }

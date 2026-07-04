@@ -3,6 +3,7 @@ import { useStore } from '../state/store';
 import { attachmentUrl } from '../api/client';
 import { BowIcon, StarIcon, PlusIcon, RefreshIcon, ChevronDownIcon, PencilIcon, TrashIcon, FileIcon } from '../components/Icons';
 import ModelSwitcherPopover from '../components/ModelSwitcherPopover';
+import AttachmentMenuPopover from '../components/AttachmentMenuPopover';
 
 function formatFileSize(bytes) {
   if (!bytes && bytes !== 0) return '';
@@ -17,6 +18,9 @@ export default function ChatMode() {
   const chatDraft = useStore((s) => s.chatDraft);
   const onChatChange = useStore((s) => s.onChatChange);
   const sendChat = useStore((s) => s.sendChat);
+  const attachmentMenuOpen = useStore((s) => s.attachmentMenuOpen);
+  const toggleAttachmentMenu = useStore((s) => s.toggleAttachmentMenu);
+  const closeAttachmentMenu = useStore((s) => s.closeAttachmentMenu);
   const attachmentUploading = useStore((s) => s.attachmentUploading);
   const attachmentError = useStore((s) => s.attachmentError);
   const sendAttachment = useStore((s) => s.sendAttachment);
@@ -46,7 +50,8 @@ export default function ChatMode() {
   const confirmDeleteMessage = useStore((s) => s.confirmDeleteMessage);
 
   const listRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const docInputRef = useRef(null);
   useEffect(() => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -56,6 +61,14 @@ export default function ChatMode() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (file) sendAttachment(file);
+  };
+  const pickImage = () => {
+    closeAttachmentMenu();
+    imageInputRef.current?.click();
+  };
+  const pickFile = () => {
+    closeAttachmentMenu();
+    docInputRef.current?.click();
   };
 
   return (
@@ -207,6 +220,7 @@ export default function ChatMode() {
 
       <div className="chat__footer">
         {modelSwitcherOpen && <ModelSwitcherPopover />}
+        {attachmentMenuOpen && <AttachmentMenuPopover onPickImage={pickImage} onPickFile={pickFile} />}
         <div className="chat__stickers">
           <button
             className="sticker-btn"
@@ -233,13 +247,18 @@ export default function ChatMode() {
           <button
             className="sticker-btn"
             title="插入附件"
-            style={{ background: 'rgba(255,255,255,0.7)', opacity: attachmentUploading ? 0.5 : 1 }}
-            onClick={() => fileInputRef.current?.click()}
+            style={{
+              background: attachmentMenuOpen ? '#E8C4D4' : 'rgba(255,255,255,0.7)',
+              boxShadow: attachmentMenuOpen ? '0 0 0 3px rgba(200,137,158,0.3)' : 'none',
+              opacity: attachmentUploading ? 0.5 : 1,
+            }}
+            onClick={toggleAttachmentMenu}
             disabled={attachmentUploading}
           >
             <PlusIcon color="#C08BA0" width={14} height={14} />
           </button>
-          <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileChange} />
+          <input ref={imageInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
+          <input ref={docInputRef} type="file" style={{ display: 'none' }} onChange={handleFileChange} />
         </div>
         {attachmentError && (
           <div className="chat__attachment-error">

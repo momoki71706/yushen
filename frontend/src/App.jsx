@@ -61,7 +61,6 @@ function App() {
       <div className="phone">
         <div className="phone__bg" style={{ backgroundImage: 'url(/background.jpg)' }} />
         <div className="phone__noise" />
-        <div className="phone__safe-top" />
 
         <Header />
 
