@@ -83,28 +83,42 @@ function LedgerItemRow({ item, categoryColor, onEdit }) {
   );
 }
 
-function SubTabPill() {
+// Back button + 记账/预算 switcher, both still glass — but floating
+// (sticky) over the real scrollable content instead of sitting in their
+// own reserved row above it, so what shows through the glass (and around
+// it) is the actual ledger content scrolling underneath, not a blank
+// strip of the decorative background photo.
+function LedgerHeader({ onBack }) {
   const ledgerSubTab = useStore((s) => s.ledgerSubTab);
   const setLedgerSubTab = useStore((s) => s.setLedgerSubTab);
   return (
-    <div className="mode-pill mode-pill--hollow" style={{ margin: '0 0 14px' }}>
-      {[{ key: 'entries', label: '记账' }, { key: 'budget', label: '预算' }].map((t) => {
-        const active = ledgerSubTab === t.key;
-        return (
-          <button
-            key={t.key}
-            className="mode-pill__btn"
-            onClick={() => setLedgerSubTab(t.key)}
-            style={{
-              background: active ? '#fff' : 'transparent',
-              color: active ? '#5C4A54' : '#6B6268',
-              boxShadow: active ? '0 1px 4px rgba(58,50,54,0.1)' : 'none',
-            }}
-          >
-            {t.label}
+    <div className="ledger-floating-head">
+      <div className="manage-sub__head">
+        <div className="manage-sub__back-pill">
+          <button className="manage-sub__back-btn" onClick={onBack}>
+            <BackChevronIcon />
           </button>
-        );
-      })}
+        </div>
+      </div>
+      <div className="mode-pill" style={{ margin: '0 0 14px' }}>
+        {[{ key: 'entries', label: '记账' }, { key: 'budget', label: '预算' }].map((t) => {
+          const active = ledgerSubTab === t.key;
+          return (
+            <button
+              key={t.key}
+              className="mode-pill__btn"
+              onClick={() => setLedgerSubTab(t.key)}
+              style={{
+                background: active ? '#fff' : 'transparent',
+                color: active ? '#5C4A54' : '#6B6268',
+                boxShadow: active ? '0 1px 4px rgba(58,50,54,0.1)' : 'none',
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -115,19 +129,12 @@ export default function LedgerView() {
 
   return (
     <div className="manage-sub">
-      <div className="manage-sub__head">
-        <div className="manage-sub__back-pill manage-sub__back-pill--hollow">
-          <button className="manage-sub__back-btn manage-sub__back-btn--hollow" onClick={closeManageSubview}>
-            <BackChevronIcon />
-          </button>
-        </div>
-      </div>
-      {ledgerSubTab === 'budget' ? <BudgetSection /> : <EntriesSection />}
+      {ledgerSubTab === 'budget' ? <BudgetSection onBack={closeManageSubview} /> : <EntriesSection onBack={closeManageSubview} />}
     </div>
   );
 }
 
-function EntriesSection() {
+function EntriesSection({ onBack }) {
   const ledgerEntries = useStore((s) => s.ledgerEntries);
   const ledgerMonthOffset = useStore((s) => s.ledgerMonthOffset);
   const ledgerChartMode = useStore((s) => s.ledgerChartMode);
@@ -214,7 +221,7 @@ function EntriesSection() {
   return (
     <>
       <div className="manage-sub__body">
-        <SubTabPill />
+        <LedgerHeader onBack={onBack} />
         <div className="ledger-summary-card">
           <div className="ledger-month-nav">
             <button className="ledger-month-nav-btn" onClick={ledgerPrevMonth}>
@@ -469,7 +476,7 @@ function EntriesSection() {
   );
 }
 
-function BudgetSection() {
+function BudgetSection({ onBack }) {
   const ledgerBudgets = useStore((s) => s.ledgerBudgets);
   const ledgerBudgetMonth = useStore((s) => s.ledgerBudgetMonth);
   const ledgerEntries = useStore((s) => s.ledgerEntries);
@@ -507,7 +514,7 @@ function BudgetSection() {
 
   return (
     <div className="manage-sub__body">
-      <SubTabPill />
+      <LedgerHeader onBack={onBack} />
       <div className="ledger-summary-card">
         <div className="ledger-month-nav">
           <button className="ledger-month-nav-btn" onClick={() => shiftMonth(-1)}>
