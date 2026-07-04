@@ -55,8 +55,14 @@ function ensureTodayFireEpoch(bNow, todayISO) {
 }
 
 const insertTheirsDiary = db.prepare(
-  `INSERT INTO diary_entries (author, date_iso, date_label, mood, mood_color, weather, excerpt) VALUES ('them', ?, ?, ?, ?, ?, ?)`
+  `INSERT INTO diary_entries (author, date_iso, date_label, mood, mood_color, weather, excerpt, read_by_me) VALUES ('them', ?, ?, ?, ?, ?, ?, 0)`
 );
+
+async function notifyDiaryComment(commentText) {
+  if (pushConfigured && getSetting('diaryNotifyEnabled', '0') === '1') {
+    await sendPushToAll({ title: '屿深评论了日记', body: commentText.slice(0, 60) });
+  }
+}
 
 export async function maybeWriteDiary() {
   try {
@@ -85,7 +91,7 @@ export async function maybeWriteDiary() {
 }
 
 const insertReactionComment = db.prepare(
-  `INSERT INTO diary_comments (entry_id, author, text, time_label) VALUES (?, 'them', ?, ?)`
+  `INSERT INTO diary_comments (entry_id, author, text, time_label, read_by_me) VALUES (?, 'them', ?, ?, 0)`
 );
 const insertChatFollowUp = db.prepare(
   'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens) VALUES (?,?,?,?,?)'
@@ -110,6 +116,7 @@ export async function maybeReactToDiaries() {
         if (!reaction) continue;
         if (!classifyReplyForRetry(reaction.comment).bad) {
           insertReactionComment.run(entry.id, reaction.comment, formatBeijingClock());
+          await notifyDiaryComment(reaction.comment);
         }
         if (reaction.chatFollowUp && !classifyReplyForRetry(reaction.chatFollowUp).bad) {
           insertChatFollowUp.run('them', reaction.chatFollowUp, 'text', formatBeijingClock(), estimateTokens(reaction.chatFollowUp));
@@ -143,6 +150,7 @@ export async function maybeFulfillDiaryReviewRequests() {
         if (!result) continue;
         if (!classifyReplyForRetry(result.comment).bad) {
           insertReactionComment.run(entry.id, result.comment, formatBeijingClock());
+          await notifyDiaryComment(result.comment);
         }
         if (result.chatFeedback && !classifyReplyForRetry(result.chatFeedback).bad) {
           insertChatFollowUp.run('them', result.chatFeedback, 'text', formatBeijingClock(), estimateTokens(result.chatFeedback));

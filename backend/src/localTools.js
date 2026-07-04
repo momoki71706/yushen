@@ -76,14 +76,14 @@ function readDiary(count) {
     .join('\n\n');
 }
 
-// 1-5 minutes — short enough to feel like "went and actually looked",
+// 1-2 minutes — short enough to feel like "went and actually looked",
 // unlike the up-to-30-minute delay used for entries he wasn't asked about.
 function queueDiaryReview(entryId) {
   const entry = entryId
     ? db.prepare('SELECT * FROM diary_entries WHERE id = ?').get(entryId)
     : db.prepare('SELECT * FROM diary_entries ORDER BY id DESC LIMIT 1').get();
   if (!entry) return '没有找到日记，跟她确认一下是不是记错了。';
-  const fireAt = new Date(Date.now() + (1 + Math.random() * 4) * 60 * 1000).toISOString();
+  const fireAt = new Date(Date.now() + (1 + Math.random()) * 60 * 1000).toISOString();
   db.prepare('INSERT INTO diary_review_requests (entry_id, fire_at) VALUES (?, ?)').run(entry.id, fireAt);
   return '已经记下了，一会儿会去看看再留言，看完也会回来跟她说一句——这条回复只需要简短回应一下，比如"这就去看"，不要自己编评论内容。';
 }

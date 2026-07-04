@@ -7,6 +7,7 @@ import Header from './components/Header';
 import BottomNav from './components/BottomNav';
 import Sidebar from './components/Sidebar';
 import LetterReminder from './components/LetterReminder';
+import DiaryReminder from './components/DiaryReminder';
 import AiSettingsPanel from './components/AiSettingsPanel';
 import McpPanel from './components/McpPanel';
 import PresetPanel from './components/PresetPanel';
@@ -79,6 +80,7 @@ function App() {
 
         <Sidebar />
         <LetterReminder />
+        <DiaryReminder />
         <AiSettingsPanel />
         <McpPanel />
         <PresetPanel />

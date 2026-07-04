@@ -200,6 +200,7 @@ function DiaryList() {
               style={{ marginLeft: offset, transform: `rotate(${rotate})` }}
               onClick={() => openDiaryDetail(entry.id, containerRef.current?.scrollTop)}
             >
+              {entry.hasUnread && <div className="diary-entry-unread-dot" />}
               <div className="diary-entry-head">
                 {entry.author === 'them' && <div className="diary-entry-author">对方</div>}
                 <div className="diary-mood-dot" style={{ background: entry.moodColor }} />

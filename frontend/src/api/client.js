@@ -51,6 +51,8 @@ export const api = {
   regenerateDiaryEntry: (id) => request(`/diary/${id}/regenerate`, { method: 'POST' }),
   getDiaryComments: (id) => request(`/diary/${id}/comments`),
   addDiaryComment: (id, text) => request(`/diary/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
+  markDiaryEntryRead: (id) => request(`/diary/${id}/read`, { method: 'PATCH' }),
+  getDiaryUnreadSummary: () => request('/diary/unread-summary'),
 
   getLetters: () => request('/letters'),
   createLetter: (payload) =>

@@ -170,6 +170,12 @@ ensureColumn('letters', 'exported', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('diary_entries', 'author', "TEXT NOT NULL DEFAULT 'me'");
 ensureColumn('diary_entries', 'reacted', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('diary_entries', 'react_at', 'TEXT');
+// Defaults to 1 (read) here specifically so this migration doesn't
+// retroactively mark every pre-existing entry/comment as unread — new rows
+// going forward explicitly set 0 or 1 per-author at insert time instead of
+// relying on this table-level default.
+ensureColumn('diary_entries', 'read_by_me', 'INTEGER NOT NULL DEFAULT 1');
+ensureColumn('diary_comments', 'read_by_me', 'INTEGER NOT NULL DEFAULT 1');
 
 // The very first release seeded 4 placeholder diary entries so the page
 // wasn't empty on first launch — now that real entries from both sides

@@ -151,6 +151,15 @@ export function EnvelopeBigIcon() {
   );
 }
 
+export function DiaryBigIcon() {
+  return (
+    <svg width="22" height="24" viewBox="0 0 22 24" fill="none">
+      <rect x="1" y="1" width="20" height="22" rx="3" fill="#F1E0E8" />
+      <path d="M6 6h10M6 11h10M6 16h6" stroke="#C08BA0" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function CloseIcon() {
   return (
     <svg width="11" height="11" viewBox="0 0 11 11" fill="none">

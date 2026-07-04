@@ -65,7 +65,7 @@ export default function PushSettingsPanel() {
 
         <div className="watch-card" style={{ margin: '0 0 14px' }}>
           <div className="screen-threshold-head">
-            <div className="watch-card-title" style={{ marginBottom: 0 }}>他写日记了要通知我</div>
+            <div className="watch-card-title" style={{ marginBottom: 0 }}>日记有新动态要通知我</div>
             <button
               className="toggle-switch"
               style={{ background: diaryNotifyEnabled ? '#C8899E' : '#DCD4D8', opacity: diaryNotifyBusy ? 0.6 : 1 }}
@@ -75,7 +75,7 @@ export default function PushSettingsPanel() {
               <div className="toggle-switch__knob" style={{ left: diaryNotifyEnabled ? 20 : 2 }} />
             </button>
           </div>
-          <div className="screen-threshold-sub">开启后，他每天写完日记会给你发一条推送</div>
+          <div className="screen-threshold-sub">开启后，他写日记或者评论了日记都会给你发一条推送</div>
         </div>
 
         <div className="watch-card" style={{ margin: 0 }}>

@@ -20,6 +20,7 @@ function serialize(row) {
     tag: row.tag,
     excerpt: row.excerpt,
     hasAttachment: !!row.has_attachment,
+    hasUnread: !!row.has_unread,
   };
 }
 
@@ -31,9 +32,25 @@ function diaryDateLabel(bNow) {
   return `${bNow.getUTCMonth() + 1}月${bNow.getUTCDate()}日 · ${weekdayLabel(bNow)}`;
 }
 
+const LIST_QUERY = `
+  SELECT e.*,
+    CASE WHEN (e.author = 'them' AND e.read_by_me = 0)
+           OR EXISTS(SELECT 1 FROM diary_comments c WHERE c.entry_id = e.id AND c.author = 'them' AND c.read_by_me = 0)
+         THEN 1 ELSE 0 END AS has_unread
+  FROM diary_entries e
+`;
+
 router.get('/', (req, res) => {
-  const rows = db.prepare('SELECT * FROM diary_entries ORDER BY id DESC').all();
+  const rows = db.prepare(`${LIST_QUERY} ORDER BY e.id DESC`).all();
   res.json(rows.map(serialize));
+});
+
+// Used by the app-open reminder popup and the 日记通知 push — counts
+// content authored by him that you haven't actually opened yet.
+router.get('/unread-summary', (req, res) => {
+  const unreadEntries = db.prepare("SELECT COUNT(*) c FROM diary_entries WHERE author = 'them' AND read_by_me = 0").get().c;
+  const unreadComments = db.prepare("SELECT COUNT(*) c FROM diary_comments WHERE author = 'them' AND read_by_me = 0").get().c;
+  res.json({ unreadEntries, unreadComments });
 });
 
 router.post('/', (req, res) => {
@@ -48,13 +65,22 @@ router.post('/', (req, res) => {
 
   const info = db
     .prepare(
-      `INSERT INTO diary_entries (author, date_iso, date_label, mood, mood_color, weather, tag, excerpt, has_attachment, reacted, react_at)
-       VALUES ('me',?,?,?,?,?,?,?,?,0,?)`
+      `INSERT INTO diary_entries (author, date_iso, date_label, mood, mood_color, weather, tag, excerpt, has_attachment, reacted, react_at, read_by_me)
+       VALUES ('me',?,?,?,?,?,?,?,?,0,?,1)`
     )
     .run(dateISO, diaryDateLabel(bNow), resolvedMood, moodColorFor(resolvedMood), weather || '晴', tag || null, trimmed, hasAttachment ? 1 : 0, reactAt);
 
-  const row = db.prepare('SELECT * FROM diary_entries WHERE id = ?').get(info.lastInsertRowid);
+  const row = db.prepare(`${LIST_QUERY} WHERE e.id = ?`).get(info.lastInsertRowid);
   res.json(serialize(row));
+});
+
+// Marks an entry (and its whole comment thread) as read — called when you
+// actually open its detail page.
+router.patch('/:id/read', (req, res) => {
+  const id = Number(req.params.id);
+  db.prepare('UPDATE diary_entries SET read_by_me = 1 WHERE id = ?').run(id);
+  db.prepare('UPDATE diary_comments SET read_by_me = 1 WHERE entry_id = ?').run(id);
+  res.json({ ok: true });
 });
 
 router.delete('/:id', (req, res) => {
@@ -70,7 +96,10 @@ router.get('/:id/comments', (req, res) => {
 
 // Adds your comment, then generates the AI's reply comment in the same
 // round-trip — same pattern as posting a chat message and getting a reply
-// back together, just scoped to this one diary entry's thread.
+// back together, just scoped to this one diary entry's thread. Both sides
+// of this exchange are marked read immediately: you wrote one and are
+// looking straight at the other, unlike the comments background jobs
+// leave while you're not on this page.
 router.post('/:id/comments', async (req, res) => {
   const entryId = Number(req.params.id);
   const entry = db.prepare('SELECT * FROM diary_entries WHERE id = ?').get(entryId);
@@ -80,7 +109,7 @@ router.post('/:id/comments', async (req, res) => {
   if (!trimmed) return res.status(400).json({ error: 'text is required' });
 
   const mineInfo = db
-    .prepare('INSERT INTO diary_comments (entry_id, author, text, time_label) VALUES (?, ?, ?, ?)')
+    .prepare('INSERT INTO diary_comments (entry_id, author, text, time_label, read_by_me) VALUES (?, ?, ?, ?, 1)')
     .run(entryId, 'me', trimmed, formatBeijingClock());
   const mine = db.prepare('SELECT * FROM diary_comments WHERE id = ?').get(mineInfo.lastInsertRowid);
 
@@ -90,7 +119,7 @@ router.post('/:id/comments', async (req, res) => {
     return res.json({ mine: serializeComment(mine), reply: null });
   }
   const theirsInfo = db
-    .prepare('INSERT INTO diary_comments (entry_id, author, text, time_label) VALUES (?, ?, ?, ?)')
+    .prepare('INSERT INTO diary_comments (entry_id, author, text, time_label, read_by_me) VALUES (?, ?, ?, ?, 1)')
     .run(entryId, 'them', replyText, formatBeijingClock());
   const theirs = db.prepare('SELECT * FROM diary_comments WHERE id = ?').get(theirsInfo.lastInsertRowid);
   res.json({ mine: serializeComment(mine), reply: serializeComment(theirs) });
@@ -108,7 +137,9 @@ router.post('/:id/regenerate', async (req, res) => {
   const written = await writeDiaryEntry();
   if (!written) return res.status(400).json({ error: '还没有配置好的 AI 供应商' });
 
-  db.prepare('UPDATE diary_entries SET mood = ?, mood_color = ?, weather = ?, excerpt = ? WHERE id = ?').run(
+  // Genuinely new content — reset read_by_me so it shows as unread again,
+  // same as any other freshly written entry.
+  db.prepare('UPDATE diary_entries SET mood = ?, mood_color = ?, weather = ?, excerpt = ?, read_by_me = 0 WHERE id = ?').run(
     written.mood,
     moodColorFor(written.mood),
     written.weather,
@@ -117,7 +148,7 @@ router.post('/:id/regenerate', async (req, res) => {
   );
   db.prepare('DELETE FROM diary_comments WHERE entry_id = ?').run(id);
 
-  const updated = db.prepare('SELECT * FROM diary_entries WHERE id = ?').get(id);
+  const updated = db.prepare(`${LIST_QUERY} WHERE e.id = ?`).get(id);
   res.json(serialize(updated));
 });
 

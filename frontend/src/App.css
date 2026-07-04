@@ -691,6 +691,7 @@
 }
 
 .diary-entry-card {
+  position: relative;
   background: var(--glass-strong);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -700,6 +701,16 @@
   margin-bottom: 22px;
   box-shadow: 0 1px 2px rgba(58, 50, 54, 0.06), 0 8px 16px rgba(58, 50, 54, 0.07);
   cursor: pointer;
+}
+.diary-entry-unread-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #C8899E;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.7);
 }
 .diary-entry-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .diary-mood-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }

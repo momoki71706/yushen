@@ -614,6 +614,10 @@ export const useStore = create(
   openDiaryDetail: (id, scrollTop) => {
     set({ diaryView: 'detail', diaryDetailId: id, diaryListScrollTop: scrollTop || 0, diaryComments: [] });
     get().loadDiaryComments(id);
+    // Optimistically clear the unread dot now rather than waiting on the
+    // network call — she's looking at it either way.
+    set((s) => ({ diaryEntries: s.diaryEntries.map((e) => (e.id === id ? { ...e, hasUnread: false } : e)) }));
+    api.markDiaryEntryRead(id).catch(() => {});
   },
   closeDiaryDetail: () => set({ diaryView: 'list', diaryDetailId: null }),
   deleteDiaryEntry: async (id) => {
@@ -666,6 +670,24 @@ export const useStore = create(
       set((s) => ({ diaryRegeneratingIds: s.diaryRegeneratingIds.filter((x) => x !== id) }));
     }
   },
+
+  // ---- diary reminder popup (shown on app open if there's unread diary content) ----
+  showDiaryReminder: false,
+  diaryUnreadEntries: 0,
+  diaryUnreadComments: 0,
+  checkDiaryReminder: async () => {
+    try {
+      const { unreadEntries, unreadComments } = await api.getDiaryUnreadSummary();
+      if (unreadEntries > 0 || unreadComments > 0) {
+        set({ showDiaryReminder: true, diaryUnreadEntries: unreadEntries, diaryUnreadComments: unreadComments });
+      }
+    } catch {
+      // backend not reachable yet — just skip the reminder this time
+    }
+  },
+  dismissDiaryReminder: () => set({ showDiaryReminder: false }),
+  viewDiaryReminder: () =>
+    set({ showDiaryReminder: false, activeTab: 'home', homeMode: 'diary', diaryView: 'list' }),
 
   // ---- letters ----
   letters: [],
@@ -1037,6 +1059,7 @@ export const useStore = create(
       get().loadHabits(),
     ]);
     get().checkLetterReminder();
+    get().checkDiaryReminder();
     api.getAiMode().then((s) => set({ mcpToolsEnabled: !!s.mcpToolsEnabled })).catch(() => {});
     get().loadPushSettings();
   },
