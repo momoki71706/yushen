@@ -933,7 +933,14 @@
 }
 .diary-comment-send:disabled { opacity: 0.5; }
 
-.diary-detail__footer { flex-shrink: 0; padding: 12px 20px 20px; }
+.diary-detail__footer {
+  flex-shrink: 0;
+  padding: 12px 20px 20px;
+  background: var(--glass-strong);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--glass-border);
+}
 .diary-delete-btn {
   width: 100%;
   border: 1px solid var(--glass-border);
