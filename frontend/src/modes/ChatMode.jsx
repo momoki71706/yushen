@@ -1,7 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
-import { BowIcon, StarIcon, PlusIcon, RefreshIcon, ChevronDownIcon, PencilIcon, TrashIcon } from '../components/Icons';
+import { attachmentUrl } from '../api/client';
+import { BowIcon, StarIcon, PlusIcon, RefreshIcon, ChevronDownIcon, PencilIcon, TrashIcon, FileIcon } from '../components/Icons';
 import ModelSwitcherPopover from '../components/ModelSwitcherPopover';
+
+function formatFileSize(bytes) {
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default function ChatMode() {
   const messages = useStore((s) => s.messages);
@@ -9,7 +17,13 @@ export default function ChatMode() {
   const chatDraft = useStore((s) => s.chatDraft);
   const onChatChange = useStore((s) => s.onChatChange);
   const sendChat = useStore((s) => s.sendChat);
-  const sendPhotoSticker = useStore((s) => s.sendPhotoSticker);
+  const attachmentUploading = useStore((s) => s.attachmentUploading);
+  const attachmentError = useStore((s) => s.attachmentError);
+  const sendAttachment = useStore((s) => s.sendAttachment);
+  const clearAttachmentError = useStore((s) => s.clearAttachmentError);
+  const imageViewerUrl = useStore((s) => s.imageViewerUrl);
+  const openImageViewer = useStore((s) => s.openImageViewer);
+  const closeImageViewer = useStore((s) => s.closeImageViewer);
   const mcpToolsEnabled = useStore((s) => s.mcpToolsEnabled);
   const toggleMcpToolsQuick = useStore((s) => s.toggleMcpToolsQuick);
   const modelSwitcherOpen = useStore((s) => s.modelSwitcherOpen);
@@ -32,10 +46,17 @@ export default function ChatMode() {
   const confirmDeleteMessage = useStore((s) => s.confirmDeleteMessage);
 
   const listRef = useRef(null);
+  const fileInputRef = useRef(null);
   useEffect(() => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, isReplying]);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) sendAttachment(file);
+  };
 
   return (
     <div className="chat">
@@ -49,7 +70,7 @@ export default function ChatMode() {
           const isRoundBusy = mine && regeneratingRoundIds.includes(msg.id);
           const isEditing = mine && editingMessageId === msg.id;
           const next = messages[i + 1];
-          const canRegenerateRound = mine && msg.kind !== 'photo' && (!next || next.from === 'them');
+          const canRegenerateRound = mine && msg.kind === 'text' && (!next || next.from === 'them');
           const isDeleteConfirming = deleteConfirmMessageId === msg.id;
           return (
             <div key={msg.id} className="chat__row" style={{ justifyContent: mine ? 'flex-end' : 'flex-start' }}>
@@ -76,6 +97,26 @@ export default function ChatMode() {
                     </svg>
                     <div className="chat__photo-label">{msg.text}</div>
                   </div>
+                ) : msg.kind === 'image' ? (
+                  <button className="chat__image-bubble" onClick={() => openImageViewer(attachmentUrl(msg.attachment.url))}>
+                    <img src={attachmentUrl(msg.attachment.url)} alt={msg.attachment.name || '图片'} />
+                  </button>
+                ) : msg.kind === 'file' ? (
+                  <a
+                    className="chat__file-bubble"
+                    href={attachmentUrl(msg.attachment.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={msg.attachment.name}
+                  >
+                    <div className="chat__file-icon">
+                      <FileIcon />
+                    </div>
+                    <div className="chat__file-info">
+                      <div className="chat__file-name">{msg.attachment.name || '文件'}</div>
+                      <div className="chat__file-size">{formatFileSize(msg.attachment.size)}</div>
+                    </div>
+                  </a>
                 ) : (
                   <div
                     className="chat__bubble"
@@ -100,7 +141,7 @@ export default function ChatMode() {
                       <>
                         <div className="chat__time">{timeLabel}</div>
                         <div className="chat__msg-actions">
-                          {!mine && msg.kind !== 'photo' && (
+                          {!mine && msg.kind === 'text' && (
                             <>
                               <button
                                 className="chat__msg-action-btn"
@@ -189,10 +230,23 @@ export default function ChatMode() {
           >
             <StarIcon />
           </button>
-          <button className="sticker-btn" style={{ background: 'rgba(255,255,255,0.7)' }} onClick={sendPhotoSticker}>
+          <button
+            className="sticker-btn"
+            title="插入附件"
+            style={{ background: 'rgba(255,255,255,0.7)', opacity: attachmentUploading ? 0.5 : 1 }}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={attachmentUploading}
+          >
             <PlusIcon color="#C08BA0" width={14} height={14} />
           </button>
+          <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileChange} />
         </div>
+        {attachmentError && (
+          <div className="chat__attachment-error">
+            {attachmentError}
+            <button className="chat__attachment-error-close" onClick={clearAttachmentError}>×</button>
+          </div>
+        )}
         <div className="chat__input-row">
           <input
             className="chat__input"
@@ -208,6 +262,12 @@ export default function ChatMode() {
           </button>
         </div>
       </div>
+
+      {imageViewerUrl && (
+        <div className="image-viewer-overlay" onClick={closeImageViewer}>
+          <img src={imageViewerUrl} alt="" className="image-viewer-img" />
+        </div>
+      )}
     </div>
   );
 }

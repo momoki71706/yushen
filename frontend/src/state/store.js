@@ -308,13 +308,13 @@ export const useStore = create(
     set({ messages });
   },
   onChatChange: (value) => set({ chatDraft: value }),
-  pushMessage: async (text, kind = 'text') => {
+  pushMessage: async (text, kind = 'text', attachment = null) => {
     set((s) => ({
-      messages: [...s.messages, { id: `pending-${Date.now()}`, from: 'me', text, kind, time: '' }],
+      messages: [...s.messages, { id: `pending-${Date.now()}`, from: 'me', text, kind, attachment, time: '' }],
       isReplying: true,
     }));
     try {
-      const { mine, reply } = await api.sendMessage(text, kind);
+      const { mine, reply } = await api.sendMessage(text, kind, attachment);
       set((s) => ({
         messages: [...s.messages.filter((m) => !String(m.id).startsWith('pending-')), mine, reply],
         isReplying: false,
@@ -329,7 +329,29 @@ export const useStore = create(
     set({ chatDraft: '' });
     get().pushMessage(text, 'text');
   },
-  sendPhotoSticker: () => get().pushMessage('分享了一张此刻的照片', 'photo'),
+
+  // ---- attachments (real image/file uploads via the chat "+" button) ----
+  attachmentUploading: false,
+  attachmentError: '',
+  sendAttachment: async (file) => {
+    if (!file) return;
+    set({ attachmentUploading: true, attachmentError: '' });
+    try {
+      const uploaded = await api.uploadAttachment(file);
+      const kind = (file.type || '').startsWith('image/') ? 'image' : 'file';
+      await get().pushMessage('', kind, uploaded);
+    } catch (err) {
+      set({ attachmentError: err.message });
+    } finally {
+      set({ attachmentUploading: false });
+    }
+  },
+  clearAttachmentError: () => set({ attachmentError: '' }),
+
+  // ---- image viewer (tap an image bubble to view full-size) ----
+  imageViewerUrl: null,
+  openImageViewer: (url) => set({ imageViewerUrl: url }),
+  closeImageViewer: () => set({ imageViewerUrl: null }),
 
   // ---- regenerate + thinking chain (per AI bubble) ----
   regeneratingIds: [],

@@ -9,6 +9,7 @@ import pushRouter from './routes/push.js';
 import exportRouter from './routes/export.js';
 import ledgerRouter from './routes/ledger.js';
 import habitsRouter from './routes/habits.js';
+import uploadRouter, { UPLOAD_DIR } from './routes/upload.js';
 import { startProactiveScheduler } from './proactive.js';
 import { startScheduledMessageChecker } from './scheduledMessages.js';
 import { startMemoryScheduler } from './memoryScheduler.js';
@@ -16,6 +17,8 @@ import { startMemoryScheduler } from './memoryScheduler.js';
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+app.use('/uploads', express.static(UPLOAD_DIR));
 
 app.use('/api/chat', chatRouter);
 app.use('/api/diary', diaryRouter);
@@ -25,6 +28,7 @@ app.use('/api/push', pushRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/ledger', ledgerRouter);
 app.use('/api/habits', habitsRouter);
+app.use('/api/upload', uploadRouter);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 

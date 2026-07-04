@@ -170,6 +170,16 @@ export function TrashIcon({ color = '#8C6A72', width = 14, height = 14 }) {
   );
 }
 
+export function FileIcon({ color = '#C08BA0', width = 18, height = 18 }) {
+  return (
+    <svg width={width} height={height} viewBox="0 0 16 16" fill="none">
+      <path d="M3 1.5H10L13 4.5V14.5H3V1.5Z" stroke={color} strokeWidth="1.3" strokeLinejoin="round" fill="none" />
+      <path d="M10 1.5V4.5H13" stroke={color} strokeWidth="1.3" strokeLinejoin="round" fill="none" />
+      <path d="M5.5 8H10.5M5.5 10.5H10.5" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function ChevronRightIcon({ color = '#9B939A' }) {
   return (
     <svg width="7" height="12" viewBox="0 0 7 12" fill="none">

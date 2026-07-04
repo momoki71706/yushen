@@ -4,6 +4,7 @@ import { getYushenReply } from '../aiReply.js';
 import { maybeCompressChatHistory } from '../compression.js';
 import { formatBeijingClock } from '../time.js';
 import { getContextMessageLimit } from '../contextSettings.js';
+import { describeForHistory } from '../chatHistory.js';
 
 const router = Router();
 
@@ -16,6 +17,9 @@ function serializeMessage(row) {
     time: row.time_label,
     tokens: row.tokens,
     thinking: row.thinking || null,
+    attachment: row.attachment_url
+      ? { url: row.attachment_url, name: row.attachment_name, mime: row.attachment_mime, size: row.attachment_size }
+      : null,
   };
 }
 
@@ -33,20 +37,31 @@ function recentHistory(beforeId, { inclusive = false } = {}) {
   const limit = getContextMessageLimit();
   const rows = beforeId
     ? db
-        .prepare(`SELECT from_who, text FROM chat_messages WHERE id ${inclusive ? '<=' : '<'} ? ORDER BY id DESC LIMIT ?`)
+        .prepare(`SELECT from_who, text, kind, attachment_name FROM chat_messages WHERE id ${inclusive ? '<=' : '<'} ? ORDER BY id DESC LIMIT ?`)
         .all(beforeId, limit)
-    : db.prepare('SELECT from_who, text FROM chat_messages ORDER BY id DESC LIMIT ?').all(limit);
-  return rows.reverse().map((r) => ({ from: r.from_who, text: r.text }));
+    : db.prepare('SELECT from_who, text, kind, attachment_name FROM chat_messages ORDER BY id DESC LIMIT ?').all(limit);
+  return rows.reverse().map((r) => ({ from: r.from_who, text: describeForHistory(r) }));
 }
 
 router.post('/', async (req, res) => {
-  const { text, kind } = req.body;
-  if (!text || !String(text).trim()) return res.status(400).json({ error: 'text is required' });
+  const { text, kind, attachment } = req.body;
+  const isAttachment = kind === 'image' || kind === 'file';
+  if (!isAttachment && (!text || !String(text).trim())) return res.status(400).json({ error: 'text is required' });
+  if (isAttachment && !attachment?.url) return res.status(400).json({ error: 'attachment is required' });
 
   const insertMine = db.prepare(
-    'INSERT INTO chat_messages (from_who, text, kind, time_label) VALUES (?,?,?,?)'
+    'INSERT INTO chat_messages (from_who, text, kind, time_label, attachment_url, attachment_name, attachment_mime, attachment_size) VALUES (?,?,?,?,?,?,?,?)'
   );
-  const mineInfo = insertMine.run('me', text, kind || 'text', formatBeijingClock());
+  const mineInfo = insertMine.run(
+    'me',
+    text || '',
+    kind || 'text',
+    formatBeijingClock(),
+    isAttachment ? attachment.url : null,
+    isAttachment ? attachment.name || null : null,
+    isAttachment ? attachment.mime || null : null,
+    isAttachment ? attachment.size || null : null
+  );
   const mine = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(mineInfo.lastInsertRowid);
 
   const reply = await getYushenReply(recentHistory());

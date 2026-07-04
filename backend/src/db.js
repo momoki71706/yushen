@@ -134,6 +134,10 @@ function ensureColumn(table, column, definition) {
   }
 }
 ensureColumn('chat_messages', 'thinking', 'TEXT');
+ensureColumn('chat_messages', 'attachment_url', 'TEXT');
+ensureColumn('chat_messages', 'attachment_name', 'TEXT');
+ensureColumn('chat_messages', 'attachment_mime', 'TEXT');
+ensureColumn('chat_messages', 'attachment_size', 'INTEGER');
 ensureColumn('letters', 'exported', 'INTEGER NOT NULL DEFAULT 0');
 
 function seedIfEmpty() {

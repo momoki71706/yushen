@@ -1,4 +1,12 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+const ORIGIN = BASE_URL.replace(/\/api\/?$/, '');
+
+// Attachment URLs come back from the backend as paths relative to the
+// server (e.g. "/uploads/xxx.png"), not the "/api"-suffixed base — this
+// resolves one to an actual loadable URL.
+export function attachmentUrl(path) {
+  return `${ORIGIN}${path}`;
+}
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -14,8 +22,18 @@ async function request(path, options = {}) {
 
 export const api = {
   getMessages: () => request('/chat'),
-  sendMessage: (text, kind = 'text') =>
-    request('/chat', { method: 'POST', body: JSON.stringify({ text, kind }) }),
+  sendMessage: (text, kind = 'text', attachment = null) =>
+    request('/chat', { method: 'POST', body: JSON.stringify({ text, kind, attachment }) }),
+  uploadAttachment: async (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${BASE_URL}/upload`, { method: 'POST', body: form });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `Request failed: ${res.status}`);
+    }
+    return res.json();
+  },
   clearChat: () => request('/chat', { method: 'DELETE' }),
   regenerateMessage: (id) => request(`/chat/${id}/regenerate`, { method: 'POST' }),
   editChatMessage: (id, text) => request(`/chat/${id}`, { method: 'PATCH', body: JSON.stringify({ text }) }),

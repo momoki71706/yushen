@@ -216,6 +216,58 @@
   box-shadow: 0 1px 3px rgba(58, 50, 54, 0.08);
 }
 .chat__photo-label { font-size: 12px; color: var(--color-accent-strong); font-weight: 600; }
+.chat__image-bubble {
+  padding: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  overflow: hidden;
+  max-width: 200px;
+  box-shadow: var(--shadow-soft);
+  display: block;
+}
+.chat__image-bubble img { display: block; width: 100%; max-height: 260px; object-fit: cover; }
+.chat__file-bubble {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: var(--glass-mid);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-soft);
+  max-width: 220px;
+  text-decoration: none;
+}
+.chat__file-icon { width: 32px; height: 32px; border-radius: 9px; background: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.chat__file-info { min-width: 0; }
+.chat__file-name { font-size: 13px; font-weight: 600; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat__file-size { font-size: 11px; color: var(--color-text-faint); margin-top: 2px; }
+.chat__attachment-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: #B4645E;
+  background: rgba(196, 100, 94, 0.08);
+  border-radius: 10px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+}
+.chat__attachment-error-close { border: none; background: none; color: #B4645E; font-size: 15px; line-height: 1; padding: 0 2px; flex-shrink: 0; }
+.image-viewer-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: rgba(20, 16, 18, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.image-viewer-img { max-width: 100%; max-height: 100%; border-radius: 8px; }
 .chat__time-row { display: flex; align-items: center; gap: 6px; margin-top: 3px; padding: 0 4px; }
 .chat__time { font-size: 11px; color: var(--color-text-faint); }
 .chat__msg-actions { display: flex; align-items: center; gap: 4px; }
