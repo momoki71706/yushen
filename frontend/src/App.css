@@ -2054,3 +2054,44 @@
   color: var(--color-text-soft);
   white-space: nowrap;
 }
+
+/* ---------- generic simple list/summary (calendar + play rough features) ---------- */
+.simple-summary-card {
+  background: var(--glass-strong);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 18px 16px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+.simple-summary-value { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 26px; color: var(--color-text); }
+.simple-summary-label { font-size: 12px; color: var(--color-text-faint); margin-top: 4px; }
+.simple-summary-sub { font-size: 12.5px; color: var(--color-text-soft); margin-top: 8px; }
+
+.simple-list-card { background: rgba(255,255,255,0.35); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--glass-border); border-radius: 14px; overflow: hidden; margin-bottom: 12px; }
+.simple-list-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid rgba(58,50,54,0.06); background: #FAF6F8; }
+.simple-list-row:last-child { border-bottom: none; }
+.simple-list-row--tappable { cursor: pointer; }
+.simple-list-body { flex: 1; min-width: 0; }
+.simple-list-title { font-size: 14px; color: var(--color-text); font-weight: 500; }
+.simple-list-meta { font-size: 11.5px; color: var(--color-text-faint); margin-top: 2px; }
+.simple-list-delete { border: none; background: transparent; flex-shrink: 0; padding: 4px; }
+
+.countdown-badge { width: 46px; height: 46px; border-radius: 12px; background: #F6E2E8; display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; }
+.countdown-badge-num { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 15px; color: #B87A90; line-height: 1; }
+.countdown-badge-unit { font-size: 9px; color: #B87A90; margin-top: 1px; }
+
+.milestone-row { display: flex; gap: 12px; padding: 4px; }
+.milestone-dot-col { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; width: 10px; }
+.milestone-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--color-accent); flex-shrink: 0; margin-top: 5px; }
+.milestone-line { flex: 1; width: 1.5px; background: rgba(200,137,158,0.3); margin-top: 3px; }
+.milestone-body { flex: 1; min-width: 0; padding-bottom: 16px; }
+.milestone-date { font-size: 11px; color: var(--color-text-faint); }
+.milestone-title { font-size: 14px; color: var(--color-text); font-weight: 500; margin-top: 2px; }
+.milestone-note { font-size: 12.5px; color: var(--color-text-soft); margin-top: 3px; }
+.milestone-delete { position: absolute; top: 0; right: 4px; border: none; background: transparent; }
+
+.book-status-tag { font-size: 11px; padding: 3px 9px; border-radius: 999px; background: #F6E2E8; color: #B87A90; flex-shrink: 0; }
+.english-meaning { font-size: 12.5px; color: var(--color-text-soft); margin-top: 3px; }

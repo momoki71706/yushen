@@ -20,11 +20,12 @@ import MemoryToast from './components/MemoryToast';
 import FavoritesOverlay from './components/FavoritesOverlay';
 import FavoriteTitlePrompt from './components/FavoriteTitlePrompt';
 import ModePill from './components/ModePill';
-import PlaceholderTab from './components/PlaceholderTab';
 import ChatMode from './modes/ChatMode';
 import DiaryMode from './modes/DiaryMode';
 import LetterMode from './modes/LetterMode';
 import ManageMode from './modes/manage/ManageMode';
+import CalendarMode from './modes/calendar/CalendarMode';
+import PlayMode from './modes/play/PlayMode';
 
 function App() {
   const init = useStore((s) => s.init);
@@ -85,8 +86,8 @@ function App() {
           {isHome && homeMode === 'diary' && <DiaryMode />}
           {isHome && homeMode === 'letter' && <LetterMode />}
           {activeTab === 'manage' && <ManageMode />}
-          {activeTab === 'calendar' && <PlaceholderTab tab="calendar" />}
-          {activeTab === 'play' && <PlaceholderTab tab="play" />}
+          {activeTab === 'calendar' && <CalendarMode />}
+          {activeTab === 'play' && <PlayMode />}
         </div>
 
         <BottomNav />

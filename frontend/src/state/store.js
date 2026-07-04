@@ -1559,6 +1559,108 @@ export const useStore = create(
     }
   },
 
+  // ---- calendar: period / intimacy / exercise / countdown / milestones ----
+  // First-pass rough features per the placeholder-tab spec — local-only
+  // (no backend table yet), same shape as habits' add-sheet pattern.
+  calendarView: 'home', // 'home' | 'period' | 'intimacy' | 'exercise' | 'countdown' | 'milestone'
+  openCalendarView: (view) => set({ calendarView: view }),
+  closeCalendarSubview: () => set({ calendarView: 'home' }),
+
+  periodLogs: [], // [{ id, date }]
+  intimacyLogs: [], // [{ id, date, note }]
+  exerciseLogs: [], // [{ id, date, type, minutes }]
+  countdowns: [], // [{ id, title, date }]
+  milestones: [], // [{ id, date, title, note }]
+
+  calendarAddOpen: null, // null | 'period' | 'intimacy' | 'exercise' | 'countdown' | 'milestone'
+  calendarDraft: { date: '', title: '', note: '', type: '', minutes: '' },
+  openCalendarAdd: (kind) =>
+    set({ calendarAddOpen: kind, calendarDraft: { date: todayISOLocal(), title: '', note: '', type: '', minutes: '' } }),
+  closeCalendarAdd: () => set({ calendarAddOpen: null }),
+  onCalendarDraftChange: (field, value) => set((s) => ({ calendarDraft: { ...s.calendarDraft, [field]: value } })),
+  saveCalendarDraft: () => {
+    const { calendarAddOpen, calendarDraft } = get();
+    if (!calendarAddOpen) return;
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    if (calendarAddOpen === 'period') {
+      if (!calendarDraft.date) return;
+      set((s) => ({ periodLogs: [...s.periodLogs, { id, date: calendarDraft.date }] }));
+    } else if (calendarAddOpen === 'intimacy') {
+      if (!calendarDraft.date) return;
+      set((s) => ({ intimacyLogs: [...s.intimacyLogs, { id, date: calendarDraft.date, note: calendarDraft.note }] }));
+    } else if (calendarAddOpen === 'exercise') {
+      if (!calendarDraft.date || !calendarDraft.type.trim()) return;
+      set((s) => ({
+        exerciseLogs: [
+          ...s.exerciseLogs,
+          { id, date: calendarDraft.date, type: calendarDraft.type.trim(), minutes: Number(calendarDraft.minutes) || 0 },
+        ],
+      }));
+    } else if (calendarAddOpen === 'countdown') {
+      if (!calendarDraft.date || !calendarDraft.title.trim()) return;
+      set((s) => ({ countdowns: [...s.countdowns, { id, title: calendarDraft.title.trim(), date: calendarDraft.date }] }));
+    } else if (calendarAddOpen === 'milestone') {
+      if (!calendarDraft.date || !calendarDraft.title.trim()) return;
+      set((s) => ({
+        milestones: [...s.milestones, { id, date: calendarDraft.date, title: calendarDraft.title.trim(), note: calendarDraft.note }],
+      }));
+    }
+    set({ calendarAddOpen: null });
+  },
+  deletePeriodLog: (id) => set((s) => ({ periodLogs: s.periodLogs.filter((x) => x.id !== id) })),
+  deleteIntimacyLog: (id) => set((s) => ({ intimacyLogs: s.intimacyLogs.filter((x) => x.id !== id) })),
+  deleteExerciseLog: (id) => set((s) => ({ exerciseLogs: s.exerciseLogs.filter((x) => x.id !== id) })),
+  deleteCountdown: (id) => set((s) => ({ countdowns: s.countdowns.filter((x) => x.id !== id) })),
+  deleteMilestone: (id) => set((s) => ({ milestones: s.milestones.filter((x) => x.id !== id) })),
+
+  // ---- play: reading / music / english corner / games ----
+  playView: 'home', // 'home' | 'reading' | 'music' | 'english' | 'games'
+  openPlayView: (view) => set({ playView: view }),
+  closePlaySubview: () => set({ playView: 'home' }),
+
+  books: [], // [{ id, title, status }]
+  musicList: [], // [{ id, title, artist }]
+  englishPhrases: [], // [{ id, phrase, meaning }]
+  games: [], // [{ id, name, note }]
+
+  playAddOpen: null, // null | 'reading' | 'music' | 'english' | 'games'
+  playDraft: { title: '', artist: '', phrase: '', meaning: '', note: '' },
+  openPlayAdd: (kind) => set({ playAddOpen: kind, playDraft: { title: '', artist: '', phrase: '', meaning: '', note: '' } }),
+  closePlayAdd: () => set({ playAddOpen: null }),
+  onPlayDraftChange: (field, value) => set((s) => ({ playDraft: { ...s.playDraft, [field]: value } })),
+  savePlayDraft: () => {
+    const { playAddOpen, playDraft } = get();
+    if (!playAddOpen) return;
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    if (playAddOpen === 'reading') {
+      if (!playDraft.title.trim()) return;
+      set((s) => ({ books: [...s.books, { id, title: playDraft.title.trim(), status: '想读' }] }));
+    } else if (playAddOpen === 'music') {
+      if (!playDraft.title.trim()) return;
+      set((s) => ({ musicList: [...s.musicList, { id, title: playDraft.title.trim(), artist: playDraft.artist.trim() }] }));
+    } else if (playAddOpen === 'english') {
+      if (!playDraft.phrase.trim() || !playDraft.meaning.trim()) return;
+      set((s) => ({ englishPhrases: [...s.englishPhrases, { id, phrase: playDraft.phrase.trim(), meaning: playDraft.meaning.trim() }] }));
+    } else if (playAddOpen === 'games') {
+      if (!playDraft.title.trim()) return;
+      set((s) => ({ games: [...s.games, { id, name: playDraft.title.trim(), note: playDraft.note.trim() }] }));
+    }
+    set({ playAddOpen: null });
+  },
+  deleteBook: (id) => set((s) => ({ books: s.books.filter((x) => x.id !== id) })),
+  cycleBookStatus: (id) =>
+    set((s) => ({
+      books: s.books.map((b) => {
+        if (b.id !== id) return b;
+        const order = ['想读', '在读', '读完'];
+        const next = order[(order.indexOf(b.status) + 1) % order.length];
+        return { ...b, status: next };
+      }),
+    })),
+  deleteMusic: (id) => set((s) => ({ musicList: s.musicList.filter((x) => x.id !== id) })),
+  deleteEnglishPhrase: (id) => set((s) => ({ englishPhrases: s.englishPhrases.filter((x) => x.id !== id) })),
+  deleteGame: (id) => set((s) => ({ games: s.games.filter((x) => x.id !== id) })),
+
   // ---- bootstrap ----
   init: async () => {
     await Promise.all([
@@ -1593,6 +1695,15 @@ export const useStore = create(
         screenAppThresholds: s.screenAppThresholds,
         screenAppReminders: s.screenAppReminders,
         lastSeenMemoryLogId: s.lastSeenMemoryLogId,
+        periodLogs: s.periodLogs,
+        intimacyLogs: s.intimacyLogs,
+        exerciseLogs: s.exerciseLogs,
+        countdowns: s.countdowns,
+        milestones: s.milestones,
+        books: s.books,
+        musicList: s.musicList,
+        englishPhrases: s.englishPhrases,
+        games: s.games,
       }),
     }
   )
