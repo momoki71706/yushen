@@ -196,6 +196,7 @@ export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tool
   let finalThinking = null;
   let totalOutputTokens = 0;
   let toolCallCount = 0;
+  const toolTrace = [];
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const response = await anthropic.messages.create({
@@ -221,6 +222,8 @@ export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tool
     const toolResults = await Promise.all(
       toolUses.map(async (tu) => {
         const result = await callTool(tools, tu.name, tu.input);
+        const resultText = mcpContentToText(result.content);
+        toolTrace.push({ name: tu.name, input: tu.input, result: resultText, isError: !!result.isError });
         return {
           type: 'tool_result',
           tool_use_id: tu.id,
@@ -234,7 +237,7 @@ export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tool
 
   if (toolCallCount === 0) console.log(`[mcp] anthropic tool loop: ${tools.length} tool(s) offered, model made 0 calls`);
   const text = finalText || FALLBACK_REPLY;
-  return { text, tokens: totalOutputTokens || estimateTokens(text), thinking: finalThinking };
+  return { text, tokens: totalOutputTokens || estimateTokens(text), thinking: finalThinking, toolTrace };
 }
 
 function joinUrl(base, path) {
@@ -256,6 +259,7 @@ export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools, 
   let finalThinking = null;
   let totalTokens = 0;
   let toolCallCount = 0;
+  const toolTrace = [];
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const res = await fetch(joinUrl(baseUrl, '/chat/completions'), {
@@ -296,10 +300,12 @@ export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools, 
           // leave args as {} if the model produced malformed JSON
         }
         const result = await callTool(tools, tc.function.name, args);
+        const resultText = mcpContentToText(result.content);
+        toolTrace.push({ name: tc.function.name, input: args, result: resultText, isError: !!result.isError });
         return {
           role: 'tool',
           tool_call_id: tc.id,
-          content: mcpContentToText(result.content) || JSON.stringify(result),
+          content: resultText || JSON.stringify(result),
         };
       })
     );
@@ -308,5 +314,5 @@ export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools, 
 
   if (toolCallCount === 0) console.log(`[mcp] openai tool loop: ${tools.length} tool(s) offered, model made 0 calls`);
   const text = finalText || FALLBACK_REPLY;
-  return { text, tokens: totalTokens || estimateTokens(text), thinking: finalThinking };
+  return { text, tokens: totalTokens || estimateTokens(text), thinking: finalThinking, toolTrace };
 }

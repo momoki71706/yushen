@@ -166,6 +166,7 @@ ensureColumn('chat_messages', 'attachment_url', 'TEXT');
 ensureColumn('chat_messages', 'attachment_name', 'TEXT');
 ensureColumn('chat_messages', 'attachment_mime', 'TEXT');
 ensureColumn('chat_messages', 'attachment_size', 'INTEGER');
+ensureColumn('chat_messages', 'tool_calls', 'TEXT');
 ensureColumn('letters', 'exported', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('diary_entries', 'author', "TEXT NOT NULL DEFAULT 'me'");
 ensureColumn('diary_entries', 'reacted', 'INTEGER NOT NULL DEFAULT 0');

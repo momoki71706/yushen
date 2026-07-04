@@ -216,7 +216,7 @@ export default function ChatMode() {
                               </button>
                               <button
                                 className="chat__msg-action-btn"
-                                title="思考过程"
+                                title="思考过程 / 工具调用"
                                 onClick={() => toggleThinkingExpanded(msg.id)}
                               >
                                 <ChevronDownIcon color="#8C6A72" width={14} height={14} expanded={isExpanded} />
@@ -259,6 +259,23 @@ export default function ChatMode() {
                   <div className="chat__thinking-bubble">
                     <div className="chat__thinking-label">Thinking：</div>
                     <div className="chat__thinking-content">{msg.thinking || '（这条回复没有思考内容）'}</div>
+                    {msg.toolCalls?.length > 0 && (
+                      <>
+                        <div className="chat__thinking-label" style={{ marginTop: 10 }}>调用的工具：</div>
+                        {msg.toolCalls.map((tc, i) => (
+                          <div key={i} className="chat__tool-call">
+                            <div className="chat__tool-call-name">
+                              {tc.name}
+                              {tc.isError && <span className="chat__tool-call-error"> · 失败</span>}
+                            </div>
+                            {tc.input && Object.keys(tc.input).length > 0 && (
+                              <div className="chat__tool-call-detail">参数：{JSON.stringify(tc.input)}</div>
+                            )}
+                            <div className="chat__tool-call-detail">结果：{tc.result}</div>
+                          </div>
+                        ))}
+                      </>
+                    )}
                   </div>
                 )}
               </div>

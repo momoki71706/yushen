@@ -83,6 +83,13 @@ function queueDiaryReview(entryId) {
     ? db.prepare('SELECT * FROM diary_entries WHERE id = ?').get(entryId)
     : db.prepare('SELECT * FROM diary_entries ORDER BY id DESC LIMIT 1').get();
   if (!entry) return '没有找到日记，跟她确认一下是不是记错了。';
+  // Claims the entry from the autonomous delayed-reaction path right away —
+  // without this, an entry asked about before its own react_at fires would
+  // get reacted to twice: once here, once by maybeReactToDiaries, each with
+  // its own comment and chat message.
+  if (entry.author === 'me' && !entry.reacted) {
+    db.prepare('UPDATE diary_entries SET reacted = 1 WHERE id = ?').run(entry.id);
+  }
   const fireAt = new Date(Date.now() + (1 + Math.random()) * 60 * 1000).toISOString();
   db.prepare('INSERT INTO diary_review_requests (entry_id, fire_at) VALUES (?, ?)').run(entry.id, fireAt);
   return '已经记下了，一会儿会去看看再留言，看完也会回来跟她说一句——这条回复只需要简短回应一下，比如"这就去看"，不要自己编评论内容。';

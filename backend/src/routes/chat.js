@@ -17,6 +17,7 @@ function serializeMessage(row) {
     time: row.time_label,
     tokens: row.tokens,
     thinking: row.thinking || null,
+    toolCalls: row.tool_calls ? JSON.parse(row.tool_calls) : null,
     attachment: row.attachment_url
       ? { url: row.attachment_url, name: row.attachment_name, mime: row.attachment_mime, size: row.attachment_size }
       : null,
@@ -47,7 +48,7 @@ const insertMineStmt = db.prepare(
   'INSERT INTO chat_messages (from_who, text, kind, time_label, attachment_url, attachment_name, attachment_mime, attachment_size) VALUES (?,?,?,?,?,?,?,?)'
 );
 const insertTheirsStmt = db.prepare(
-  'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens, thinking) VALUES (?,?,?,?,?,?)'
+  'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens, thinking, tool_calls) VALUES (?,?,?,?,?,?,?)'
 );
 
 // Returns the inserted row, or null if the item is invalid (no text on a
@@ -71,7 +72,15 @@ function insertMineRow({ text, kind, attachment }) {
 }
 
 function insertTheirsRow(reply) {
-  const info = insertTheirsStmt.run('them', reply.text, 'text', formatBeijingClock(), reply.tokens, reply.thinking || null);
+  const info = insertTheirsStmt.run(
+    'them',
+    reply.text,
+    'text',
+    formatBeijingClock(),
+    reply.tokens,
+    reply.thinking || null,
+    reply.toolTrace?.length ? JSON.stringify(reply.toolTrace) : null
+  );
   return db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(info.lastInsertRowid);
 }
 
@@ -120,10 +129,11 @@ router.post('/:id/regenerate', async (req, res) => {
   if (target.from_who !== 'them') return res.status(400).json({ error: 'only AI replies can be regenerated' });
 
   const reply = await getYushenReply(await recentHistory(id));
-  db.prepare('UPDATE chat_messages SET text = ?, tokens = ?, thinking = ? WHERE id = ?').run(
+  db.prepare('UPDATE chat_messages SET text = ?, tokens = ?, thinking = ?, tool_calls = ? WHERE id = ?').run(
     reply.text,
     reply.tokens,
     reply.thinking || null,
+    reply.toolTrace?.length ? JSON.stringify(reply.toolTrace) : null,
     id
   );
   const updated = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(id);
@@ -166,21 +176,18 @@ router.post('/:id/regenerate-round', async (req, res) => {
   const reply = await getYushenReply(await recentHistory(id, { inclusive: true }));
 
   if (next) {
-    db.prepare('UPDATE chat_messages SET text = ?, tokens = ?, thinking = ? WHERE id = ?').run(
+    db.prepare('UPDATE chat_messages SET text = ?, tokens = ?, thinking = ?, tool_calls = ? WHERE id = ?').run(
       reply.text,
       reply.tokens,
       reply.thinking || null,
+      reply.toolTrace?.length ? JSON.stringify(reply.toolTrace) : null,
       next.id
     );
     const updated = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(next.id);
     return res.json({ reply: serializeMessage(updated), isNew: false });
   }
 
-  const insertTheirs = db.prepare(
-    'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens, thinking) VALUES (?,?,?,?,?,?)'
-  );
-  const info = insertTheirs.run('them', reply.text, 'text', formatBeijingClock(), reply.tokens, reply.thinking || null);
-  const inserted = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(info.lastInsertRowid);
+  const inserted = insertTheirsRow(reply);
   res.json({ reply: serializeMessage(inserted), isNew: true });
 });
 
