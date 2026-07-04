@@ -34,9 +34,9 @@ export default function ContextPanel() {
           <div className="watch-card-title">存记忆的消息阈值</div>
           <div className="screen-threshold-sub">聊天记录（连同期间的日记、信件）累计到多少条新内容，就自动回顾一次并存下值得记住的部分</div>
           <div className="screen-threshold-stepper">
-            <button className="screen-step-btn" onClick={() => adjustContextSetting('memorySaveMessageThreshold', -10, 5, 300)}>-</button>
+            <button className="screen-step-btn" onClick={() => adjustContextSetting('memorySaveMessageThreshold', -10, 10, 300)}>-</button>
             <div className="screen-threshold-value">{memorySaveMessageThreshold} 条</div>
-            <button className="screen-step-btn" onClick={() => adjustContextSetting('memorySaveMessageThreshold', 10, 5, 300)}>+</button>
+            <button className="screen-step-btn" onClick={() => adjustContextSetting('memorySaveMessageThreshold', 10, 10, 300)}>+</button>
           </div>
         </div>
       </div>
