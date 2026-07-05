@@ -1569,13 +1569,19 @@ export const useStore = create(
   periodLogs: [], // [{ id, date }]
   intimacyLogs: [], // [{ id, date, note }]
   exerciseLogs: [], // [{ id, date, type, minutes }]
-  countdowns: [], // [{ id, title, date }]
+  countdowns: [], // [{ id, title, date, category }] — category: 'birthday' | 'anniversary' | 'other'
   milestones: [], // [{ id, date, title, note }]
 
+  countdownCategoryColors: { birthday: '#6FBF8C', anniversary: '#E0A458', other: '#8C8FE0' },
+  countdownCategoryLabels: { birthday: '生日', anniversary: '纪念日', other: '其他' },
+
   calendarAddOpen: null, // null | 'period' | 'intimacy' | 'exercise' | 'countdown' | 'milestone'
-  calendarDraft: { date: '', title: '', note: '', type: '', minutes: '' },
+  calendarDraft: { date: '', title: '', note: '', type: '', minutes: '', category: 'other' },
   openCalendarAdd: (kind) =>
-    set({ calendarAddOpen: kind, calendarDraft: { date: todayISOLocal(), title: '', note: '', type: '', minutes: '' } }),
+    set({
+      calendarAddOpen: kind,
+      calendarDraft: { date: todayISOLocal(), title: '', note: '', type: '', minutes: '', category: 'other' },
+    }),
   closeCalendarAdd: () => set({ calendarAddOpen: null }),
   onCalendarDraftChange: (field, value) => set((s) => ({ calendarDraft: { ...s.calendarDraft, [field]: value } })),
   saveCalendarDraft: () => {
@@ -1598,7 +1604,12 @@ export const useStore = create(
       }));
     } else if (calendarAddOpen === 'countdown') {
       if (!calendarDraft.date || !calendarDraft.title.trim()) return;
-      set((s) => ({ countdowns: [...s.countdowns, { id, title: calendarDraft.title.trim(), date: calendarDraft.date }] }));
+      set((s) => ({
+        countdowns: [
+          ...s.countdowns,
+          { id, title: calendarDraft.title.trim(), date: calendarDraft.date, category: calendarDraft.category || 'other' },
+        ],
+      }));
     } else if (calendarAddOpen === 'milestone') {
       if (!calendarDraft.date || !calendarDraft.title.trim()) return;
       set((s) => ({
@@ -1624,8 +1635,9 @@ export const useStore = create(
   games: [], // [{ id, name, note }]
 
   playAddOpen: null, // null | 'reading' | 'music' | 'english' | 'games'
-  playDraft: { title: '', artist: '', phrase: '', meaning: '', note: '' },
-  openPlayAdd: (kind) => set({ playAddOpen: kind, playDraft: { title: '', artist: '', phrase: '', meaning: '', note: '' } }),
+  playDraft: { title: '', artist: '', author: '', phrase: '', meaning: '', note: '' },
+  openPlayAdd: (kind) =>
+    set({ playAddOpen: kind, playDraft: { title: '', artist: '', author: '', phrase: '', meaning: '', note: '' } }),
   closePlayAdd: () => set({ playAddOpen: null }),
   onPlayDraftChange: (field, value) => set((s) => ({ playDraft: { ...s.playDraft, [field]: value } })),
   savePlayDraft: () => {
@@ -1634,13 +1646,20 @@ export const useStore = create(
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     if (playAddOpen === 'reading') {
       if (!playDraft.title.trim()) return;
-      set((s) => ({ books: [...s.books, { id, title: playDraft.title.trim(), status: '想读' }] }));
+      set((s) => ({
+        books: [...s.books, { id, title: playDraft.title.trim(), author: playDraft.author.trim(), status: '想读', progress: 0 }],
+      }));
     } else if (playAddOpen === 'music') {
       if (!playDraft.title.trim()) return;
       set((s) => ({ musicList: [...s.musicList, { id, title: playDraft.title.trim(), artist: playDraft.artist.trim() }] }));
     } else if (playAddOpen === 'english') {
       if (!playDraft.phrase.trim() || !playDraft.meaning.trim()) return;
-      set((s) => ({ englishPhrases: [...s.englishPhrases, { id, phrase: playDraft.phrase.trim(), meaning: playDraft.meaning.trim() }] }));
+      set((s) => ({
+        englishPhrases: [
+          ...s.englishPhrases,
+          { id, phrase: playDraft.phrase.trim(), meaning: playDraft.meaning.trim(), date: todayISOLocal() },
+        ],
+      }));
     } else if (playAddOpen === 'games') {
       if (!playDraft.title.trim()) return;
       set((s) => ({ games: [...s.games, { id, name: playDraft.title.trim(), note: playDraft.note.trim() }] }));
@@ -1655,6 +1674,14 @@ export const useStore = create(
         const order = ['想读', '在读', '读完'];
         const next = order[(order.indexOf(b.status) + 1) % order.length];
         return { ...b, status: next };
+      }),
+    })),
+  incrementBookProgress: (id) =>
+    set((s) => ({
+      books: s.books.map((b) => {
+        if (b.id !== id) return b;
+        const progress = Math.min(100, (b.progress || 0) + 10);
+        return { ...b, progress, status: progress >= 100 ? '读完' : '在读' };
       }),
     })),
   deleteMusic: (id) => set((s) => ({ musicList: s.musicList.filter((x) => x.id !== id) })),

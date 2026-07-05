@@ -2095,3 +2095,94 @@
 
 .book-status-tag { font-size: 11px; padding: 3px 9px; border-radius: 999px; background: #F6E2E8; color: #B87A90; flex-shrink: 0; }
 .english-meaning { font-size: 12.5px; color: var(--color-text-soft); margin-top: 3px; }
+
+/* ---------- shared scrollable home container (calendar + play) ---------- */
+.mode-scroll-home { flex: 1; padding: 12px 14px 20px; overflow-y: auto; box-sizing: border-box; }
+
+/* ---------- calendar home: real month calendar + countdown bento grid ---------- */
+.cal-month-card { background: rgba(255,255,255,0.4); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--glass-border); border-radius: 18px; padding: 14px 14px 10px; margin-bottom: 4px; }
+.cal-month-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-month-nav { display: flex; align-items: center; gap: 8px; }
+.cal-month-nav-btn { width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(58,50,54,0.05); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cal-month-label { font-size: 14.5px; font-weight: 600; color: var(--color-text); min-width: 76px; text-align: center; }
+.cal-month-add-btn { border: none; background: var(--color-accent); color: #fff; font-size: 11.5px; font-weight: 600; padding: 5px 12px; border-radius: 999px; flex-shrink: 0; }
+.cal-weekday-row { display: grid; grid-template-columns: repeat(7,1fr); margin-bottom: 2px; }
+.cal-weekday-cell { text-align: center; font-size: 10.5px; color: var(--color-text-faint); padding: 2px 0; }
+.cal-day-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
+.cal-day-cell { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; font-size: 12px; color: var(--color-text); box-sizing: border-box; }
+.cal-day-cell--today { border: 1.5px solid var(--color-accent); font-weight: 600; color: var(--color-accent-strong); }
+.cal-day-dots { display: flex; gap: 2px; margin-top: 2px; height: 4px; }
+.cal-day-dot { width: 4px; height: 4px; border-radius: 50%; }
+
+.cal-legend-row { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 4px 4px; font-size: 11px; color: var(--color-text-faint); }
+.cal-legend-item { display: flex; align-items: center; gap: 4px; }
+.cal-legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+.cal-section-head { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 500; color: var(--color-text); margin: 10px 2px 8px; }
+
+.cal-countdown-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cal-countdown-card {
+  grid-column: span 2;
+  background: rgba(255,255,255,0.4);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+}
+.cal-countdown-card--small { grid-column: span 1; padding: 12px; }
+.cal-countdown-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--dot-color, var(--color-accent)); }
+.cal-countdown-title { font-size: 12.5px; color: var(--color-text-soft); margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-countdown-value { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 22px; color: var(--dot-color, var(--color-accent-strong)); }
+.cal-countdown-card--small .cal-countdown-value { font-size: 16px; }
+.cal-countdown-date { font-size: 11px; color: var(--color-text-faint); margin-top: 4px; }
+
+.cal-quicklinks-row { display: flex; gap: 8px; margin-top: 14px; }
+.cal-quicklink-btn { flex: 1; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.3); border-radius: 999px; padding: 8px 4px; font-size: 11.5px; color: var(--color-text-soft); text-align: center; }
+
+/* ---------- play home: continue row + rich category cards + games grid ---------- */
+.play-continue-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 12px; }
+.play-continue-card { flex: 0 0 auto; width: 148px; background: rgba(255,255,255,0.4); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--glass-border); border-radius: 14px; padding: 10px; box-sizing: border-box; }
+.play-continue-label { font-size: 10.5px; color: var(--color-text-faint); margin-bottom: 6px; }
+.play-continue-cover { width: 100%; aspect-ratio: 1; border-radius: 8px; background: repeating-linear-gradient(45deg, #E7DEE3, #E7DEE3 6px, #EFE8EB 6px, #EFE8EB 12px); margin-bottom: 6px; }
+.play-continue-title { font-size: 12.5px; font-weight: 500; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.play-continue-sub { font-size: 10.5px; color: var(--color-text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.play-continue-progress-track { height: 3px; border-radius: 2px; background: rgba(58,50,54,0.08); margin-top: 6px; overflow: hidden; }
+.play-continue-progress-fill { height: 100%; background: var(--color-accent); }
+.play-continue-empty { display: flex; align-items: center; justify-content: center; color: var(--color-text-faint); font-size: 11px; text-align: center; padding: 0 10px; aspect-ratio: 1.6; }
+
+.play-rich-card { display: flex; flex-direction: column; width: 100%; border: 1px solid var(--glass-border); margin-bottom: 12px; background: rgba(255,255,255,0.35); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: 16px; padding: 14px; cursor: pointer; text-align: left; }
+.play-rich-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.play-rich-card-title { font-size: 13.5px; font-weight: 500; color: var(--color-text); }
+.play-rich-card-body { display: flex; gap: 10px; align-items: center; }
+.play-rich-cover { width: 46px; height: 46px; border-radius: 8px; flex-shrink: 0; background: repeating-linear-gradient(45deg, #E7DEE3, #E7DEE3 6px, #EFE8EB 6px, #EFE8EB 12px); }
+.play-rich-info { flex: 1; min-width: 0; }
+.play-rich-info-title { font-size: 13.5px; color: var(--color-text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.play-rich-info-sub { font-size: 11.5px; color: var(--color-text-faint); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.play-rich-progress-track { height: 4px; border-radius: 2px; background: rgba(58,50,54,0.08); margin-top: 6px; overflow: hidden; }
+.play-rich-progress-fill { height: 100%; background: var(--color-accent); }
+.play-rich-stat { font-size: 11.5px; color: var(--color-text-faint); margin-top: 8px; }
+.play-rich-stat strong { color: var(--color-accent-strong); font-weight: 600; }
+.play-rich-prompt { font-size: 12px; color: var(--color-accent-strong); margin-top: 8px; }
+.play-rich-empty { font-size: 12px; color: var(--color-text-faint); }
+
+.play-games-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+.play-game-tile { border: none; background: rgba(255,255,255,0.4); border-radius: 12px; padding: 12px 8px; font-size: 12.5px; color: var(--color-text); text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.play-game-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); flex-shrink: 0; }
+
+.play-toast {
+  position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+  background: rgba(58,50,54,0.85); color: #fff; font-size: 12.5px; padding: 8px 16px;
+  border-radius: 999px; z-index: 20; white-space: nowrap;
+}
+
+.reading-progress-track { flex: 1; height: 5px; border-radius: 3px; background: rgba(58,50,54,0.08); overflow: hidden; }
+.reading-progress-fill { height: 100%; background: var(--color-accent); }
+.reading-progress-btn { border: none; background: transparent; font-size: 11px; color: var(--color-accent-strong); font-weight: 600; padding: 2px 6px; flex-shrink: 0; }
+
+.category-pill-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.category-pill { flex: 1; border: 1px solid var(--glass-border); background: transparent; border-radius: 999px; padding: 7px 4px; font-size: 12.5px; color: var(--color-text-soft); text-align: center; }
+.category-pill--active { border-color: transparent; color: #fff; font-weight: 600; }
+.countdown-category-badge { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }

@@ -12,6 +12,7 @@ export default function ReadingView() {
   const savePlayDraft = useStore((s) => s.savePlayDraft);
   const deleteBook = useStore((s) => s.deleteBook);
   const cycleBookStatus = useStore((s) => s.cycleBookStatus);
+  const incrementBookProgress = useStore((s) => s.incrementBookProgress);
 
   return (
     <div className="manage-sub">
@@ -36,6 +37,13 @@ export default function ReadingView() {
               <div key={b.id} className="simple-list-row">
                 <div className="simple-list-body">
                   <div className="simple-list-title">{b.title}</div>
+                  {b.author && <div className="simple-list-meta">{b.author}</div>}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                    <div className="reading-progress-track">
+                      <div className="reading-progress-fill" style={{ width: `${b.progress || 0}%` }} />
+                    </div>
+                    <button className="reading-progress-btn" onClick={() => incrementBookProgress(b.id)}>+10%</button>
+                  </div>
                 </div>
                 <button className="book-status-tag" onClick={() => cycleBookStatus(b.id)}>{b.status}</button>
                 <button className="simple-list-delete" onClick={() => deleteBook(b.id)}>
@@ -58,11 +66,18 @@ export default function ReadingView() {
             </div>
             <input
               className="provider-form-input"
-              style={{ marginBottom: 14 }}
+              style={{ marginBottom: 10 }}
               value={playDraft.title}
               onChange={(e) => onPlayDraftChange('title', e.target.value)}
               placeholder="书名"
               autoFocus
+            />
+            <input
+              className="provider-form-input"
+              style={{ marginBottom: 14 }}
+              value={playDraft.author}
+              onChange={(e) => onPlayDraftChange('author', e.target.value)}
+              placeholder="作者（可选）"
             />
             <button className="ai-key-save-btn" style={{ width: '100%', padding: '13px 0' }} onClick={savePlayDraft}>
               保存

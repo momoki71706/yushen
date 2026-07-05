@@ -1,8 +1,15 @@
 import { useStore } from '../../state/store';
 import { BackChevronIcon, PlusIcon, CloseIcon, TrashIcon } from '../../components/Icons';
 
+const CATEGORIES = [
+  { key: 'birthday', label: '生日' },
+  { key: 'anniversary', label: '纪念日' },
+  { key: 'other', label: '其他' },
+];
+
 export default function CountdownView() {
   const countdowns = useStore((s) => s.countdowns);
+  const countdownCategoryColors = useStore((s) => s.countdownCategoryColors);
   const closeCalendarSubview = useStore((s) => s.closeCalendarSubview);
   const openCalendarAdd = useStore((s) => s.openCalendarAdd);
   const closeCalendarAdd = useStore((s) => s.closeCalendarAdd);
@@ -38,11 +45,12 @@ export default function CountdownView() {
             {sorted.map((c) => {
               const days = Math.ceil((new Date(c.date) - new Date(today)) / 86400000);
               const passed = days < 0;
+              const color = countdownCategoryColors[c.category] || countdownCategoryColors.other;
               return (
                 <div key={c.id} className="simple-list-row">
-                  <div className="countdown-badge">
-                    <div className="countdown-badge-num">{Math.abs(days)}</div>
-                    <div className="countdown-badge-unit">{passed ? '天前' : days === 0 ? '就是今天' : '天后'}</div>
+                  <div className="countdown-badge" style={{ background: `${color}26` }}>
+                    <div className="countdown-badge-num" style={{ color }}>{Math.abs(days)}</div>
+                    <div className="countdown-badge-unit" style={{ color }}>{passed ? '天前' : days === 0 ? '就是今天' : '天后'}</div>
                   </div>
                   <div className="simple-list-body">
                     <div className="simple-list-title">{c.title}</div>
@@ -82,6 +90,22 @@ export default function CountdownView() {
               value={calendarDraft.date}
               onChange={(e) => onCalendarDraftChange('date', e.target.value)}
             />
+            <div className="category-pill-row">
+              {CATEGORIES.map((cat) => {
+                const active = calendarDraft.category === cat.key;
+                const color = countdownCategoryColors[cat.key];
+                return (
+                  <button
+                    key={cat.key}
+                    className={`category-pill${active ? ' category-pill--active' : ''}`}
+                    style={active ? { background: color } : undefined}
+                    onClick={() => onCalendarDraftChange('category', cat.key)}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
             <button className="ai-key-save-btn" style={{ width: '100%', padding: '13px 0' }} onClick={saveCalendarDraft}>
               保存
             </button>
