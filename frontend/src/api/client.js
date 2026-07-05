@@ -1,6 +1,11 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 const ORIGIN = BASE_URL.replace(/\/api\/?$/, '');
 
+// Full request URLs for the iOS Shortcuts setup panel (健康数据接入) — those
+// live outside this app entirely, so they need the complete absolute URL,
+// not just a path fetch() would resolve against the current origin.
+export const API_BASE_URL = BASE_URL;
+
 // Attachment URLs come back from the backend as paths relative to the
 // server (e.g. "/uploads/xxx.png"), not the "/api"-suffixed base — this
 // resolves one to an actual loadable URL. Optimistic messages use a local
@@ -153,4 +158,9 @@ export const api = {
   addHabit: (payload) => request('/habits', { method: 'POST', body: JSON.stringify(payload) }),
   deleteHabit: (id) => request(`/habits/${id}`, { method: 'DELETE' }),
   toggleHabitCheckin: (id, dateISO) => request(`/habits/${id}/checkin`, { method: 'POST', body: JSON.stringify({ dateISO }) }),
+
+  getHealthToken: () => request('/health-data/token'),
+  regenerateHealthToken: () => request('/health-data/token/regenerate', { method: 'POST' }),
+  getHealthLogs: () => request('/health-data'),
+  getPhoneActivity: () => request('/health-data/activity'),
 };

@@ -235,6 +235,33 @@ CREATE TABLE IF NOT EXISTS favorites (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(type, source_id)
 );
+
+-- One row per day, pushed from an iOS Shortcut reading real HealthKit
+-- samples (see routes/health.js) — UNIQUE(date_iso) so re-sending the
+-- same day's automation overwrites rather than duplicating.
+CREATE TABLE IF NOT EXISTS health_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  date_iso TEXT NOT NULL UNIQUE,
+  sleep_start TEXT NOT NULL DEFAULT '',
+  sleep_end TEXT NOT NULL DEFAULT '',
+  sleep_minutes INTEGER NOT NULL DEFAULT 0,
+  steps INTEGER NOT NULL DEFAULT 0,
+  heart_rate_avg INTEGER NOT NULL DEFAULT 0,
+  heart_rate_min INTEGER NOT NULL DEFAULT 0,
+  heart_rate_max INTEGER NOT NULL DEFAULT 0,
+  is_period INTEGER NOT NULL DEFAULT 0,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Logged from an iOS "when app opened" Shortcuts automation (see
+-- routes/health.js) — trimmed to a rolling window so it never grows
+-- unbounded; used to spot late-night phone use and nudge about it.
+CREATE TABLE IF NOT EXISTS phone_activity (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  app_name TEXT NOT NULL,
+  opened_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `);
 
 // Additive column migrations — CREATE TABLE IF NOT EXISTS above doesn't

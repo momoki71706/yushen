@@ -82,6 +82,26 @@ function collectNewLetterText(sinceId) {
   };
 }
 
+// Real HealthKit snapshots pushed in via an iOS Shortcut (routes/health.js)
+// — folded in the same way as diary/letters so the review pass can decide
+// whether a day's sleep/steps/heart-rate/period data is worth a long-term
+// memory, using whatever memory tool is already connected (see 工具管理).
+function collectNewHealthText(sinceId) {
+  const rows = db.prepare('SELECT * FROM health_logs WHERE id > ? ORDER BY id ASC').all(sinceId);
+  const lines = rows.map((r) => {
+    const sleepHours = r.sleep_minutes ? `${Math.floor(r.sleep_minutes / 60)}h${r.sleep_minutes % 60}m` : '未知';
+    return (
+      `[健康数据 ${r.date_iso}] 睡眠 ${r.sleep_start || '?'}→${r.sleep_end || '?'}（${sleepHours}），` +
+      `步数 ${r.steps}，心率均${r.heart_rate_avg}（${r.heart_rate_min}-${r.heart_rate_max}），` +
+      `经期${r.is_period ? '是' : '否'}${r.note ? `，备注：${r.note}` : ''}`
+    );
+  });
+  return {
+    text: lines.join('\n'),
+    maxId: rows.length ? rows[rows.length - 1].id : sinceId,
+  };
+}
+
 async function maybeSaveMemory() {
   try {
     const lastChatId = cursor('memoryLastChatId');
@@ -121,10 +141,12 @@ async function maybeSaveMemory() {
     const lastDiaryEntryId = cursor('memoryLastDiaryEntryId');
     const lastDiaryCommentId = cursor('memoryLastDiaryCommentId');
     const lastLetterId = cursor('memoryLastLetterId');
+    const lastHealthId = cursor('memoryLastHealthId');
     const diary = collectNewDiaryText(lastDiaryEntryId, lastDiaryCommentId);
     const letter = collectNewLetterText(lastLetterId);
-    const extra = [diary.text, letter.text].filter(Boolean).join('\n');
-    const instruction = extra ? `${MEMORY_REVIEW_INSTRUCTION}\n\n以下是这段时间里的日记和信件内容，也一并参考：\n${extra}` : MEMORY_REVIEW_INSTRUCTION;
+    const health = collectNewHealthText(lastHealthId);
+    const extra = [diary.text, letter.text, health.text].filter(Boolean).join('\n');
+    const instruction = extra ? `${MEMORY_REVIEW_INSTRUCTION}\n\n以下是这段时间里的日记、信件和健康数据，也一并参考：\n${extra}` : MEMORY_REVIEW_INSTRUCTION;
 
     const result =
       provider.type === 'openai'
@@ -147,6 +169,7 @@ async function maybeSaveMemory() {
     setSetting('memoryLastDiaryEntryId', String(diary.maxEntryId));
     setSetting('memoryLastDiaryCommentId', String(diary.maxCommentId));
     setSetting('memoryLastLetterId', String(letter.maxId));
+    setSetting('memoryLastHealthId', String(health.maxId));
   } catch (err) {
     console.error('[memory] error:', err.message);
   }

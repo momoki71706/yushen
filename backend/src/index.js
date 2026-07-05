@@ -12,6 +12,7 @@ import habitsRouter from './routes/habits.js';
 import uploadRouter, { UPLOAD_DIR } from './routes/upload.js';
 import memoryRouter from './routes/memory.js';
 import favoritesRouter from './routes/favorites.js';
+import healthRouter from './routes/health.js';
 import { startProactiveScheduler } from './proactive.js';
 import { startScheduledMessageChecker } from './scheduledMessages.js';
 import { startMemoryScheduler } from './memoryScheduler.js';
@@ -19,6 +20,7 @@ import { startDiaryScheduler } from './diaryScheduler.js';
 import { startLetterScheduler } from './letterScheduler.js';
 import { startChatFollowUpScheduler } from './chatFollowUp.js';
 import { startLedgerScheduler } from './ledgerScheduler.js';
+import { startPhoneActivityScheduler } from './phoneActivityScheduler.js';
 
 const app = express();
 app.use(cors());
@@ -37,6 +39,7 @@ app.use('/api/habits', habitsRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/memory', memoryRouter);
 app.use('/api/favorites', favoritesRouter);
+app.use('/api/health-data', healthRouter);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
@@ -53,4 +56,5 @@ app.listen(port, () => {
   startLetterScheduler();
   startChatFollowUpScheduler();
   startLedgerScheduler();
+  startPhoneActivityScheduler();
 });

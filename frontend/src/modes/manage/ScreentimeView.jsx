@@ -9,6 +9,22 @@ function formatHours(h) {
   return mins > 0 ? `${hrs}小时${mins}分` : `${hrs}小时`;
 }
 
+function timeLabelFor(iso) {
+  const d = new Date(`${iso}Z`);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function groupPhoneActivity(rows) {
+  const byApp = {};
+  rows.forEach((r) => {
+    if (!byApp[r.appName]) byApp[r.appName] = { name: r.appName, count: 0, lastOpened: r.openedAt };
+    byApp[r.appName].count += 1;
+    if (r.openedAt > byApp[r.appName].lastOpened) byApp[r.appName].lastOpened = r.openedAt;
+  });
+  return Object.values(byApp).sort((a, b) => (a.lastOpened < b.lastOpened ? 1 : -1));
+}
+
 export default function ScreentimeView() {
   const closeManageSubview = useStore((s) => s.closeManageSubview);
   const todayISOLocal = useStore((s) => s.todayISOLocal);
@@ -23,12 +39,15 @@ export default function ScreentimeView() {
   const screenAppReminders = useStore((s) => s.screenAppReminders);
   const adjustScreenAppThreshold = useStore((s) => s.adjustScreenAppThreshold);
   const toggleScreenAppReminder = useStore((s) => s.toggleScreenAppReminder);
+  const phoneActivity = useStore((s) => s.phoneActivity);
+  const openHealthDataPanel = useStore((s) => s.openHealthDataPanel);
 
   const today = todayISOLocal();
   const apps = mockScreenApps(today);
   const total = apps.reduce((sum, a) => sum + a.hours, 0);
   const maxHours = apps.length ? apps[0].hours : 1;
   const overThreshold = screenReminderEnabled && total > screenThreshold;
+  const activityGroups = groupPhoneActivity(phoneActivity);
 
   return (
     <div className="manage-sub">
@@ -42,8 +61,30 @@ export default function ScreentimeView() {
       </div>
 
       <div className="manage-sub__body" style={{ paddingTop: 12 }}>
+        <div className="watch-card">
+          <div className="watch-card-title">最近打开记录（真实数据）</div>
+          {activityGroups.length === 0 ? (
+            <button className="screen-app-settings-hint" style={{ border: 'none', background: 'transparent', textAlign: 'left', padding: 0, width: '100%' }} onClick={openHealthDataPanel}>
+              还没接入手机打开记录，点击去配置快捷指令
+            </button>
+          ) : (
+            <>
+              <div className="screen-threshold-sub" style={{ marginBottom: 8 }}>记录的是打开次数和时间，不是使用时长</div>
+              {activityGroups.map((g) => (
+                <div key={g.name} className="simple-list-row" style={{ background: 'transparent', padding: '8px 0' }}>
+                  <div className="simple-list-body">
+                    <div className="simple-list-title">{g.name}</div>
+                    <div className="simple-list-meta">最后一次 {timeLabelFor(g.lastOpened)}</div>
+                  </div>
+                  <div className="book-status-tag">{g.count} 次</div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+
         <div className="screen-total-card">
-          <div className="screen-total-label">今日屏幕使用时长</div>
+          <div className="screen-total-label">今日屏幕使用时长（预估）</div>
           <div className="screen-total-value">{formatHours(total)}</div>
         </div>
 

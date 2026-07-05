@@ -44,7 +44,9 @@ export async function writeLedgerNag() {
   const provider = getActiveProvider();
   if (!provider) return null;
   const note = recentLedgerNote(10);
-  const history = note ? [{ from: 'me', text: `（最近几天的记账记录，仅供参考）\n${note}` }] : [];
+  // Never pass an empty messages array — this is a fresh remark, not a
+  // reply, and no provider API accepts a call with zero messages.
+  const history = [{ from: 'me', text: note ? `（最近几天的记账记录，仅供参考）\n${note}` : '（还没有任何记账记录）' }];
   const reply = await withReplyRetry(() => getReplyViaProvider(history, provider, NAG_INSTRUCTION));
   if (classifyReplyForRetry(reply.text).bad) return { failed: true, text: null };
   return { failed: false, text: reply.text.trim() };

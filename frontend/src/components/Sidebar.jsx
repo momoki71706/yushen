@@ -68,6 +68,16 @@ function BellIcon() {
   );
 }
 
+function WatchIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <rect x="4.5" y="4.5" width="7" height="7" rx="2" stroke="#8C6A72" strokeWidth="1.2" fill="none" />
+      <path d="M6 1.5h4M6 14.5h4" stroke="#8C6A72" strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M8 6.3v2l1.3 1" stroke="#8C6A72" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  );
+}
+
 function DownloadIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -106,6 +116,7 @@ export default function Sidebar() {
   const toggleLetterReminderSetting = useStore((s) => s.toggleLetterReminderSetting);
   const pushEnabled = useStore((s) => s.pushEnabled);
   const openPushSettings = useStore((s) => s.openPushSettings);
+  const openHealthDataPanel = useStore((s) => s.openHealthDataPanel);
   const openContextPanel = useStore((s) => s.openContextPanel);
   const openMemoryPanel = useStore((s) => s.openMemoryPanel);
   const openAiSettings = useStore((s) => s.openAiSettings);
@@ -244,6 +255,13 @@ export default function Sidebar() {
             <BellIcon />
           </div>
           <div className="sidebar-menu-label">消息推送 · {pushEnabled ? '已开启' : '已关闭'}</div>
+          <ChevronRight />
+        </button>
+        <button className="sidebar-menu-item" onClick={openHealthDataPanel}>
+          <div className="sidebar-menu-icon" style={{ background: '#E7D6CE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <WatchIcon />
+          </div>
+          <div className="sidebar-menu-label">健康数据接入</div>
           <ChevronRight />
         </button>
         <button className="sidebar-menu-item" onClick={openClearChatConfirm}>

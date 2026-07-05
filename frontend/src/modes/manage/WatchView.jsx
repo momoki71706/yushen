@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../../state/store';
 import { BackChevronIcon } from '../../components/Icons';
-import { mockWatchWeek } from './mock';
 
 function WatchGlyphBig() {
   return (
@@ -37,22 +36,29 @@ function BarChart({ week, valueKey, unit, formatValue, barColor }) {
   );
 }
 
+const WEEKDAYS_SHORT = ['日', '一', '二', '三', '四', '五', '六'];
+
 export default function WatchView() {
-  const watchConnected = useStore((s) => s.watchConnected);
-  const connectWatch = useStore((s) => s.connectWatch);
+  const healthLogs = useStore((s) => s.healthLogs);
   const closeManageSubview = useStore((s) => s.closeManageSubview);
+  const openHealthDataPanel = useStore((s) => s.openHealthDataPanel);
   const todayISOLocal = useStore((s) => s.todayISOLocal);
 
   const today = todayISOLocal();
-  const week = mockWatchWeek(today);
-  const todayData = week[week.length - 1];
+  // healthLogs comes back newest-first from the backend; chart wants oldest-first.
+  const week = [...healthLogs].slice(0, 7).reverse().map((r) => ({
+    ...r,
+    label: WEEKDAYS_SHORT[new Date(r.dateISO).getDay()],
+  }));
+  const todayData = healthLogs.find((r) => r.dateISO === today) || healthLogs[0] || null;
 
-  const metricRows = [
-    { label: '睡眠', value: `${todayData.sleepHours.toFixed(1)} 小时`, ratio: todayData.sleepHours / 9, color: '#CBB9C0' },
-    { label: '步数', value: `${todayData.steps.toLocaleString()} 步`, ratio: todayData.steps / 12000, color: '#D9CBD3' },
-    { label: '运动', value: `${todayData.exerciseMin} 分钟`, ratio: todayData.exerciseMin / 60, color: '#E7D6CE' },
-    { label: '心率', value: `${todayData.heartRate} bpm`, ratio: todayData.heartRate / 100, color: '#EDD9E1' },
-  ];
+  const metricRows = todayData
+    ? [
+        { label: '睡眠', value: `${todayData.sleepHours.toFixed(1)} 小时`, ratio: todayData.sleepHours / 9, color: '#CBB9C0' },
+        { label: '步数', value: `${todayData.steps.toLocaleString()} 步`, ratio: todayData.steps / 12000, color: '#D9CBD3' },
+        { label: '心率', value: `${todayData.heartRateAvg} bpm`, ratio: todayData.heartRateAvg / 100, color: '#EDD9E1' },
+      ]
+    : [];
 
   return (
     <div className="manage-sub">
@@ -66,10 +72,13 @@ export default function WatchView() {
       </div>
 
       <div className="manage-sub__body" style={{ paddingTop: 12 }}>
-        {watchConnected ? (
+        {healthLogs.length > 0 ? (
           <>
             <div className="watch-card">
-              <div className="watch-card-title">今日概览</div>
+              <div className="watch-card-title">
+                {todayData?.dateISO === today ? '今日概览' : `${todayData?.dateISO} 概览`}
+                {todayData?.isPeriod && <span className="book-status-tag" style={{ marginLeft: 8 }}>经期</span>}
+              </div>
               {metricRows.map((m) => (
                 <div key={m.label} className="watch-metric-row">
                   <div className="watch-metric-dot" style={{ background: m.color }} />
@@ -84,34 +93,33 @@ export default function WatchView() {
                   </div>
                 </div>
               ))}
+              {todayData?.note && <div className="watch-card-sub" style={{ marginTop: 8 }}>备注：{todayData.note}</div>}
             </div>
 
-            <div className="watch-card">
-              <div className="watch-card-title">睡眠时长</div>
-              <div className="watch-card-sub">昨晚睡了 {todayData.sleepHours.toFixed(1)} 小时</div>
-              <BarChart week={week} valueKey="sleepHours" unit="h" formatValue={(v) => v.toFixed(1)} barColor="#CBB9C0" />
-            </div>
+            {week.length > 1 && (
+              <>
+                <div className="watch-card">
+                  <div className="watch-card-title">睡眠时长</div>
+                  <div className="watch-card-sub">最近一晚睡了 {todayData.sleepHours.toFixed(1)} 小时</div>
+                  <BarChart week={week} valueKey="sleepHours" unit="h" formatValue={(v) => v.toFixed(1)} barColor="#CBB9C0" />
+                </div>
 
-            <div className="watch-card">
-              <div className="watch-card-title">本周步数</div>
-              <div className="watch-card-sub">今日 {todayData.steps.toLocaleString()} 步</div>
-              <BarChart week={week} valueKey="steps" unit=" 步" formatValue={(v) => Math.round(v).toLocaleString()} barColor="#D9CBD3" />
-            </div>
-
-            <div className="watch-card">
-              <div className="watch-card-title">运动时长</div>
-              <div className="watch-card-sub">今日运动 {todayData.exerciseMin} 分钟</div>
-              <BarChart week={week} valueKey="exerciseMin" unit=" 分钟" formatValue={(v) => Math.round(v)} barColor="#E7D6CE" />
-            </div>
+                <div className="watch-card">
+                  <div className="watch-card-title">步数</div>
+                  <div className="watch-card-sub">最近一天 {todayData.steps.toLocaleString()} 步</div>
+                  <BarChart week={week} valueKey="steps" unit=" 步" formatValue={(v) => Math.round(v).toLocaleString()} barColor="#D9CBD3" />
+                </div>
+              </>
+            )}
           </>
         ) : (
           <div className="watch-connect-card">
             <div className="watch-connect-icon">
               <WatchGlyphBig />
             </div>
-            <div className="watch-connect-title">连接 HealthKit</div>
-            <div className="watch-connect-desc">授权后可以读取你的睡眠和运动数据，让我更懂你的作息。</div>
-            <button className="watch-connect-btn" onClick={connectWatch}>立即连接</button>
+            <div className="watch-connect-title">连接 Apple Watch 数据</div>
+            <div className="watch-connect-desc">配置一个 iOS 快捷指令，自动把睡眠、步数、心率同步过来，让我更懂你的作息。</div>
+            <button className="watch-connect-btn" onClick={openHealthDataPanel}>去配置</button>
           </div>
         )}
       </div>

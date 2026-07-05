@@ -1,5 +1,5 @@
 import { useStore } from '../../state/store';
-import { mockWatchDay, mockScreenApps } from './mock';
+import { mockScreenApps } from './mock';
 import FavoriteHeart from '../../components/FavoriteHeart';
 
 function LedgerGlyph() {
@@ -77,10 +77,10 @@ export default function ManageHome() {
   const openHabits = useStore((s) => s.openHabits);
   const openWatch = useStore((s) => s.openWatch);
   const openScreentime = useStore((s) => s.openScreentime);
-  const watchConnected = useStore((s) => s.watchConnected);
+  const healthLogs = useStore((s) => s.healthLogs);
 
   const today = todayISOLocal();
-  const watchToday = watchConnected ? mockWatchDay(today) : null;
+  const watchToday = healthLogs.find((r) => r.dateISO === today) || healthLogs[0] || null;
   const screenApps = mockScreenApps(today);
   const screenTotal = screenApps.reduce((sum, a) => sum + a.hours, 0);
   const screenTotalLabel = `${Math.floor(screenTotal)}小时${Math.round((screenTotal % 1) * 60)}分`;
@@ -204,7 +204,7 @@ export default function ManageHome() {
             <div className="manage-card__stat-label">睡眠时长</div>
           </div>
         </div>
-        <div className="manage-card__message">{watchConnected ? '记得看看今天的身体数据呀' : '还没连接 HealthKit，点击去连接'}</div>
+        <div className="manage-card__message">{watchToday ? '记得看看今天的身体数据呀' : '还没接入健康数据，点击去连接'}</div>
       </button>
 
       <button className="manage-card manage-card--clickable" onClick={openScreentime}>

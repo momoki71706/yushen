@@ -451,12 +451,68 @@ export const useStore = create(
   openHabitsDayDetail: (iso) => set({ habitsDayDetailDate: iso }),
   closeHabitsDayDetail: () => set({ habitsDayDetailDate: null }),
 
-  // ---- manage: watch (mock HealthKit) + screentime (mock) ----
-  openWatch: () => set({ manageView: 'watch' }),
-  openScreentime: () => set({ manageView: 'screentime' }),
+  // ---- manage: watch (real HealthKit via iOS Shortcut) + screentime (real open-events) ----
+  openWatch: () => {
+    set({ manageView: 'watch' });
+    get().loadHealthLogs();
+  },
+  openScreentime: () => {
+    set({ manageView: 'screentime' });
+    get().loadPhoneActivity();
+  },
 
-  watchConnected: false,
-  connectWatch: () => set({ watchConnected: true }),
+  healthLogs: [],
+  loadHealthLogs: async () => {
+    try {
+      const healthLogs = await api.getHealthLogs();
+      set({ healthLogs });
+    } catch {
+      // backend not reachable yet — leave whatever was there
+    }
+  },
+
+  phoneActivity: [],
+  loadPhoneActivity: async () => {
+    try {
+      const phoneActivity = await api.getPhoneActivity();
+      set({ phoneActivity });
+    } catch {
+      // backend not reachable yet
+    }
+  },
+
+  // ---- 健康数据接入 sidebar panel: URL + token for the iOS Shortcuts setup ----
+  healthDataPanelOpen: false,
+  healthToken: '',
+  healthTokenLoading: false,
+  healthTokenRegenConfirmOpen: false,
+  openHealthDataPanel: () => {
+    set({ healthDataPanelOpen: true });
+    get().loadHealthToken();
+  },
+  closeHealthDataPanel: () => set({ healthDataPanelOpen: false, healthTokenRegenConfirmOpen: false }),
+  loadHealthToken: async () => {
+    set({ healthTokenLoading: true });
+    try {
+      const { token } = await api.getHealthToken();
+      set({ healthToken: token });
+    } catch {
+      // backend not reachable yet
+    } finally {
+      set({ healthTokenLoading: false });
+    }
+  },
+  requestRegenerateHealthToken: () => set({ healthTokenRegenConfirmOpen: true }),
+  cancelRegenerateHealthToken: () => set({ healthTokenRegenConfirmOpen: false }),
+  confirmRegenerateHealthToken: async () => {
+    set({ healthTokenLoading: true });
+    try {
+      const { token } = await api.regenerateHealthToken();
+      set({ healthToken: token, healthTokenRegenConfirmOpen: false });
+    } finally {
+      set({ healthTokenLoading: false });
+    }
+  },
 
   screenReminderEnabled: true,
   toggleScreenReminder: () => set((s) => ({ screenReminderEnabled: !s.screenReminderEnabled })),
@@ -1728,6 +1784,7 @@ export const useStore = create(
       get().loadLedgerCardMessage(),
       get().loadHabits(),
       get().loadFavoriteKeys(),
+      get().loadHealthLogs(),
     ]);
     get().checkLetterReminder();
     get().checkDiaryReminder();
@@ -1743,7 +1800,6 @@ export const useStore = create(
         letterView: s.letterView,
         letterMailboxTab: s.letterMailboxTab,
         diaryView: s.diaryView === 'detail' ? 'list' : s.diaryView,
-        watchConnected: s.watchConnected,
         screenReminderEnabled: s.screenReminderEnabled,
         screenThreshold: s.screenThreshold,
         screenAppThresholds: s.screenAppThresholds,
