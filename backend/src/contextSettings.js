@@ -28,7 +28,7 @@ export function getContextMessageLimit() {
 // reviewed at the same natural cadence instead of on a clock.
 export function getMemorySaveMessageThreshold() {
   const raw = getSetting('memorySaveMessageThreshold', String(DEFAULT_MEMORY_SAVE_MESSAGE_THRESHOLD));
-  return clampInt(raw, 10, 300, DEFAULT_MEMORY_SAVE_MESSAGE_THRESHOLD);
+  return clampInt(raw, 1, 300, DEFAULT_MEMORY_SAVE_MESSAGE_THRESHOLD);
 }
 
 export function readContextSettings() {
@@ -45,7 +45,7 @@ export function setContextSettings({ contextMessageLimit, memorySaveMessageThres
   if (memorySaveMessageThreshold !== undefined) {
     setSetting(
       'memorySaveMessageThreshold',
-      String(clampInt(memorySaveMessageThreshold, 10, 300, DEFAULT_MEMORY_SAVE_MESSAGE_THRESHOLD))
+      String(clampInt(memorySaveMessageThreshold, 1, 300, DEFAULT_MEMORY_SAVE_MESSAGE_THRESHOLD))
     );
   }
   return readContextSettings();

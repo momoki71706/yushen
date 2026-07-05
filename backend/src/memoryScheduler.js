@@ -122,7 +122,7 @@ async function maybeSaveMemory() {
     if (!apiKey) return;
 
     const rows = db
-      .prepare('SELECT from_who, text, kind, attachment_url, attachment_name, attachment_mime FROM chat_messages WHERE id > ? ORDER BY id ASC')
+      .prepare('SELECT from_who, text, kind, attachment_url, attachment_name, attachment_mime, created_at FROM chat_messages WHERE id > ? ORDER BY id ASC')
       .all(lastChatId);
     if (!rows.length) return;
     // Unlike a reply-continuation call, this is a review pass over whatever

@@ -57,9 +57,9 @@ async function recentHistory(beforeId, { inclusive = false } = {}) {
   const limit = getContextMessageLimit();
   const rows = beforeId
     ? db
-        .prepare(`SELECT from_who, text, kind, attachment_url, attachment_name, attachment_mime FROM chat_messages WHERE id ${inclusive ? '<=' : '<'} ? ORDER BY id DESC LIMIT ?`)
+        .prepare(`SELECT from_who, text, kind, attachment_url, attachment_name, attachment_mime, created_at FROM chat_messages WHERE id ${inclusive ? '<=' : '<'} ? ORDER BY id DESC LIMIT ?`)
         .all(beforeId, limit)
-    : db.prepare('SELECT from_who, text, kind, attachment_url, attachment_name, attachment_mime FROM chat_messages ORDER BY id DESC LIMIT ?').all(limit);
+    : db.prepare('SELECT from_who, text, kind, attachment_url, attachment_name, attachment_mime, created_at FROM chat_messages ORDER BY id DESC LIMIT ?').all(limit);
   return enrichHistory(rows.reverse());
 }
 

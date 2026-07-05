@@ -1250,6 +1250,14 @@
   width: 100%;
   box-sizing: border-box;
 }
+.sidebar-menu-item--pinned {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--glass-strong);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
 .sidebar-menu-icon { width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; }
 .sidebar-menu-label { flex: 1; font-size: 15px; color: var(--color-text); text-align: left; }
 .sidebar-reminder-row { display: flex; align-items: center; gap: 12px; padding: 13px 4px; }

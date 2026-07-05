@@ -2,6 +2,15 @@ import { db, getSetting } from './db.js';
 import { getProviderWithKeys, getReplyViaProvider } from './providers.js';
 import { withReplyRetry, classifyReplyForRetry } from './persona.js';
 import { getContextMessageLimit } from './contextSettings.js';
+import { beijingFromUtcString, weekdayLabel } from './time.js';
+
+function timestampPrefix(createdAt) {
+  if (!createdAt) return '';
+  const t = beijingFromUtcString(createdAt);
+  const hh = String(t.getUTCHours()).padStart(2, '0');
+  const mm = String(t.getUTCMinutes()).padStart(2, '0');
+  return `[${t.getUTCMonth() + 1}月${t.getUTCDate()}日 ${weekdayLabel(t)} ${hh}:${mm}] `;
+}
 
 // Below this, a letter reads as too slight to be worth a written reply —
 // filtered out in code before ever spending a call on it, distinct from
@@ -22,12 +31,12 @@ function getActiveProvider() {
 // needs to answer) rather than passing it as literal turns.
 function recentChatNote() {
   const rows = db
-    .prepare('SELECT from_who, text, kind FROM chat_messages ORDER BY id DESC LIMIT ?')
+    .prepare('SELECT from_who, text, kind, created_at FROM chat_messages ORDER BY id DESC LIMIT ?')
     .all(Math.min(getContextMessageLimit(), 20))
     .reverse()
     .filter((r) => r.kind === 'text' && r.text);
   if (!rows.length) return null;
-  const lines = rows.map((r) => `${r.from_who === 'me' ? '小晴' : '你'}：${r.text}`);
+  const lines = rows.map((r) => `${timestampPrefix(r.created_at)}${r.from_who === 'me' ? '小晴' : '你'}：${r.text}`);
   return { from: 'me', text: `（最近的聊天记录，仅供参考，不用回复这条消息本身）\n${lines.join('\n')}` };
 }
 

@@ -86,7 +86,9 @@ export function getComposedSystemPrompt(extraInstruction) {
   const parts = [base];
   const chatSummary = (getSetting('chatSummary', '') || '').trim();
   if (chatSummary) parts.push(`【更早之前的对话摘要】\n${chatSummary}`);
-  parts.push(`【当前时间】\n${getTimeContext()}`);
+  parts.push(
+    `【当前时间】\n${getTimeContext()}\n（对话记录里每条消息前面的 [x月x日 周x 时:分] 是那条消息实际发送的时间，帮你判断隔了多久、该不该接着聊同一个话题——不需要每次都念出来，只在真的有必要提时间的时候才自然带一句）`
+  );
   if (extraInstruction) parts.push(extraInstruction);
   return parts.join('\n\n');
 }

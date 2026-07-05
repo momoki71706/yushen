@@ -166,6 +166,13 @@ export default function Sidebar() {
         </div>
 
         <div className="sidebar-divider" />
+        <button className="sidebar-menu-item sidebar-menu-item--pinned" onClick={openMemoryPanel}>
+          <div className="sidebar-menu-icon" style={{ background: '#D9CBD3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <BrainIcon />
+          </div>
+          <div className="sidebar-menu-label">记忆库</div>
+          <ChevronRight />
+        </button>
         {nicknameEditing ? (
           <div className="sidebar-menu-item" style={{ cursor: 'default' }}>
             <div className="sidebar-menu-icon" style={{ background: '#EDD9E1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -241,13 +248,6 @@ export default function Sidebar() {
             <ContextIcon />
           </div>
           <div className="sidebar-menu-label">上下文</div>
-          <ChevronRight />
-        </button>
-        <button className="sidebar-menu-item" onClick={openMemoryPanel}>
-          <div className="sidebar-menu-icon" style={{ background: '#D9CBD3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <BrainIcon />
-          </div>
-          <div className="sidebar-menu-label">记忆库</div>
           <ChevronRight />
         </button>
         <button className="sidebar-menu-item" onClick={openPushSettings}>

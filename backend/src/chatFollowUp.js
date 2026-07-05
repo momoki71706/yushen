@@ -28,7 +28,7 @@ function buildFollowUpInstruction(count) {
 
 async function recentHistory() {
   const rows = db
-    .prepare('SELECT from_who, text, kind, attachment_url, attachment_name, attachment_mime FROM chat_messages ORDER BY id DESC LIMIT ?')
+    .prepare('SELECT from_who, text, kind, attachment_url, attachment_name, attachment_mime, created_at FROM chat_messages ORDER BY id DESC LIMIT ?')
     .all(getContextMessageLimit())
     .reverse();
   return trimTrailingAssistantTurns(await enrichHistory(rows));
