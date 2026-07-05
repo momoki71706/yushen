@@ -105,8 +105,8 @@ export const useStore = create(
   pushEnabled: false,
   pushToggleBusy: false,
   pushToggleError: '',
-  pushIdleThresholdHours: 4,
-  pushMinGapHours: 3,
+  pushIdleThresholdMinutes: 240,
+  pushMinGapMinutes: 180,
   pushQuietHourStart: 0,
   pushQuietHourEnd: 8,
   diaryNotifyEnabled: false,
@@ -121,8 +121,8 @@ export const useStore = create(
       const s = await api.getPushSettings();
       set({
         pushEnabled: s.enabled,
-        pushIdleThresholdHours: s.idleThresholdHours,
-        pushMinGapHours: s.minGapHours,
+        pushIdleThresholdMinutes: s.idleThresholdMinutes,
+        pushMinGapMinutes: s.minGapMinutes,
         pushQuietHourStart: s.quietHourStart,
         pushQuietHourEnd: s.quietHourEnd,
         diaryNotifyEnabled: s.diaryNotifyEnabled,
@@ -161,7 +161,7 @@ export const useStore = create(
       set({ pushToggleBusy: false });
     }
   },
-  // key is one of 'idleThresholdHours' | 'minGapHours' | 'quietHourStart' | 'quietHourEnd'
+  // key is 'quietHourStart' | 'quietHourEnd'
   adjustPushSetting: async (key, delta, min, max) => {
     const stateKey = `push${key[0].toUpperCase()}${key.slice(1)}`;
     const current = get()[stateKey];
@@ -169,6 +169,14 @@ export const useStore = create(
     if (next === current) return;
     set({ [stateKey]: next });
     await api.updatePushSettings({ [key]: next });
+  },
+  // key is 'idleThresholdMinutes' | 'minGapMinutes' — driven by the
+  // HoursMinutesPicker scroll wheels rather than a stepper.
+  setPushMinutesSetting: async (key, minutes) => {
+    const stateKey = `push${key[0].toUpperCase()}${key.slice(1)}`;
+    if (get()[stateKey] === minutes) return;
+    set({ [stateKey]: minutes });
+    await api.updatePushSettings({ [key]: minutes });
   },
 
   // ---- export memories ----
@@ -263,12 +271,31 @@ export const useStore = create(
   ledgerDraft: null,
   editingLedgerEntryId: null,
   ledgerCardMessage: pickDaily(LEDGER_MESSAGES),
+  ledgerCardConfirmOpen: false,
+  ledgerCardRegenerating: false,
+  ledgerCardError: '',
   loadLedgerCardMessage: async () => {
     try {
       const { message } = await api.getLedgerCardMessage();
       if (message) set({ ledgerCardMessage: message });
     } catch {
       // backend not reachable yet — leave the placeholder in place
+    }
+  },
+  requestRegenerateLedgerCard: () => set({ ledgerCardConfirmOpen: true, ledgerCardError: '' }),
+  cancelRegenerateLedgerCard: () => set({ ledgerCardConfirmOpen: false }),
+  confirmRegenerateLedgerCard: async () => {
+    set({ ledgerCardRegenerating: true, ledgerCardError: '' });
+    try {
+      const res = await api.regenerateLedgerCardMessage();
+      set({
+        ledgerCardMessage: res.message || (res.empty ? '今天还没记账呢' : get().ledgerCardMessage),
+        ledgerCardConfirmOpen: false,
+      });
+    } catch (err) {
+      set({ ledgerCardError: err.message || '生成失败，再试一次吧' });
+    } finally {
+      set({ ledgerCardRegenerating: false });
     }
   },
   loadLedgerEntries: async () => {

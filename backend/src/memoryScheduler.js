@@ -1,5 +1,5 @@
 import { db, getSetting, setSetting } from './db.js';
-import { getProviderWithKeys, pickKey, trimTrailingAssistantTurns } from './providers.js';
+import { getProviderWithKeys, pickKey } from './providers.js';
 import { getEnabledTools, runAnthropicToolLoop, runOpenAiToolLoop } from './mcp.js';
 import { getLocalTools } from './localTools.js';
 import { getMemorySaveMessageThreshold } from './contextSettings.js';
@@ -17,6 +17,21 @@ const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often the scheduler wakes up to
 const MEMORY_REVIEW_INSTRUCTION = `【定时记忆整理】请回顾下面这些还没有被整理过的新内容——包括聊天记录，也可能包括日记和信件——如果有什么以后值得长期记住的信息——比如小晴的喜好/忌讳、纪念日或重要日期、你们之间的约定、她生活里的重要变化、说过的走心的话——请调用你可以用的记忆相关工具，把这些内容分别记录下来。已经记住过的内容不用重复记。如果没有什么新的、值得记的内容，就不用调用任何工具。`;
 
 const insertMemoryLog = db.prepare('INSERT INTO memory_log (tool_name, summary) VALUES (?, ?)');
+
+// Every real (non-local, non-error) tool call is treated as a memory save
+// — the only MCP server this app ever expects registered is a memory one
+// (see 工具管理), so this same filter applies whether the call happened
+// during this scheduled review pass or live mid-chat (see routes/chat.js),
+// which previously only reached the 记忆库 panel via this scheduler and
+// never logged calls the model made on its own during a normal reply.
+export function logMemoryToolTrace(toolTrace, localTools) {
+  if (!toolTrace?.length) return;
+  const localToolNames = new Set((localTools || getLocalTools()).map((t) => t.qualifiedName));
+  for (const trace of toolTrace) {
+    if (trace.isError || localToolNames.has(trace.name)) continue;
+    insertMemoryLog.run(trace.name, summarizeToolInput(trace.input));
+  }
+}
 
 function cursor(key) {
   return Number(getSetting(key, '0')) || 0;
@@ -90,8 +105,13 @@ async function maybeSaveMemory() {
       .prepare('SELECT from_who, text, kind, attachment_url, attachment_name, attachment_mime FROM chat_messages WHERE id > ? ORDER BY id ASC')
       .all(lastChatId);
     if (!rows.length) return;
-    const rawHistory = await enrichHistory(rows);
-    const history = trimTrailingAssistantTurns(rawHistory);
+    // Unlike a reply-continuation call, this is a review pass over whatever
+    // piled up — it has no need to end on a "me" turn, and this app's
+    // proactive/AI-initiated messages (letters, diary reactions, nags) mean
+    // the tail is often "them" anyway. Trimming those away here could
+    // discard most or all of the batch and made the review silently bail
+    // (no save, no cursor advance) whenever that happened.
+    const history = await enrichHistory(rows);
     if (!history.length) return;
 
     const localTools = getLocalTools();
@@ -117,11 +137,7 @@ async function maybeSaveMemory() {
     // that call itself — every real (non-local, non-error) tool call this
     // specific pass makes is by construction a memory save, since saving
     // memories is this whole prompt's only purpose.
-    const localToolNames = new Set(localTools.map((t) => t.qualifiedName));
-    for (const trace of result.toolTrace || []) {
-      if (trace.isError || localToolNames.has(trace.name)) continue;
-      insertMemoryLog.run(trace.name, summarizeToolInput(trace.input));
-    }
+    logMemoryToolTrace(result.toolTrace, localTools);
 
     // Advance every cursor now that this batch has actually been reviewed
     // — this is also what lets compression.js safely fold these chat

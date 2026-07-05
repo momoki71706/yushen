@@ -147,6 +147,7 @@ export const api = {
   deleteLedgerBudget: (id) => request(`/ledger/budgets/${id}`, { method: 'DELETE' }),
 
   getLedgerCardMessage: () => request('/ledger/card-message'),
+  regenerateLedgerCardMessage: () => request('/ledger/card-message/regenerate', { method: 'POST' }),
 
   getHabits: () => request('/habits'),
   addHabit: (payload) => request('/habits', { method: 'POST', body: JSON.stringify(payload) }),

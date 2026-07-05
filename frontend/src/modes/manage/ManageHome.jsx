@@ -67,6 +67,11 @@ export default function ManageHome() {
   const categoryColor = useStore((s) => s.categoryColor);
   const todayISOLocal = useStore((s) => s.todayISOLocal);
   const ledgerCardMessage = useStore((s) => s.ledgerCardMessage);
+  const ledgerCardConfirmOpen = useStore((s) => s.ledgerCardConfirmOpen);
+  const ledgerCardRegenerating = useStore((s) => s.ledgerCardRegenerating);
+  const requestRegenerateLedgerCard = useStore((s) => s.requestRegenerateLedgerCard);
+  const cancelRegenerateLedgerCard = useStore((s) => s.cancelRegenerateLedgerCard);
+  const confirmRegenerateLedgerCard = useStore((s) => s.confirmRegenerateLedgerCard);
   const habitCardMessage = useStore((s) => s.habitCardMessage);
   const openLedger = useStore((s) => s.openLedger);
   const openHabits = useStore((s) => s.openHabits);
@@ -119,8 +124,26 @@ export default function ManageHome() {
           </div>
         </div>
         <div className="manage-card__message-row">
-          <div className="manage-card__message">{ledgerCardMessage}</div>
-          {ledgerCardMessage && (
+          {ledgerCardConfirmOpen ? (
+            <div className="manage-card__message-confirm" onClick={(e) => e.stopPropagation()}>
+              <span>重新生成？</span>
+              <button className="ledger-category-delete-cancel" onClick={cancelRegenerateLedgerCard}>取消</button>
+              <button className="ledger-category-delete-danger" onClick={confirmRegenerateLedgerCard} disabled={ledgerCardRegenerating}>
+                {ledgerCardRegenerating ? '生成中…' : '确定'}
+              </button>
+            </div>
+          ) : (
+            <button
+              className="manage-card__message manage-card__message--tappable"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (ledgerCardMessage) requestRegenerateLedgerCard();
+              }}
+            >
+              {ledgerCardMessage}
+            </button>
+          )}
+          {ledgerCardMessage && !ledgerCardConfirmOpen && (
             <FavoriteHeart
               type="tip"
               sourceId={ledgerCardMessage}

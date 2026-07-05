@@ -1,5 +1,6 @@
 import { useStore } from '../state/store';
 import { CloseIcon } from './Icons';
+import HoursMinutesPicker from './HoursMinutesPicker';
 
 export default function PushSettingsPanel() {
   const pushSettingsOpen = useStore((s) => s.pushSettingsOpen);
@@ -8,11 +9,12 @@ export default function PushSettingsPanel() {
   const pushToggleBusy = useStore((s) => s.pushToggleBusy);
   const pushToggleError = useStore((s) => s.pushToggleError);
   const togglePushEnabled = useStore((s) => s.togglePushEnabled);
-  const pushIdleThresholdHours = useStore((s) => s.pushIdleThresholdHours);
-  const pushMinGapHours = useStore((s) => s.pushMinGapHours);
+  const pushIdleThresholdMinutes = useStore((s) => s.pushIdleThresholdMinutes);
+  const pushMinGapMinutes = useStore((s) => s.pushMinGapMinutes);
   const pushQuietHourStart = useStore((s) => s.pushQuietHourStart);
   const pushQuietHourEnd = useStore((s) => s.pushQuietHourEnd);
   const adjustPushSetting = useStore((s) => s.adjustPushSetting);
+  const setPushMinutesSetting = useStore((s) => s.setPushMinutesSetting);
   const diaryNotifyEnabled = useStore((s) => s.diaryNotifyEnabled);
   const diaryNotifyBusy = useStore((s) => s.diaryNotifyBusy);
   const toggleDiaryNotifyEnabled = useStore((s) => s.toggleDiaryNotifyEnabled);
@@ -47,20 +49,18 @@ export default function PushSettingsPanel() {
 
         <div className="watch-card" style={{ margin: '0 0 14px' }}>
           <div className="watch-card-title">多久没聊天后开始主动找你</div>
-          <div className="screen-threshold-stepper">
-            <button className="screen-step-btn" onClick={() => adjustPushSetting('idleThresholdHours', -1, 1, 48)}>-</button>
-            <div className="screen-threshold-value">{pushIdleThresholdHours} 小时</div>
-            <button className="screen-step-btn" onClick={() => adjustPushSetting('idleThresholdHours', 1, 1, 48)}>+</button>
-          </div>
+          <HoursMinutesPicker
+            totalMinutes={pushIdleThresholdMinutes}
+            onChange={(m) => setPushMinutesSetting('idleThresholdMinutes', m)}
+          />
         </div>
 
         <div className="watch-card" style={{ margin: '0 0 14px' }}>
           <div className="watch-card-title">两次主动消息最少间隔</div>
-          <div className="screen-threshold-stepper">
-            <button className="screen-step-btn" onClick={() => adjustPushSetting('minGapHours', -1, 1, 48)}>-</button>
-            <div className="screen-threshold-value">{pushMinGapHours} 小时</div>
-            <button className="screen-step-btn" onClick={() => adjustPushSetting('minGapHours', 1, 1, 48)}>+</button>
-          </div>
+          <HoursMinutesPicker
+            totalMinutes={pushMinGapMinutes}
+            onChange={(m) => setPushMinutesSetting('minGapMinutes', m)}
+          />
         </div>
 
         <div className="watch-card" style={{ margin: '0 0 14px' }}>

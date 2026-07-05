@@ -5,6 +5,7 @@ import { maybeCompressChatHistory } from '../compression.js';
 import { formatBeijingClock } from '../time.js';
 import { getContextMessageLimit } from '../contextSettings.js';
 import { enrichHistory } from '../chatHistory.js';
+import { logMemoryToolTrace } from '../memoryScheduler.js';
 
 const router = Router();
 
@@ -111,6 +112,7 @@ router.post('/', async (req, res) => {
   const mine = insertMineRow({ text, kind, attachment });
   const reply = await getYushenReply(await recentHistory());
   const theirs = insertTheirsRow(reply);
+  logMemoryToolTrace(reply.toolTrace);
 
   res.json({ mine: serializeMessage(mine), reply: serializeMessage(theirs) });
 
@@ -131,6 +133,7 @@ router.post('/batch', async (req, res) => {
 
   const reply = await getYushenReply(await recentHistory());
   const theirs = insertTheirsRow(reply);
+  logMemoryToolTrace(reply.toolTrace);
 
   res.json({ mine: mineRows.map(serializeMessage), reply: serializeMessage(theirs) });
 
@@ -154,6 +157,7 @@ router.post('/:id/regenerate', async (req, res) => {
     reply.toolTrace?.length ? JSON.stringify(reply.toolTrace) : null,
     id
   );
+  logMemoryToolTrace(reply.toolTrace);
   const updated = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(id);
   res.json(serializeMessage(updated));
 });
@@ -192,6 +196,7 @@ router.post('/:id/regenerate-round', async (req, res) => {
   }
 
   const reply = await getYushenReply(await recentHistory(id, { inclusive: true }));
+  logMemoryToolTrace(reply.toolTrace);
 
   if (next) {
     db.prepare('UPDATE chat_messages SET text = ?, tokens = ?, thinking = ?, tool_calls = ? WHERE id = ?').run(

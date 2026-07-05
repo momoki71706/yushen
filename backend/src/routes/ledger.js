@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { db, getSetting } from '../db.js';
+import { db, getSetting, setSetting } from '../db.js';
 import { formatBeijingClock } from '../time.js';
+import { writeLedgerCardMessage } from '../ledgerAi.js';
 
 const router = Router();
 
@@ -133,6 +134,17 @@ router.delete('/budgets/:id', (req, res) => {
 // reads her real entries (see ledgerAi.js/ledgerScheduler.js).
 router.get('/card-message', (req, res) => {
   res.json({ message: getSetting('ledgerCardMessage', '') });
+});
+
+// Manual regenerate (tap the card message, confirm) — bypasses the
+// scheduler's random once/twice-a-day timing and asks for a fresh one now.
+router.post('/card-message/regenerate', async (req, res) => {
+  const result = await writeLedgerCardMessage();
+  if (!result) return res.status(400).json({ error: '还没有配置 AI 供应商' });
+  if (result.failed) return res.status(502).json({ error: '生成失败，再试一次吧' });
+  if (!result.text) return res.json({ message: '', empty: true });
+  setSetting('ledgerCardMessage', result.text);
+  res.json({ message: result.text });
 });
 
 export default router;

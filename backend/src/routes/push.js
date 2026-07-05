@@ -23,10 +23,11 @@ router.post('/unsubscribe', (req, res) => {
 
 // Defaults mirror what proactive.js used as hardcoded constants before
 // these became adjustable — nothing changes for anyone who never opens
-// the settings panel.
+// the settings panel. Idle threshold / min gap are stored in minutes (not
+// whole hours) so the 小时+分钟 scroll picker can express quarter-hours.
 const PUSH_DEFAULTS = {
-  idleThresholdHours: 4, // conversation has to be quiet this long before a proactive message is even considered
-  minGapHours: 3, // don't send more than one proactive message this often, regardless of idle time
+  idleThresholdMinutes: 240, // conversation has to be quiet this long before a proactive message is even considered
+  minGapMinutes: 180, // don't send more than one proactive message this often, regardless of idle time
   quietHourStart: 0, // no proactive messages between quietHourStart and quietHourEnd (Beijing time)
   quietHourEnd: 8,
 };
@@ -43,8 +44,8 @@ function clampInt(value, min, max, fallback) {
 function readPushSettings() {
   return {
     enabled: getSetting('proactiveMessagesEnabled', '0') === '1',
-    idleThresholdHours: clampInt(getSetting('proactiveIdleThresholdHours', String(PUSH_DEFAULTS.idleThresholdHours)), 1, 48, PUSH_DEFAULTS.idleThresholdHours),
-    minGapHours: clampInt(getSetting('proactiveMinGapHours', String(PUSH_DEFAULTS.minGapHours)), 1, 48, PUSH_DEFAULTS.minGapHours),
+    idleThresholdMinutes: clampInt(getSetting('proactiveIdleThresholdMinutes', String(PUSH_DEFAULTS.idleThresholdMinutes)), 30, 2880, PUSH_DEFAULTS.idleThresholdMinutes),
+    minGapMinutes: clampInt(getSetting('proactiveMinGapMinutes', String(PUSH_DEFAULTS.minGapMinutes)), 30, 2880, PUSH_DEFAULTS.minGapMinutes),
     quietHourStart: clampInt(getSetting('proactiveQuietHourStart', String(PUSH_DEFAULTS.quietHourStart)), 0, 23, PUSH_DEFAULTS.quietHourStart),
     quietHourEnd: clampInt(getSetting('proactiveQuietHourEnd', String(PUSH_DEFAULTS.quietHourEnd)), 0, 23, PUSH_DEFAULTS.quietHourEnd),
     diaryNotifyEnabled: getSetting('diaryNotifyEnabled', '0') === '1',
@@ -56,10 +57,10 @@ router.get('/settings', (req, res) => {
 });
 
 router.patch('/settings', (req, res) => {
-  const { enabled, idleThresholdHours, minGapHours, quietHourStart, quietHourEnd, diaryNotifyEnabled } = req.body || {};
+  const { enabled, idleThresholdMinutes, minGapMinutes, quietHourStart, quietHourEnd, diaryNotifyEnabled } = req.body || {};
   if (enabled !== undefined) setSetting('proactiveMessagesEnabled', enabled ? '1' : '0');
-  if (idleThresholdHours !== undefined) setSetting('proactiveIdleThresholdHours', String(clampInt(idleThresholdHours, 1, 48, PUSH_DEFAULTS.idleThresholdHours)));
-  if (minGapHours !== undefined) setSetting('proactiveMinGapHours', String(clampInt(minGapHours, 1, 48, PUSH_DEFAULTS.minGapHours)));
+  if (idleThresholdMinutes !== undefined) setSetting('proactiveIdleThresholdMinutes', String(clampInt(idleThresholdMinutes, 30, 2880, PUSH_DEFAULTS.idleThresholdMinutes)));
+  if (minGapMinutes !== undefined) setSetting('proactiveMinGapMinutes', String(clampInt(minGapMinutes, 30, 2880, PUSH_DEFAULTS.minGapMinutes)));
   if (quietHourStart !== undefined) setSetting('proactiveQuietHourStart', String(clampInt(quietHourStart, 0, 23, PUSH_DEFAULTS.quietHourStart)));
   if (quietHourEnd !== undefined) setSetting('proactiveQuietHourEnd', String(clampInt(quietHourEnd, 0, 23, PUSH_DEFAULTS.quietHourEnd)));
   if (diaryNotifyEnabled !== undefined) setSetting('diaryNotifyEnabled', diaryNotifyEnabled ? '1' : '0');

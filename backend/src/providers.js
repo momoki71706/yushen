@@ -14,7 +14,14 @@ import { getComposedSystemPrompt } from './presets.js';
 export function trimTrailingAssistantTurns(history) {
   let end = history.length;
   while (end > 0 && history[end - 1].from !== 'me') end--;
-  return history.slice(0, end);
+  // If the whole window is "them" (several unanswered proactive/follow-up
+  // messages in a row, which happens whenever she goes quiet for a while),
+  // trimming to empty would send zero messages to the provider, which
+  // every provider API rejects outright. That silently and permanently
+  // broke every scheduler using this (proactive, follow-up, scheduled
+  // reminders) until she sent something new to break up the run — keep
+  // the untrimmed history instead of returning nothing.
+  return end > 0 ? history.slice(0, end) : history;
 }
 
 // A history entry with an `image` field needs the actual image bytes sent

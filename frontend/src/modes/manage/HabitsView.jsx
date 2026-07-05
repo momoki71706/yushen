@@ -1,7 +1,17 @@
+import { useState } from 'react';
 import { useStore } from '../../state/store';
 import { BackChevronIcon, CloseIcon, CheckIcon } from '../../components/Icons';
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+function NavArrow({ direction }) {
+  const d = direction === 'prev' ? 'M8 3L4 7L8 11' : 'M6 3L10 7L6 11';
+  return (
+    <svg width="9" height="14" viewBox="0 0 14 14" fill="none">
+      <path d={d} stroke="#8C7A82" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 function isoOfDate(d) {
   const y = d.getFullYear();
@@ -70,8 +80,10 @@ export default function HabitsView() {
   const openHabitsDayDetail = useStore((s) => s.openHabitsDayDetail);
   const closeHabitsDayDetail = useStore((s) => s.closeHabitsDayDetail);
 
+  const [monthOffset, setMonthOffset] = useState(0);
   const today = todayISOLocal();
-  const monthDate = new Date();
+  const now = new Date();
+  const monthDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
   const cells = buildCalendarCells(monthDate, habits, today);
 
   return (
@@ -115,7 +127,15 @@ export default function HabitsView() {
         })}
 
         <div className="habit-heatmap-card">
-          <div className="habit-heatmap-title">{monthDate.getMonth() + 1}月 完成情况</div>
+          <div className="habit-heatmap-title-row">
+            <button className="cal-month-nav-btn" onClick={() => setMonthOffset((o) => o - 1)}>
+              <NavArrow direction="prev" />
+            </button>
+            <div className="habit-heatmap-title">{monthDate.getFullYear()}年{monthDate.getMonth() + 1}月 完成情况</div>
+            <button className="cal-month-nav-btn" onClick={() => setMonthOffset((o) => Math.min(0, o + 1))} disabled={monthOffset >= 0}>
+              <NavArrow direction="next" />
+            </button>
+          </div>
           <div className="habit-heatmap-grid">
             {cells.map((cell, i) =>
               cell === null ? (

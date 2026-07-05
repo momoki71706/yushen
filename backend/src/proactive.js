@@ -13,10 +13,10 @@ const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often the scheduler wakes up to
 // change in the settings panel takes effect on the next cycle without a
 // restart.
 function getIdleThresholdMs() {
-  return Number(getSetting('proactiveIdleThresholdHours', '4')) * 3600000;
+  return Number(getSetting('proactiveIdleThresholdMinutes', '240')) * 60000;
 }
 function getMinGapMs() {
-  return Number(getSetting('proactiveMinGapHours', '3')) * 3600000;
+  return Number(getSetting('proactiveMinGapMinutes', '180')) * 60000;
 }
 function getQuietHourStart() {
   return Number(getSetting('proactiveQuietHourStart', '0'));

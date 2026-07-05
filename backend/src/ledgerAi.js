@@ -50,19 +50,32 @@ export async function writeLedgerNag() {
   return { failed: false, text: reply.text.trim() };
 }
 
-const CARD_MESSAGE_INSTRUCTION = `【记账卡片小语】请以你一贯的人设，根据下面小晴最近的记账记录（如果附带本月预算情况也一起参考），写一句简短的话（不超过20字），可以是关心她吃了什么好吃的、提醒某个类别快超/已经超预算了、或者单纯调侃一下她的消费习惯——要参考她记录里具体的类别或备注，不要写得笼统。语气自然像日常唠叨，不要生硬，不要提到"记账""预算"这类词以外的程序化说法。只输出这句话本身。`;
+// Only today's entries — the card is meant to read like a comment on what
+// she's done today, not a summary spanning several days.
+function todayLedgerNote() {
+  const todayISO = db.prepare("SELECT date(datetime('now', '+8 hours')) AS d").get().d;
+  const rows = db.prepare('SELECT * FROM ledger_entries WHERE date_iso = ? ORDER BY id DESC').all(todayISO);
+  if (!rows.length) return null;
+  const lines = rows.map(
+    (r) => `${r.type === 'income' ? '收入' : '支出'} ${r.category} ¥${r.amount}${r.note ? '，备注：' + r.note : ''}`
+  );
+  return lines.join('\n');
+}
 
-// Called by ledgerScheduler 1-2 times a day — the management page's 记账
-// card subtitle, replacing the old static rotating placeholder string with
-// something that actually reflects what she's been logging.
+const CARD_MESSAGE_INSTRUCTION = `【记账卡片小语】请以你一贯的人设，根据下面小晴今天的记账记录（如果附带本月预算情况也一起参考），写一句简短的话（不超过20字），可以是关心她吃了什么好吃的、提醒某个类别快超/已经超预算了、或者单纯调侃一下她的消费习惯——要参考她记录里具体的类别或备注，不要写得笼统。语气自然像日常随口一说，不要写成分析、总结、推理的口吻（比如不要说"看你今天...说明/看来..."这类分析腔），不要提到"记账""预算"这类词以外的程序化说法。只输出这句话本身，不要输出任何思考过程、前缀或解释。`;
+
+// Called by ledgerScheduler 1-2 times a day (or on demand via the manual
+// regenerate route) — the management page's 记账 card subtitle, replacing
+// the old static rotating placeholder string with something that actually
+// reflects what she's logged today.
 export async function writeLedgerCardMessage() {
   const provider = getActiveProvider();
   if (!provider) return null;
-  const ledgerNote = recentLedgerNote(15);
-  if (!ledgerNote) return { failed: false, text: null }; // nothing logged yet — not a failure, just nothing to say
+  const ledgerNote = todayLedgerNote();
+  if (!ledgerNote) return { failed: false, text: null }; // nothing logged today — not a failure, just nothing to say
   const budgetNote = currentMonthBudgetNote();
   const combined = budgetNote ? `${ledgerNote}\n\n（本月预算情况）\n${budgetNote}` : ledgerNote;
-  const history = [{ from: 'me', text: `（最近的记账记录，仅供参考）\n${combined}` }];
+  const history = [{ from: 'me', text: `（小晴今天的记账记录，仅供参考）\n${combined}` }];
   const reply = await withReplyRetry(() => getReplyViaProvider(history, provider, CARD_MESSAGE_INSTRUCTION));
   if (classifyReplyForRetry(reply.text).bad) return { failed: true, text: null };
   return { failed: false, text: reply.text.trim() };
