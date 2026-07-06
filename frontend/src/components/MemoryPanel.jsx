@@ -20,6 +20,16 @@ export default function MemoryPanel() {
           </button>
         </div>
 
+        <a
+          className="ai-key-save-btn memory-panel-link--pinned"
+          style={{ width: '100%', padding: '13px 0', marginBottom: 16, textAlign: 'center', display: 'block', boxSizing: 'border-box' }}
+          href={MEMORY_LIBRARY_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          进入记忆库
+        </a>
+
         {memoryLogEntries.length === 0 && (
           <div className="ai-key-status" style={{ marginBottom: 12 }}>还没有自动存过记忆。</div>
         )}
@@ -30,16 +40,6 @@ export default function MemoryPanel() {
             <div className="memory-log-summary">{entry.summary}</div>
           </div>
         ))}
-
-        <a
-          className="ai-key-save-btn"
-          style={{ width: '100%', padding: '13px 0', marginTop: 16, textAlign: 'center', display: 'block', boxSizing: 'border-box' }}
-          href={MEMORY_LIBRARY_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          进入记忆库
-        </a>
       </div>
     </div>
   );
