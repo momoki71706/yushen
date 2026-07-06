@@ -70,6 +70,27 @@ function getTimeContext() {
   return `现在是${now.getUTCFullYear()}年${now.getUTCMonth() + 1}月${now.getUTCDate()}日 ${weekday} ${period} ${formatBeijingClock(now)}`;
 }
 
+// The memory-review scheduler (memoryScheduler.js) only ever surfaces
+// health data if an MCP memory tool is connected AND the model happens to
+// judge a given day's numbers worth saving — neither is guaranteed, so
+// relying on that path alone left the model blind to watch data most of
+// the time. This instead puts the latest pushed snapshot directly in every
+// system prompt, unconditionally, the same way the time block works.
+function getHealthContext() {
+  const row = db.prepare('SELECT * FROM health_logs ORDER BY date_iso DESC LIMIT 1').get();
+  if (!row) return '';
+  const sleepHours = row.sleep_minutes ? `${Math.floor(row.sleep_minutes / 60)}小时${row.sleep_minutes % 60}分钟` : '暂无数据';
+  return (
+    `【最近一次同步的健康数据（${row.date_iso}）】\n` +
+    `睡眠：${row.sleep_start || '?'} → ${row.sleep_end || '?'}（${sleepHours}）\n` +
+    `步数：${row.steps}\n` +
+    `心率：均${row.heart_rate_avg}（${row.heart_rate_min}-${row.heart_rate_max}）\n` +
+    `经期：${row.is_period ? '是' : '否'}` +
+    `${row.note ? `\n备注：${row.note}` : ''}` +
+    `\n（不一定每次都要提，只在自然、相关的时候才结合这些数据说话）`
+  );
+}
+
 // Every enabled preset's content is concatenated (in category/sort order)
 // into a single system prompt applied to every chat call, across all AI
 // providers and Claude Code CLI. The rolling chat-history summary (from
@@ -89,6 +110,8 @@ export function getComposedSystemPrompt(extraInstruction) {
   parts.push(
     `【当前时间】\n${getTimeContext()}\n（对话记录里每条消息前面的 [x月x日 周x 时:分] 是那条消息实际发送的时间，帮你判断隔了多久、该不该接着聊同一个话题——不需要每次都念出来，只在真的有必要提时间的时候才自然带一句）`
   );
+  const healthContext = getHealthContext();
+  if (healthContext) parts.push(healthContext);
   if (extraInstruction) parts.push(extraInstruction);
   return parts.join('\n\n');
 }
