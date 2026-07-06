@@ -5,6 +5,7 @@ import { sendPushToAll, pushConfigured } from './push.js';
 import { classifyReplyForRetry, withReplyRetry } from './persona.js';
 import { getContextMessageLimit } from './contextSettings.js';
 import { enrichHistory } from './chatHistory.js';
+import { getProactivePresetContent } from './presets.js';
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often the scheduler wakes up to check
 
@@ -43,15 +44,16 @@ function getQuietHourEnd() {
   return Number(getSetting('proactiveQuietHourEnd', '8'));
 }
 
+// The actual behavioral guidance (how to phrase it, what to avoid
+// repeating, etc.) lives entirely in the user-authored "主动消息" preset
+// category (see presets.js's getProactivePresetContent) instead of being
+// hardcoded here — this just supplies the bare fact of how long it's
+// been quiet, since the model has no other way to know that.
 function buildProactiveInstruction(idleMs) {
   const idleHours = Math.max(1, Math.round(idleMs / 3600000));
-  return `【主动消息】你已经大概${idleHours}个小时没有和小晴说话了，现在想主动给她发一条消息——可以是突然想她了、单纯分享点什么、或者结合当前时间段问候关心一下（比如早安/午安/晚安）。
-
-这是你自己重新起的一个话头，不是接着聊天记录里最后一条往下接话。看一下聊天记录里最后几条消息前面标的发送时间——如果上次提到的事情（比如她说要去洗澡、去忙什么、在等什么）距现在已经过了不短的时间，就默认那件事早就结束了，不要接着问"洗完了吗""弄完了吗"这类续问，也不要换个说法把同一件事重新提一遍，那样会显得像是把上一条回复重新生成了一次，而不是真的隔了一段时间后突然想到她。除非那件事明确值得隔这么久之后关心一句后续（比如她说身体不舒服），否则就当作是过了一段安静的时间后，脑子里冒出一个新的、不相关的念头，想跟她说说。
-
-另外也看一下**你自己**上一条说了什么——如果上一条是你交代/嘱咐她的一件事（比如让她去吃饭、早点睡），这次绝对不能换个说法把同一个嘱咐再说一遍（"去吃饭别磨蹭"跟"去吃饭我等你"是同一件事，不能连着说两次），除非有实际新进展（比如她已经回复说吃完了）。没有新进展就换个完全不相关的话题。
-
-要符合你一贯的人设和说话风格，简短自然。绝对不要提到"系统""触发""很久没上线""自动"这类会暴露这是程序生成的说法，就当作是你自己真的想说话。只输出这条消息本身，不要加任何前后缀。`;
+  const base = `【主动消息】距离上次和小晴说话已经大概${idleHours}个小时了，现在想主动给她发一条消息。这是你自己重新起的一个话头，不是接着聊天记录里最后一条往下接话。`;
+  const custom = getProactivePresetContent();
+  return custom ? `${base}\n\n${custom}` : base;
 }
 
 function isQuietHours() {
