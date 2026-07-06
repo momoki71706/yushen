@@ -296,6 +296,12 @@ ensureColumn('diary_entries', 'attachment_size', 'INTEGER');
 // relying on this table-level default.
 ensureColumn('diary_entries', 'read_by_me', 'INTEGER NOT NULL DEFAULT 1');
 ensureColumn('diary_comments', 'read_by_me', 'INTEGER NOT NULL DEFAULT 1');
+// Apple's own daily resting heart rate and walking-average heart rate —
+// distinct HealthKit sample types from the generic Heart Rate samples
+// heart_rate_avg/min/max are computed from, so they're stored separately
+// rather than folded into that same min/max range.
+ensureColumn('health_logs', 'heart_rate_resting', 'INTEGER');
+ensureColumn('health_logs', 'heart_rate_active', 'INTEGER');
 ensureColumn('diary_comments', 'reply_to_id', 'INTEGER');
 
 // The very first release seeded 4 placeholder diary entries so the page

@@ -92,7 +92,8 @@ function collectNewHealthText(sinceId) {
     const sleepHours = r.sleep_minutes ? `${Math.floor(r.sleep_minutes / 60)}h${r.sleep_minutes % 60}m` : '未知';
     return (
       `[健康数据 ${r.date_iso}] 睡眠 ${r.sleep_start || '?'}→${r.sleep_end || '?'}（${sleepHours}），` +
-      `步数 ${r.steps}，心率均${r.heart_rate_avg}（${r.heart_rate_min}-${r.heart_rate_max}），` +
+      `步数 ${r.steps}，心率均${r.heart_rate_avg}（${r.heart_rate_min}-${r.heart_rate_max}）` +
+      `${r.heart_rate_resting ? `，静息心率${r.heart_rate_resting}` : ''}${r.heart_rate_active ? `，运动心率${r.heart_rate_active}` : ''}，` +
       `经期${r.is_period ? '是' : '否'}${r.note ? `，备注：${r.note}` : ''}`
     );
   });

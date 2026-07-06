@@ -62,6 +62,12 @@ export default function WatchView() {
           ratio: todayData.heartRateAvg / 100,
           color: '#EDD9E1',
         },
+        ...(todayData.heartRateResting
+          ? [{ label: '静息心率', value: `${todayData.heartRateResting} bpm`, ratio: todayData.heartRateResting / 100, color: '#C9B9CE' }]
+          : []),
+        ...(todayData.heartRateActive
+          ? [{ label: '运动心率', value: `${todayData.heartRateActive} bpm`, ratio: todayData.heartRateActive / 150, color: '#E3B9B4' }]
+          : []),
       ]
     : [];
 
