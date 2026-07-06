@@ -5,6 +5,7 @@ import { sendPushToAll, pushConfigured } from './push.js';
 import { classifyReplyForRetry, withReplyRetry, estimateTokens } from './persona.js';
 import { getContextMessageLimit } from './contextSettings.js';
 import { enrichHistory } from './chatHistory.js';
+import { proactiveMessagingEnabled, withinProactiveMinGap, recordProactiveMessageSent } from './proactive.js';
 
 // Checked often enough that the 3-5 minute wait doesn't feel sloppy —
 // same cadence as the diary/letter schedulers.
@@ -58,7 +59,12 @@ export async function maybeSendFollowUp() {
     const sinceLastMs = Date.now() - new Date(`${last.created_at}Z`).getTime();
     if (sinceLastMs < waitMs) return;
 
-    if (!pushConfigured || getSetting('proactiveMessagesEnabled', '0') !== '1') return;
+    if (!pushConfigured || !proactiveMessagingEnabled()) return;
+    // Shares its cooldown with the idle-chat scheduler — otherwise a
+    // just-read unanswered question can trigger this nudge in the same
+    // window the idle scheduler independently decides to say something,
+    // landing as two unrelated "them" messages seconds apart.
+    if (withinProactiveMinGap()) return;
 
     const providerId = getSetting('activeProviderId', '');
     const provider = providerId ? getProviderWithKeys(providerId) : null;
@@ -73,6 +79,7 @@ export async function maybeSendFollowUp() {
     ).run('them', reply.text, 'text', formatBeijingClock(), reply.tokens ?? estimateTokens(reply.text), reply.thinking || null);
 
     setSetting('chatFollowUpCount', String(followUpCount + 1));
+    recordProactiveMessageSent();
     await sendPushToAll({ title: '屿深', body: reply.text });
   } catch (err) {
     console.error('[chat-follow-up] error:', err.message);

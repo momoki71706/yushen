@@ -18,6 +18,24 @@ function getIdleThresholdMs() {
 function getMinGapMs() {
   return Number(getSetting('proactiveMinGapMinutes', '180')) * 60000;
 }
+
+// Shared across every scheduler that can send an unprompted "them" chat
+// message (idle chit-chat, read-but-unanswered follow-ups, ledger nags,
+// diary-reaction asides) so they don't independently fire within the same
+// window and read as two messages about the same thing sent seconds apart.
+export function proactiveMessagingEnabled() {
+  return getSetting('proactiveMessagesEnabled', '0') === '1';
+}
+
+export function withinProactiveMinGap() {
+  const lastProactiveAt = getSetting('lastProactiveMessageAt', '');
+  if (!lastProactiveAt) return false;
+  return Date.now() - new Date(lastProactiveAt).getTime() < getMinGapMs();
+}
+
+export function recordProactiveMessageSent() {
+  setSetting('lastProactiveMessageAt', new Date().toISOString());
+}
 function getQuietHourStart() {
   return Number(getSetting('proactiveQuietHourStart', '0'));
 }
@@ -43,7 +61,7 @@ function isQuietHours() {
 
 async function maybeSendProactiveMessage() {
   try {
-    if (getSetting('proactiveMessagesEnabled', '0') !== '1') return;
+    if (!proactiveMessagingEnabled()) return;
     if (!pushConfigured) return;
     if (isQuietHours()) return;
 
@@ -52,8 +70,7 @@ async function maybeSendProactiveMessage() {
     const idleMs = Date.now() - new Date(`${last.created_at}Z`).getTime();
     if (idleMs < getIdleThresholdMs()) return;
 
-    const lastProactiveAt = getSetting('lastProactiveMessageAt', '');
-    if (lastProactiveAt && Date.now() - new Date(lastProactiveAt).getTime() < getMinGapMs()) return;
+    if (withinProactiveMinGap()) return;
 
     const providerId = getSetting('activeProviderId', '');
     const provider = providerId ? getProviderWithKeys(providerId) : null;
@@ -75,7 +92,7 @@ async function maybeSendProactiveMessage() {
       'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens, thinking) VALUES (?,?,?,?,?,?)'
     ).run('them', reply.text, 'text', formatBeijingClock(), reply.tokens, reply.thinking || null);
 
-    setSetting('lastProactiveMessageAt', new Date().toISOString());
+    recordProactiveMessageSent();
 
     await sendPushToAll({ title: '屿深', body: reply.text });
   } catch (err) {

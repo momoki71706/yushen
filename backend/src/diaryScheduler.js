@@ -3,6 +3,7 @@ import { beijingNow, weekdayLabel, formatBeijingClock } from './time.js';
 import { writeDiaryEntry, reactToDiaryEntry, commentOnDiaryByRequest, moodColorFor } from './diaryAi.js';
 import { sendPushToAll, pushConfigured } from './push.js';
 import { FALLBACK_REPLY, classifyReplyForRetry, estimateTokens } from './persona.js';
+import { proactiveMessagingEnabled, withinProactiveMinGap, recordProactiveMessageSent } from './proactive.js';
 
 // A diary comment/feedback attempt gets retried on the next couple of
 // checks (one retry per minute-ish tick) before giving up for good — unlike
@@ -135,8 +136,18 @@ export async function maybeReactToDiaries() {
         db.prepare('UPDATE diary_entries SET reacted = 1 WHERE id = ?').run(entry.id);
         insertReactionComment.run(entry.id, reaction.comment, formatBeijingClock());
         await notifyDiaryComment(reaction.comment);
-        if (reaction.chatFollowUp && !classifyReplyForRetry(reaction.chatFollowUp).bad) {
+        // The diary comment itself always lands regardless of this setting
+        // — only the bonus chat-side mention counts as an unprompted "them"
+        // message, so it respects the same toggle/cooldown as the other
+        // proactive-message sources.
+        if (
+          reaction.chatFollowUp &&
+          !classifyReplyForRetry(reaction.chatFollowUp).bad &&
+          proactiveMessagingEnabled() &&
+          !withinProactiveMinGap()
+        ) {
           insertChatFollowUp.run('them', reaction.chatFollowUp, 'text', formatBeijingClock(), estimateTokens(reaction.chatFollowUp));
+          recordProactiveMessageSent();
           if (pushConfigured) await sendPushToAll({ title: '屿深', body: reaction.chatFollowUp });
         }
       } catch (err) {
