@@ -196,6 +196,8 @@
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   color: var(--color-bubble-text);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .chat__photo-bubble {
   width: 150px;
