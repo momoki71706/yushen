@@ -105,6 +105,7 @@ function getHealthContext() {
     `心率：均${row.heart_rate_avg}（${row.heart_rate_min}-${row.heart_rate_max}）` +
     `${row.heart_rate_resting ? `，静息${row.heart_rate_resting}` : ''}${row.heart_rate_active ? `，运动${row.heart_rate_active}` : ''}\n` +
     `经期：${row.is_period ? '是' : '否'}` +
+    `${row.exercise_minutes ? `\n锻炼时长：${row.exercise_minutes}分钟` : ''}` +
     `${row.note ? `\n备注：${row.note}` : ''}` +
     `\n（不一定每次都要提，只在自然、相关的时候才结合这些数据说话）`
   );

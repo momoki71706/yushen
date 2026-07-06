@@ -94,7 +94,7 @@ function collectNewHealthText(sinceId) {
       `[健康数据 ${r.date_iso}] 睡眠 ${r.sleep_start || '?'}→${r.sleep_end || '?'}（${sleepHours}），` +
       `步数 ${r.steps}，心率均${r.heart_rate_avg}（${r.heart_rate_min}-${r.heart_rate_max}）` +
       `${r.heart_rate_resting ? `，静息心率${r.heart_rate_resting}` : ''}${r.heart_rate_active ? `，运动心率${r.heart_rate_active}` : ''}，` +
-      `经期${r.is_period ? '是' : '否'}${r.note ? `，备注：${r.note}` : ''}`
+      `经期${r.is_period ? '是' : '否'}${r.exercise_minutes ? `，锻炼时长${r.exercise_minutes}分钟` : ''}${r.note ? `，备注：${r.note}` : ''}`
     );
   });
   return {

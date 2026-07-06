@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useStore } from '../../state/store';
-import { BackChevronIcon } from '../../components/Icons';
+import { BackChevronIcon, ChevronRightIcon } from '../../components/Icons';
+
+const LONG_PRESS_MS = 380;
 
 function WatchGlyphBig() {
   return (
@@ -12,7 +14,7 @@ function WatchGlyphBig() {
   );
 }
 
-function BarChart({ week, valueKey, unit, formatValue, barColor }) {
+export function BarChart({ week, valueKey, unit, formatValue, barColor }) {
   const [activeIdx, setActiveIdx] = useState(null);
   const max = Math.max(...week.map((d) => d[valueKey]), 1);
   return (
@@ -36,6 +38,56 @@ function BarChart({ week, valueKey, unit, formatValue, barColor }) {
   );
 }
 
+// Tap navigates (if onTap given); holding past LONG_PRESS_MS instead reveals
+// a tooltip with the row's exact underlying figure and suppresses the tap,
+// so the two gestures on the same row don't fight each other.
+function MetricRow({ m }) {
+  const [pressed, setPressed] = useState(false);
+  const firedLongPress = useRef(false);
+  const timerRef = useRef(null);
+
+  const startPress = () => {
+    firedLongPress.current = false;
+    timerRef.current = setTimeout(() => {
+      firedLongPress.current = true;
+      setPressed(true);
+    }, LONG_PRESS_MS);
+  };
+  const endPress = () => {
+    clearTimeout(timerRef.current);
+    setPressed(false);
+  };
+  const handleClick = () => {
+    if (firedLongPress.current) return;
+    if (m.onTap) m.onTap();
+  };
+
+  return (
+    <div
+      className={`watch-metric-row${m.onTap ? ' watch-metric-row--pressable' : ''}`}
+      onMouseDown={startPress}
+      onMouseUp={endPress}
+      onMouseLeave={endPress}
+      onTouchStart={startPress}
+      onTouchEnd={endPress}
+      onClick={handleClick}
+    >
+      <div className="watch-metric-dot" style={{ background: m.color }} />
+      <div className="watch-metric-body">
+        <div className="watch-metric-head">
+          <span className="watch-metric-label">{m.label}</span>
+          <span className="watch-metric-value">{m.value}</span>
+        </div>
+        <div className="watch-metric-track">
+          <div className="watch-metric-fill" style={{ width: `${Math.min(100, m.ratio * 100)}%`, background: m.color }} />
+        </div>
+        {pressed && m.detail && <div className="watch-metric-tooltip">{m.detail}</div>}
+      </div>
+      {m.onTap && <ChevronRightIcon />}
+    </div>
+  );
+}
+
 const WEEKDAYS_SHORT = ['日', '一', '二', '三', '四', '五', '六'];
 
 export default function WatchView() {
@@ -43,6 +95,7 @@ export default function WatchView() {
   const closeManageSubview = useStore((s) => s.closeManageSubview);
   const openHealthDataPanel = useStore((s) => s.openHealthDataPanel);
   const todayISOLocal = useStore((s) => s.todayISOLocal);
+  const [subview, setSubview] = useState('overview');
 
   const today = todayISOLocal();
   // healthLogs comes back newest-first from the backend; chart wants oldest-first.
@@ -52,24 +105,29 @@ export default function WatchView() {
   }));
   const todayData = healthLogs.find((r) => r.dateISO === today) || healthLogs[0] || null;
 
+  const heartRateDisplay = todayData?.heartRateResting || todayData?.heartRateAvg;
+
   const metricRows = todayData
     ? [
-        { label: '睡眠', value: `${todayData.sleepHours.toFixed(1)} 小时`, ratio: todayData.sleepHours / 9, color: '#CBB9C0' },
-        { label: '步数', value: `${todayData.steps.toLocaleString()} 步`, ratio: todayData.steps / 12000, color: '#D9CBD3' },
+        { label: '步数', value: `${todayData.steps.toLocaleString()} 步`, ratio: todayData.steps / 12000, color: '#D9CBD3', detail: `${todayData.steps} 步` },
         {
           label: '心率',
-          value: `${todayData.heartRateAvg} bpm${todayData.heartRateMin && todayData.heartRateMax ? `（${todayData.heartRateMin}-${todayData.heartRateMax}）` : ''}`,
-          ratio: todayData.heartRateAvg / 100,
+          value: `${heartRateDisplay} bpm`,
+          ratio: heartRateDisplay / 100,
           color: '#EDD9E1',
+          detail: `均 ${todayData.heartRateAvg}${todayData.heartRateMin && todayData.heartRateMax ? `（${todayData.heartRateMin}-${todayData.heartRateMax}）` : ''}`,
+          onTap: () => setSubview('heartRate'),
         },
-        ...(todayData.heartRateResting
-          ? [{ label: '静息心率', value: `${todayData.heartRateResting} bpm`, ratio: todayData.heartRateResting / 100, color: '#C9B9CE' }]
-          : []),
-        ...(todayData.heartRateActive
-          ? [{ label: '运动心率', value: `${todayData.heartRateActive} bpm`, ratio: todayData.heartRateActive / 150, color: '#E3B9B4' }]
+        { label: '睡眠', value: `${todayData.sleepHours.toFixed(1)} 小时`, ratio: todayData.sleepHours / 9, color: '#CBB9C0', detail: `${todayData.sleepStart || '?'} → ${todayData.sleepEnd || '?'}` },
+        ...(todayData.exerciseMinutes
+          ? [{ label: '锻炼时长', value: `${todayData.exerciseMinutes} 分钟`, ratio: todayData.exerciseMinutes / 60, color: '#C9B9CE', detail: `${todayData.exerciseMinutes} 分钟` }]
           : []),
       ]
     : [];
+
+  if (subview === 'heartRate') {
+    return <HeartRateDetailView week={week} todayData={todayData} onBack={() => setSubview('overview')} />;
+  }
 
   return (
     <div className="manage-sub">
@@ -91,18 +149,7 @@ export default function WatchView() {
                 {todayData?.isPeriod && <span className="book-status-tag" style={{ marginLeft: 8 }}>经期</span>}
               </div>
               {metricRows.map((m) => (
-                <div key={m.label} className="watch-metric-row">
-                  <div className="watch-metric-dot" style={{ background: m.color }} />
-                  <div className="watch-metric-body">
-                    <div className="watch-metric-head">
-                      <span className="watch-metric-label">{m.label}</span>
-                      <span className="watch-metric-value">{m.value}</span>
-                    </div>
-                    <div className="watch-metric-track">
-                      <div className="watch-metric-fill" style={{ width: `${Math.min(100, m.ratio * 100)}%`, background: m.color }} />
-                    </div>
-                  </div>
-                </div>
+                <MetricRow key={m.label} m={m} />
               ))}
               {todayData?.note && <div className="watch-card-sub" style={{ marginTop: 8 }}>备注：{todayData.note}</div>}
             </div>
@@ -110,15 +157,27 @@ export default function WatchView() {
             {week.length > 1 && (
               <>
                 <div className="watch-card">
+                  <div className="watch-card-title">步数</div>
+                  <div className="watch-card-sub">最近一天 {todayData.steps.toLocaleString()} 步</div>
+                  <BarChart week={week} valueKey="steps" unit=" 步" formatValue={(v) => Math.round(v).toLocaleString()} barColor="#D9CBD3" />
+                </div>
+
+                <div className="watch-card">
+                  <div className="watch-card-title">心率</div>
+                  <div className="watch-card-sub">最近一次均 {todayData.heartRateAvg} bpm</div>
+                  <BarChart week={week} valueKey="heartRateAvg" unit=" bpm" formatValue={(v) => Math.round(v)} barColor="#EDD9E1" />
+                </div>
+
+                <div className="watch-card">
                   <div className="watch-card-title">睡眠时长</div>
                   <div className="watch-card-sub">最近一晚睡了 {todayData.sleepHours.toFixed(1)} 小时</div>
                   <BarChart week={week} valueKey="sleepHours" unit="h" formatValue={(v) => v.toFixed(1)} barColor="#CBB9C0" />
                 </div>
 
                 <div className="watch-card">
-                  <div className="watch-card-title">步数</div>
-                  <div className="watch-card-sub">最近一天 {todayData.steps.toLocaleString()} 步</div>
-                  <BarChart week={week} valueKey="steps" unit=" 步" formatValue={(v) => Math.round(v).toLocaleString()} barColor="#D9CBD3" />
+                  <div className="watch-card-title">锻炼时长</div>
+                  <div className="watch-card-sub">最近一天 {todayData.exerciseMinutes || 0} 分钟</div>
+                  <BarChart week={week} valueKey="exerciseMinutes" unit=" 分钟" formatValue={(v) => Math.round(v)} barColor="#C9B9CE" />
                 </div>
               </>
             )}
@@ -133,6 +192,53 @@ export default function WatchView() {
             <button className="watch-connect-btn" onClick={openHealthDataPanel}>去配置</button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function HeartRateDetailView({ week, todayData, onBack }) {
+  return (
+    <div className="manage-sub">
+      <div className="manage-sub__head">
+        <div className="manage-sub__back-pill">
+          <button className="manage-sub__back-btn" onClick={onBack}>
+            <BackChevronIcon />
+          </button>
+          <div className="manage-sub__title">心率详情</div>
+        </div>
+      </div>
+
+      <div className="manage-sub__body" style={{ paddingTop: 12 }}>
+        <div className="watch-card">
+          <div className="watch-card-title">平均心率</div>
+          <div className="watch-card-sub">最近一次 {todayData?.heartRateAvg ?? '--'} bpm</div>
+          <BarChart week={week} valueKey="heartRateAvg" unit=" bpm" formatValue={(v) => Math.round(v)} barColor="#EDD9E1" />
+        </div>
+
+        {week.some((d) => d.heartRateResting) && (
+          <div className="watch-card">
+            <div className="watch-card-title">静息心率</div>
+            <div className="watch-card-sub">最近一次 {todayData?.heartRateResting ?? '--'} bpm</div>
+            <BarChart week={week} valueKey="heartRateResting" unit=" bpm" formatValue={(v) => Math.round(v)} barColor="#C9B9CE" />
+          </div>
+        )}
+
+        {week.some((d) => d.heartRateActive) && (
+          <div className="watch-card">
+            <div className="watch-card-title">运动心率</div>
+            <div className="watch-card-sub">最近一次 {todayData?.heartRateActive ?? '--'} bpm</div>
+            <BarChart week={week} valueKey="heartRateActive" unit=" bpm" formatValue={(v) => Math.round(v)} barColor="#E3B9B4" />
+          </div>
+        )}
+
+        <div className="watch-card">
+          <div className="watch-card-title">最高 / 最低心率</div>
+          <div className="watch-card-sub">最近一次 {todayData?.heartRateMin ?? '--'}-{todayData?.heartRateMax ?? '--'} bpm</div>
+          <BarChart week={week} valueKey="heartRateMax" unit=" bpm" formatValue={(v) => Math.round(v)} barColor="#EDD9E1" />
+          <div style={{ height: 10 }} />
+          <BarChart week={week} valueKey="heartRateMin" unit=" bpm" formatValue={(v) => Math.round(v)} barColor="#D9CBD3" />
+        </div>
       </div>
     </div>
   );

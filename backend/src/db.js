@@ -302,6 +302,7 @@ ensureColumn('diary_comments', 'read_by_me', 'INTEGER NOT NULL DEFAULT 1');
 // rather than folded into that same min/max range.
 ensureColumn('health_logs', 'heart_rate_resting', 'INTEGER');
 ensureColumn('health_logs', 'heart_rate_active', 'INTEGER');
+ensureColumn('health_logs', 'exercise_minutes', 'INTEGER');
 ensureColumn('diary_comments', 'reply_to_id', 'INTEGER');
 
 // The very first release seeded 4 placeholder diary entries so the page
