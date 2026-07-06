@@ -212,3 +212,148 @@ export function startDiaryScheduler() {
     maybeFulfillDiaryReviewRequests();
   }, CHECK_INTERVAL_MS);
 }
+backend/src/routes/push.js
+import { Router } from 'express';
+import { getSetting, setSetting } from '../db.js';
+import { getVapidPublicKey, pushConfigured, saveSubscription, removeSubscription } from '../push.js';
+
+const router = Router();
+
+router.get('/vapid-public-key', (req, res) => {
+  res.json({ publicKey: getVapidPublicKey(), configured: pushConfigured });
+});
+
+router.post('/subscribe', (req, res) => {
+  const { endpoint, keys } = req.body || {};
+  if (!endpoint || !keys?.p256dh || !keys?.auth) return res.status(400).json({ error: 'invalid subscription' });
+  saveSubscription({ endpoint, keys });
+  res.json({ ok: true });
+});
+
+router.post('/unsubscribe', (req, res) => {
+  const { endpoint } = req.body || {};
+  if (endpoint) removeSubscription(endpoint);
+  res.json({ ok: true });
+});
+
+// Defaults mirror what proactive.js used as hardcoded constants before
+// these became adjustable — nothing changes for anyone who never opens
+// the settings panel. Idle threshold / min gap are stored in minutes (not
+// whole hours) so the 小时+分钟 scroll picker can express quarter-hours.
+const PUSH_DEFAULTS = {
+  idleThresholdMinutes: 240, // conversation has to be quiet this long before a proactive message is even considered
+  minGapMinutes: 180, // don't send more than one proactive message this often, regardless of idle time
+  quietHourStart: 0, // no proactive messages between quietHourStart and quietHourEnd (Beijing time)
+  quietHourEnd: 8,
+};
+
+// `value || fallback` looks right but silently breaks for a genuinely
+// valid 0 (e.g. quietHourStart: 0) — 0 is falsy, so it'd fall back to the
+// default instead of clamping to min. This only ever falls back on a
+// non-numeric input.
+function clampInt(value, min, max, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fallback;
+}
+
+function readPushSettings() {
+  return {
+    enabled: getSetting('proactiveMessagesEnabled', '0') === '1',
+    idleThresholdMinutes: clampInt(getSetting('proactiveIdleThresholdMinutes', String(PUSH_DEFAULTS.idleThresholdMinutes)), 15, 2880, PUSH_DEFAULTS.idleThresholdMinutes),
+    minGapMinutes: clampInt(getSetting('proactiveMinGapMinutes', String(PUSH_DEFAULTS.minGapMinutes)), 15, 2880, PUSH_DEFAULTS.minGapMinutes),
+    quietHourStart: clampInt(getSetting('proactiveQuietHourStart', String(PUSH_DEFAULTS.quietHourStart)), 0, 23, PUSH_DEFAULTS.quietHourStart),
+    quietHourEnd: clampInt(getSetting('proactiveQuietHourEnd', String(PUSH_DEFAULTS.quietHourEnd)), 0, 23, PUSH_DEFAULTS.quietHourEnd),
+    diaryNotifyEnabled: getSetting('diaryNotifyEnabled', '0') === '1',
+  };
+}
+
+router.get('/settings', (req, res) => {
+  res.json(readPushSettings());
+});
+
+router.patch('/settings', (req, res) => {
+  const { enabled, idleThresholdMinutes, minGapMinutes, quietHourStart, quietHourEnd, diaryNotifyEnabled } = req.body || {};
+  if (enabled !== undefined) setSetting('proactiveMessagesEnabled', enabled ? '1' : '0');
+  if (idleThresholdMinutes !== undefined) setSetting('proactiveIdleThresholdMinutes', String(clampInt(idleThresholdMinutes, 15, 2880, PUSH_DEFAULTS.idleThresholdMinutes)));
+  if (minGapMinutes !== undefined) setSetting('proactiveMinGapMinutes', String(clampInt(minGapMinutes, 15, 2880, PUSH_DEFAULTS.minGapMinutes)));
+  if (quietHourStart !== undefined) setSetting('proactiveQuietHourStart', String(clampInt(quietHourStart, 0, 23, PUSH_DEFAULTS.quietHourStart)));
+  if (quietHourEnd !== undefined) setSetting('proactiveQuietHourEnd', String(clampInt(quietHourEnd, 0, 23, PUSH_DEFAULTS.quietHourEnd)));
+  if (diaryNotifyEnabled !== undefined) setSetting('diaryNotifyEnabled', diaryNotifyEnabled ? '1' : '0');
+  res.json(readPushSettings());
+});
+
+export default router;
+frontend/src/components/HoursMinutesPicker.jsx
+import { useEffect, useRef } from 'react';
+
+const ITEM_HEIGHT = 34;
+const VISIBLE_PAD = ITEM_HEIGHT * 2;
+const HOUR_OPTIONS = Array.from({ length: 49 }, (_, i) => i); // 0-48
+const MINUTE_OPTIONS = [0, 15, 30, 45];
+
+function WheelColumn({ options, value, onChange }) {
+  const scrollRef = useRef(null);
+  const skipNextScroll = useRef(false);
+  const settleTimer = useRef(null);
+
+  useEffect(() => {
+    const idx = options.indexOf(value);
+    if (scrollRef.current && idx >= 0) {
+      skipNextScroll.current = true;
+      scrollRef.current.scrollTop = idx * ITEM_HEIGHT;
+    }
+  }, [value, options]);
+
+  const handleScroll = () => {
+    if (skipNextScroll.current) {
+      skipNextScroll.current = false;
+      return;
+    }
+    clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const idx = Math.max(0, Math.min(options.length - 1, Math.round(el.scrollTop / ITEM_HEIGHT)));
+      el.scrollTo({ top: idx * ITEM_HEIGHT, behavior: 'smooth' });
+      if (options[idx] !== value) onChange(options[idx]);
+    }, 130);
+  };
+
+  return (
+    <div className="wheel-picker-col" ref={scrollRef} onScroll={handleScroll}>
+      <div style={{ height: VISIBLE_PAD }} />
+      {options.map((o) => (
+        <div
+          key={o}
+          className={`wheel-picker-item${o === value ? ' wheel-picker-item--active' : ''}`}
+          style={{ height: ITEM_HEIGHT }}
+        >
+          {o}
+        </div>
+      ))}
+      <div style={{ height: VISIBLE_PAD }} />
+    </div>
+  );
+}
+
+// A native-feeling scroll wheel for picking a duration as 小时+分钟 (minutes
+// snap to quarter-hours) rather than a single stepper — used by the two
+// proactive-message timing settings in PushSettingsPanel.
+export default function HoursMinutesPicker({ totalMinutes, onChange, min = 15, max = 2880 }) {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  const commit = (h, m) => {
+    onChange(Math.max(min, Math.min(max, h * 60 + m)));
+  };
+
+  return (
+    <div className="wheel-picker-row">
+      <div className="wheel-picker-highlight" />
+      <WheelColumn options={HOUR_OPTIONS} value={hours} onChange={(h) => commit(h, minutes)} />
+      <div className="wheel-picker-unit">小时</div>
+      <WheelColumn options={MINUTE_OPTIONS} value={minutes} onChange={(m) => commit(hours, m)} />
+      <div className="wheel-picker-unit">分钟</div>
+    </div>
+  );
+}
