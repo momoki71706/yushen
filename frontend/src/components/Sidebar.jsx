@@ -167,7 +167,7 @@ export default function Sidebar() {
         </div>
 
         <div className="sidebar-divider" />
-        <button className="sidebar-menu-item sidebar-menu-item--pinned" onClick={openMemoryPanel}>
+        <button className="sidebar-menu-item" onClick={openMemoryPanel}>
           <div className="sidebar-menu-icon" style={{ background: '#D9CBD3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <BrainIcon />
           </div>
