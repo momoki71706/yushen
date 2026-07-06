@@ -230,6 +230,13 @@ export default function ChatMode() {
           const canRegenerateRound = mine && msg.kind === 'text' && (!next || next.from === 'them');
           const isDeleteConfirming = deleteConfirmMessageId === msg.id;
           const isRegenerateConfirming = regenerateConfirm?.id === msg.id;
+          // A batch send (several typed lines) or a split reply (several
+          // bubbles from one AI turn) renders as consecutive same-sender
+          // rows — only the last one of that run carries real per-turn
+          // metadata (tokens, thinking, tool trace) already, so the time/
+          // actions row is shown there only instead of repeating on every
+          // bubble in the run.
+          const isLastInGroup = !next || next.from !== msg.from;
           return (
             <div key={msg.id} className="chat__row" style={{ justifyContent: mine ? 'flex-end' : 'flex-start' }}>
               <div className="chat__bubble-wrap" style={{ alignItems: mine ? 'flex-end' : 'flex-start' }}>
@@ -287,7 +294,7 @@ export default function ChatMode() {
                     {msg.text}
                   </div>
                 )}
-                {!isEditing && (
+                {!isEditing && isLastInGroup && (
                   <div className="chat__time-row">
                     {isDeleteConfirming ? (
                       <div className="chat__delete-confirm">
