@@ -2,6 +2,23 @@ import { db, getSetting } from './db.js';
 import { beijingNow, formatBeijingClock, weekdayLabel } from './time.js';
 import { MESSAGE_SPLIT_MARKER } from './persona.js';
 
+// Reserved category name: presets filed under this are deliberately kept
+// OUT of the normal always-on system prompt (getComposedSystemPrompt's
+// base fold below excludes it) and instead only surface as the
+// extraInstruction for the proactive idle-chat and read-unanswered
+// follow-up schedulers — see getProactivePresetContent(). This is what
+// lets 主动发消息 have its own user-authored instructions instead of the
+// hardcoded paragraph that used to live in proactive.js/chatFollowUp.js,
+// without that same text leaking into every ordinary chat reply too.
+export const PROACTIVE_PRESET_CATEGORY = '主动消息';
+
+export function getProactivePresetContent() {
+  const rows = db
+    .prepare('SELECT content FROM prompt_presets WHERE enabled = 1 AND category = ? ORDER BY sort_order ASC, id ASC')
+    .all(PROACTIVE_PRESET_CATEGORY);
+  return rows.map((r) => r.content.trim()).filter(Boolean).join('\n\n');
+}
+
 function serialize(row) {
   return {
     id: row.id,
@@ -102,7 +119,9 @@ function getHealthContext() {
 // memory tool the model reads from and writes to on demand (see mcp.js's
 // tool-aware system prompt), so it doesn't cost tokens on every single call.
 export function getComposedSystemPrompt(extraInstruction) {
-  const rows = db.prepare('SELECT content FROM prompt_presets WHERE enabled = 1 ORDER BY category ASC, sort_order ASC, id ASC').all();
+  const rows = db
+    .prepare('SELECT content FROM prompt_presets WHERE enabled = 1 AND category != ? ORDER BY category ASC, sort_order ASC, id ASC')
+    .all(PROACTIVE_PRESET_CATEGORY);
   const combined = rows.map((r) => r.content.trim()).filter(Boolean).join('\n\n');
   const base = combined || '你是屿深，正在手机上和女朋友小晴聊天。回复要简短自然、温暖随意。';
 

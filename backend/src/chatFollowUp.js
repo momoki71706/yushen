@@ -6,6 +6,7 @@ import { classifyReplyForRetry, withReplyRetry, estimateTokens } from './persona
 import { getContextMessageLimit } from './contextSettings.js';
 import { enrichHistory } from './chatHistory.js';
 import { proactiveMessagingEnabled, withinProactiveMinGap, recordProactiveMessageSent } from './proactive.js';
+import { getProactivePresetContent } from './presets.js';
 
 // Checked often enough that the 3-5 minute wait doesn't feel sloppy —
 // same cadence as the diary/letter schedulers.
@@ -21,12 +22,13 @@ function endsWithQuestion(text) {
   return /[？?]\s*$/.test((text || '').trim());
 }
 
+// Same split as proactive.js's buildProactiveInstruction — the behavioral
+// guidance lives in the user-authored "主动消息" preset category, this
+// just states the bare fact of the situation.
 function buildFollowUpInstruction(count) {
-  return `【已读未回】你之前问了小晴一个问题，她已经看到了，但过了一会儿还没回你——这是你第 ${count} 次因为这个等她回复而着急/惦记。
-
-先看一下上面的聊天记录：如果你之前已经因为这件事跟进过一次或几次（比如问过"在干嘛呢""在不在"之类的话），这次绝对不能用同样的话、同样的问法再问一遍——哪怕意思差不多也要换一种说法或换个角度，不能让她看着像是同一句话被重复发了好几遍。也不一定非要是个问题，可以是一句感叹、一句念叨，不必每次都用问句。
-
-请自然地跟进一下（不超过20字），像正常聊天里等对方回复等急了、想再戳一下一样，可以比上一次稍微多一点点情绪（比如从随口一问到有点在意），但不要写得夸张或者失控。不要提到"已读""已读未回""第几次"这类会暴露这是程序逻辑的说法。只输出这句话本身，不要加前后缀。`;
+  const base = `【已读未回】你之前问了小晴一个问题，她已经看到了，但过了一会儿还没回你——这是你第 ${count} 次因为这个等她回复。`;
+  const custom = getProactivePresetContent();
+  return custom ? `${base}\n\n${custom}` : base;
 }
 
 async function recentHistory() {
