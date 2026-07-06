@@ -6,6 +6,7 @@ import { formatBeijingClock } from '../time.js';
 import { getContextMessageLimit } from '../contextSettings.js';
 import { enrichHistory } from '../chatHistory.js';
 import { logMemoryToolTrace } from '../memoryScheduler.js';
+import { splitReplyIntoBubbles } from '../persona.js';
 
 const router = Router();
 
@@ -90,17 +91,26 @@ function insertMineRow({ text, kind, attachment }) {
   return db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(info.lastInsertRowid);
 }
 
-function insertTheirsRow(reply) {
-  const info = insertTheirsStmt.run(
-    'them',
-    reply.text,
-    'text',
-    formatBeijingClock(),
-    reply.tokens,
-    reply.thinking || null,
-    reply.toolTrace?.length ? JSON.stringify(reply.toolTrace) : null
-  );
-  return db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(info.lastInsertRowid);
+// One reply can render as several consecutive bubbles (see persona.js's
+// MESSAGE_SPLIT_MARKER) — still a single provider call/token cost, just
+// inserted as multiple chat_messages rows. Tokens/thinking/tool trace are
+// only meaningful once per reply, so they're attached to the last bubble;
+// earlier ones carry null.
+function insertTheirsRows(reply) {
+  const bubbles = splitReplyIntoBubbles(reply.text);
+  return bubbles.map((text, i) => {
+    const isLast = i === bubbles.length - 1;
+    const info = insertTheirsStmt.run(
+      'them',
+      text,
+      'text',
+      formatBeijingClock(),
+      isLast ? reply.tokens : null,
+      isLast ? reply.thinking || null : null,
+      isLast && reply.toolTrace?.length ? JSON.stringify(reply.toolTrace) : null
+    );
+    return db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(info.lastInsertRowid);
+  });
 }
 
 router.post('/', async (req, res) => {
@@ -111,10 +121,10 @@ router.post('/', async (req, res) => {
 
   const mine = insertMineRow({ text, kind, attachment });
   const reply = await getYushenReply(await recentHistory());
-  const theirs = insertTheirsRow(reply);
+  const theirs = insertTheirsRows(reply);
   logMemoryToolTrace(reply.toolTrace);
 
-  res.json({ mine: serializeMessage(mine), reply: serializeMessage(theirs) });
+  res.json({ mine: serializeMessage(mine), replies: theirs.map(serializeMessage) });
 
   maybeCompressChatHistory();
 });
@@ -132,10 +142,10 @@ router.post('/batch', async (req, res) => {
   if (!mineRows.length) return res.status(400).json({ error: 'no valid items' });
 
   const reply = await getYushenReply(await recentHistory());
-  const theirs = insertTheirsRow(reply);
+  const theirs = insertTheirsRows(reply);
   logMemoryToolTrace(reply.toolTrace);
 
-  res.json({ mine: mineRows.map(serializeMessage), reply: serializeMessage(theirs) });
+  res.json({ mine: mineRows.map(serializeMessage), replies: theirs.map(serializeMessage) });
 
   maybeCompressChatHistory();
 });
@@ -150,8 +160,12 @@ router.post('/:id/regenerate', async (req, res) => {
   if (target.from_who !== 'them') return res.status(400).json({ error: 'only AI replies can be regenerated' });
 
   const reply = await getYushenReply(await recentHistory(id));
+  // This endpoint overwrites one specific existing row in place, so a
+  // split-marker reply is collapsed back into one continuous message
+  // rather than expanded into new rows.
+  const joinedText = splitReplyIntoBubbles(reply.text).join('\n');
   db.prepare('UPDATE chat_messages SET text = ?, tokens = ?, thinking = ?, tool_calls = ? WHERE id = ?').run(
-    reply.text,
+    joinedText,
     reply.tokens,
     reply.thinking || null,
     reply.toolTrace?.length ? JSON.stringify(reply.toolTrace) : null,
@@ -199,19 +213,22 @@ router.post('/:id/regenerate-round', async (req, res) => {
   logMemoryToolTrace(reply.toolTrace);
 
   if (next) {
+    // Overwriting one existing row — same collapse-back-to-one-message
+    // rule as /:id/regenerate.
+    const joinedText = splitReplyIntoBubbles(reply.text).join('\n');
     db.prepare('UPDATE chat_messages SET text = ?, tokens = ?, thinking = ?, tool_calls = ? WHERE id = ?').run(
-      reply.text,
+      joinedText,
       reply.tokens,
       reply.thinking || null,
       reply.toolTrace?.length ? JSON.stringify(reply.toolTrace) : null,
       next.id
     );
     const updated = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(next.id);
-    return res.json({ reply: serializeMessage(updated), isNew: false });
+    return res.json({ replies: [serializeMessage(updated)], isNew: false });
   }
 
-  const inserted = insertTheirsRow(reply);
-  res.json({ reply: serializeMessage(inserted), isNew: true });
+  const inserted = insertTheirsRows(reply);
+  res.json({ replies: inserted.map(serializeMessage), isNew: true });
 });
 
 // Deletes a single message (either side) — removing it from chat_messages
