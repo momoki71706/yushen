@@ -1,17 +1,23 @@
 import { db, getSetting, setSetting } from './db.js';
-import { beijingNow, formatBeijingClock } from './time.js';
-import { writeLedgerNag, writeLedgerCardMessage } from './ledgerAi.js';
+import { beijingNow, weekdayLabel, formatBeijingClock } from './time.js';
+import { writeDiaryEntry, reactToDiaryEntry, commentOnDiaryByRequest, moodColorFor } from './diaryAi.js';
 import { sendPushToAll, pushConfigured } from './push.js';
-import { classifyReplyForRetry, estimateTokens } from './persona.js';
+import { FALLBACK_REPLY, classifyReplyForRetry, estimateTokens } from './persona.js';
 import { proactiveMessagingEnabled, withinProactiveMinGap, recordProactiveMessageSent } from './proactive.js';
 
+// A diary comment/feedback attempt gets retried on the next couple of
+// checks (one retry per minute-ish tick) before giving up for good — unlike
+// maybeWriteDiary, which just keeps trying all day, these are tied to one
+// specific triggering event and shouldn't retry forever.
+const MAX_REACTION_ATTEMPTS = 3; // 1 original attempt + 2 retries
+
+// Checked at the same cadence as scheduledMessages.js — the review-request
+// path (comment_on_diary) fires within 1-5 minutes, so a coarser interval
+// would make that feel sluggish even though the other two checks here
+// (daily write, delayed reaction) don't need anything this tight.
 const CHECK_INTERVAL_MS = 60 * 1000;
-const NAG_WINDOW_START_HOUR = 20;
-const NAG_WINDOW_END_HOUR = 22;
-// Spread across most of the day (not the small hours) so a refresh doesn't
-// land while she's asleep and go unnoticed until the next one anyway.
-const CARD_WINDOW_START_HOUR = 9;
-const CARD_WINDOW_END_HOUR = 23;
+const WRITE_WINDOW_START_HOUR = 21;
+const WRITE_WINDOW_END_HOUR = 24;
 const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000;
 
 function todayISOBeijing(bNow) {
@@ -21,132 +27,188 @@ function todayISOBeijing(bNow) {
   return `${y}-${m}-${d}`;
 }
 
-// (y, m, d, hh, mm) are Beijing wall-clock fields — same helper diaryScheduler
-// uses to turn a chosen wall-clock moment back into a real epoch.
+function diaryDateLabel(bNow) {
+  return `${bNow.getUTCMonth() + 1}月${bNow.getUTCDate()}日 · ${weekdayLabel(bNow)}`;
+}
+
+// (y, m, d, hh, mm) are Beijing wall-clock fields — converts them to the
+// real UTC epoch they correspond to, the reverse of how beijingNow() shifts
+// a real epoch into Beijing-labeled UTC-getter fields.
 function beijingWallClockToEpoch(y, m, d, hh, mm) {
   return Date.UTC(y, m - 1, d, hh, mm) - BEIJING_OFFSET_MS;
 }
 
-function ensureNagFireEpoch(bNow, todayISO) {
-  if (getSetting('ledgerNagFireDate', '') === todayISO) {
-    const stored = Number(getSetting('ledgerNagFireAt', ''));
+// Picks (once per day, stable across checks) a random real-time instant
+// within the write window that today's Beijing date maps to, so the AI's
+// diary doesn't always land at the same time and can't refire once chosen.
+function ensureTodayFireEpoch(bNow, todayISO) {
+  if (getSetting('diaryWriteFireDate', '') === todayISO) {
+    const stored = Number(getSetting('diaryWriteFireAt', ''));
     if (Number.isFinite(stored)) return stored;
   }
-  const startMinutes = NAG_WINDOW_START_HOUR * 60;
-  const endMinutes = NAG_WINDOW_END_HOUR * 60;
-  const fireMinutes = startMinutes + Math.random() * (endMinutes - startMinutes);
+  const startMinutes = WRITE_WINDOW_START_HOUR * 60;
+  const endMinutes = WRITE_WINDOW_END_HOUR * 60;
+  const fireMinutes = startMinutes + Math.floor(Math.random() * (endMinutes - startMinutes));
   const fireEpoch = beijingWallClockToEpoch(
     bNow.getUTCFullYear(),
     bNow.getUTCMonth() + 1,
     bNow.getUTCDate(),
     Math.floor(fireMinutes / 60) % 24,
-    Math.floor(fireMinutes % 60)
+    fireMinutes % 60
   );
-  setSetting('ledgerNagFireDate', todayISO);
-  setSetting('ledgerNagFireAt', String(fireEpoch));
+  setSetting('diaryWriteFireDate', todayISO);
+  setSetting('diaryWriteFireAt', String(fireEpoch));
   return fireEpoch;
 }
 
-const insertChatNag = db.prepare(
-  "INSERT INTO chat_messages (from_who, text, kind, time_label, tokens) VALUES ('them', ?, 'text', ?, ?)"
+const insertTheirsDiary = db.prepare(
+  `INSERT INTO diary_entries (author, date_iso, date_label, mood, mood_color, weather, excerpt, read_by_me) VALUES ('them', ?, ?, ?, ?, ?, ?, 0)`
 );
 
-// Between 20:00-22:00, if today hasn't produced a single ledger_entries row
-// yet, has him ask about it in chat once — same "pick one random moment in
-// the window, resolve once per day" shape as diaryScheduler's daily write.
-export async function maybeNagAboutLedger() {
+async function notifyDiaryComment(commentText) {
+  if (pushConfigured && getSetting('diaryNotifyEnabled', '0') === '1') {
+    await sendPushToAll({ title: '屿深评论了日记', body: commentText.slice(0, 60) });
+  }
+}
+
+export async function maybeWriteDiary() {
   try {
     const bNow = beijingNow();
     const todayISO = todayISOBeijing(bNow);
-    if (getSetting('lastLedgerNagDate', '') === todayISO) return;
+    if (getSetting('lastDiaryWriteDate', '') === todayISO) return;
 
-    const fireEpoch = ensureNagFireEpoch(bNow, todayISO);
+    const fireEpoch = ensureTodayFireEpoch(bNow, todayISO);
     if (Date.now() < fireEpoch) return;
 
-    // Same "unprompted them-message" family as the idle-chat/follow-up
-    // schedulers — respects the master toggle (previously ignored it
-    // entirely) and shares their cooldown so a nag can't land back-to-back
-    // with one of those.
-    if (!proactiveMessagingEnabled() || withinProactiveMinGap()) return;
+    const written = await writeDiaryEntry();
+    // No active provider, or the call failed/came back empty — leave
+    // lastDiaryWriteDate untouched so the next check (5 min later) retries
+    // instead of silently skipping the whole day on a transient failure.
+    if (!written || classifyReplyForRetry(written.excerpt).bad) return;
 
-    const hasEntryToday = db.prepare('SELECT 1 FROM ledger_entries WHERE date_iso = ? LIMIT 1').get(todayISO);
-    if (hasEntryToday) {
-      setSetting('lastLedgerNagDate', todayISO);
-      return;
+    insertTheirsDiary.run(todayISO, diaryDateLabel(bNow), written.mood, moodColorFor(written.mood), written.weather, written.excerpt);
+    setSetting('lastDiaryWriteDate', todayISO);
+
+    if (pushConfigured && getSetting('diaryNotifyEnabled', '0') === '1') {
+      await sendPushToAll({ title: '屿深写了一篇日记', body: written.excerpt.slice(0, 60) });
     }
-
-    const result = await writeLedgerNag();
-    if (!result) return; // no provider configured yet — keep waiting
-    if (result.failed || classifyReplyForRetry(result.text || '').bad) return; // retry on the next tick
-
-    insertChatNag.run(result.text, formatBeijingClock(), estimateTokens(result.text));
-    setSetting('lastLedgerNagDate', todayISO);
-    recordProactiveMessageSent();
-    if (pushConfigured) await sendPushToAll({ title: '屿深', body: result.text });
   } catch (err) {
-    console.error('[ledger] nag scheduler error:', err.message);
+    console.error('[diary] write error:', err.message);
   }
 }
 
-function ensureCardFireEpochs(bNow, todayISO) {
-  if (getSetting('ledgerCardMessageDate', '') === todayISO) {
-    try {
-      return JSON.parse(getSetting('ledgerCardMessageFireAts', '[]'));
-    } catch {
-      return [];
-    }
-  }
-  const count = Math.random() < 0.5 ? 1 : 2;
-  const startMinutes = CARD_WINDOW_START_HOUR * 60;
-  const endMinutes = CARD_WINDOW_END_HOUR * 60;
-  const epochs = [];
-  for (let i = 0; i < count; i++) {
-    const fireMinutes = startMinutes + Math.random() * (endMinutes - startMinutes);
-    epochs.push(
-      beijingWallClockToEpoch(
-        bNow.getUTCFullYear(),
-        bNow.getUTCMonth() + 1,
-        bNow.getUTCDate(),
-        Math.floor(fireMinutes / 60) % 24,
-        Math.floor(fireMinutes % 60)
-      )
-    );
-  }
-  epochs.sort((a, b) => a - b);
-  setSetting('ledgerCardMessageDate', todayISO);
-  setSetting('ledgerCardMessageFireAts', JSON.stringify(epochs));
-  return epochs;
-}
+const insertReactionComment = db.prepare(
+  `INSERT INTO diary_comments (entry_id, author, text, time_label, read_by_me) VALUES (?, 'them', ?, ?, 0)`
+);
+const insertChatFollowUp = db.prepare(
+  'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens) VALUES (?,?,?,?,?)'
+);
 
-// Refreshes the 记账 card's subtitle 1-2 times a day at random moments —
-// replaces the old static rotating-string placeholder with something that
-// actually reads her recent entries/budget. Skips quietly (tries again next
-// tick) if nothing's been logged yet or the call fails.
-export async function maybeRefreshLedgerCardMessage() {
+// Simulates "didn't see it right away" — a diary entry you post gets its
+// AI reaction some random minutes later (within REACT_DELAY_MAX_MINUTES,
+// set at insert time in routes/diary.js), not the instant you save it.
+export async function maybeReactToDiaries() {
   try {
-    const bNow = beijingNow();
-    const todayISO = todayISOBeijing(bNow);
-    const epochs = ensureCardFireEpochs(bNow, todayISO);
-    if (!epochs.length || Date.now() < epochs[0]) return;
+    const due = db
+      .prepare("SELECT * FROM diary_entries WHERE author = 'me' AND reacted = 0 AND react_at IS NOT NULL AND react_at <= ?")
+      .all(new Date().toISOString());
+    if (!due.length) return;
 
-    const result = await writeLedgerCardMessage();
-    if (!result) return; // no provider configured yet — keep waiting
-    if (result.failed) return; // retry next tick
+    for (const entry of due) {
+      try {
+        const reaction = await reactToDiaryEntry(entry);
+        if (!reaction) continue; // no provider configured yet — keep waiting, doesn't count as a failed attempt
 
-    // Pop the fired epoch either way — "nothing to say yet" (no entries at
-    // all) still counts as this slot resolved, not a failure to retry.
-    setSetting('ledgerCardMessageFireAts', JSON.stringify(epochs.slice(1)));
-    if (result.text && !classifyReplyForRetry(result.text).bad) {
-      setSetting('ledgerCardMessage', result.text);
+        if (classifyReplyForRetry(reaction.comment).bad) {
+          const attempts = entry.react_attempts + 1;
+          if (attempts < MAX_REACTION_ATTEMPTS) {
+            db.prepare('UPDATE diary_entries SET react_attempts = ? WHERE id = ?').run(attempts, entry.id);
+            continue;
+          }
+          // Out of retries — surface the actual failure instead of just
+          // going quiet, so a real outage doesn't read as him simply never
+          // having noticed.
+          db.prepare('UPDATE diary_entries SET reacted = 1 WHERE id = ?').run(entry.id);
+          insertReactionComment.run(entry.id, reaction.comment || FALLBACK_REPLY, formatBeijingClock());
+          continue;
+        }
+
+        db.prepare('UPDATE diary_entries SET reacted = 1 WHERE id = ?').run(entry.id);
+        insertReactionComment.run(entry.id, reaction.comment, formatBeijingClock());
+        await notifyDiaryComment(reaction.comment);
+        // The diary comment itself always lands regardless of this setting
+        // — only the bonus chat-side mention counts as an unprompted "them"
+        // message, so it respects the same toggle/cooldown as the other
+        // proactive-message sources.
+        if (
+          reaction.chatFollowUp &&
+          !classifyReplyForRetry(reaction.chatFollowUp).bad &&
+          proactiveMessagingEnabled() &&
+          !withinProactiveMinGap()
+        ) {
+          insertChatFollowUp.run('them', reaction.chatFollowUp, 'text', formatBeijingClock(), estimateTokens(reaction.chatFollowUp));
+          recordProactiveMessageSent();
+          if (pushConfigured) await sendPushToAll({ title: '屿深', body: reaction.chatFollowUp });
+        }
+      } catch (err) {
+        console.error(`[diary] reaction failed for entry #${entry.id}:`, err.message);
+      }
     }
   } catch (err) {
-    console.error('[ledger] card-message scheduler error:', err.message);
+    console.error('[diary] reaction scheduler error:', err.message);
   }
 }
 
-export function startLedgerScheduler() {
+// Fulfills a comment_on_diary request queued from chat — always writes both
+// the diary comment and a chat follow-up (unlike maybeReactToDiaries, which
+// only sends a chat message when the mood happens to warrant it), and never
+// pushes a notification for the follow-up: you're the one who asked for
+// this, so there's nothing to alert you to.
+export async function maybeFulfillDiaryReviewRequests() {
+  try {
+    const due = db.prepare('SELECT * FROM diary_review_requests WHERE done = 0 AND fire_at <= ?').all(new Date().toISOString());
+    if (!due.length) return;
+
+    for (const req of due) {
+      try {
+        const entry = db.prepare('SELECT * FROM diary_entries WHERE id = ?').get(req.entry_id);
+        if (!entry) {
+          db.prepare('UPDATE diary_review_requests SET done = 1 WHERE id = ?').run(req.id);
+          continue;
+        }
+        const result = await commentOnDiaryByRequest(entry);
+        if (!result) continue; // no provider configured yet — keep waiting
+
+        if (classifyReplyForRetry(result.comment).bad) {
+          const attempts = req.attempts + 1;
+          if (attempts < MAX_REACTION_ATTEMPTS) {
+            db.prepare('UPDATE diary_review_requests SET attempts = ? WHERE id = ?').run(attempts, req.id);
+            continue;
+          }
+          db.prepare('UPDATE diary_review_requests SET done = 1 WHERE id = ?').run(req.id);
+          insertReactionComment.run(entry.id, result.comment || FALLBACK_REPLY, formatBeijingClock());
+          continue;
+        }
+
+        db.prepare('UPDATE diary_review_requests SET done = 1 WHERE id = ?').run(req.id);
+        insertReactionComment.run(entry.id, result.comment, formatBeijingClock());
+        await notifyDiaryComment(result.comment);
+        if (result.chatFeedback && !classifyReplyForRetry(result.chatFeedback).bad) {
+          insertChatFollowUp.run('them', result.chatFeedback, 'text', formatBeijingClock(), estimateTokens(result.chatFeedback));
+        }
+      } catch (err) {
+        console.error(`[diary] review request failed for #${req.id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[diary] review-request scheduler error:', err.message);
+  }
+}
+
+export function startDiaryScheduler() {
   setInterval(() => {
-    maybeNagAboutLedger();
-    maybeRefreshLedgerCardMessage();
+    maybeWriteDiary();
+    maybeReactToDiaries();
+    maybeFulfillDiaryReviewRequests();
   }, CHECK_INTERVAL_MS);
 }
