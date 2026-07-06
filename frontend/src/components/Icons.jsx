@@ -217,6 +217,15 @@ export function ChevronRightIcon({ color = '#9B939A' }) {
   );
 }
 
+export function NewlineIcon({ color = '#C08BA0', width = 15, height = 15 }) {
+  return (
+    <svg width={width} height={height} viewBox="0 0 15 15" fill="none">
+      <path d="M12.5 3v5.5a1.5 1.5 0 0 1-1.5 1.5H3" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M5.5 7L3 10l2.5 3" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  );
+}
+
 export function MoodIcon({ mood }) {
   const c = '#8C7A82';
   const w = 1.5;

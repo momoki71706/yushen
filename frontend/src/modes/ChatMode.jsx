@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
 import { attachmentUrl } from '../api/client';
-import { BowIcon, StarIcon, PlusIcon, RefreshIcon, ChevronDownIcon, PencilIcon, TrashIcon, FileIcon, CloseIcon, ReadStatusIcon } from '../components/Icons';
+import { BowIcon, StarIcon, PlusIcon, NewlineIcon, RefreshIcon, ChevronDownIcon, PencilIcon, TrashIcon, FileIcon, CloseIcon, ReadStatusIcon } from '../components/Icons';
 import ModelSwitcherPopover from '../components/ModelSwitcherPopover';
 import FavoriteHeart from '../components/FavoriteHeart';
 
@@ -121,11 +121,21 @@ export default function ChatMode() {
 
   const listRef = useRef(null);
   const fileInputRef = useRef(null);
+  const chatInputRef = useRef(null);
   const lastMessageIdRef = useRef(undefined);
   const scrollToBottom = () => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   };
+
+  // Grows the compose box up to a cap as the user adds lines (Shift+Enter),
+  // then shrinks back to one line once a message actually sends.
+  useEffect(() => {
+    const el = chatInputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [chatDraft]);
   // A photo bubble finishing its load after the initial scroll-to-bottom
   // grows the list's height without anything re-triggering the scroll,
   // which is what left the view stuck partway up instead of at the true
@@ -186,6 +196,23 @@ export default function ChatMode() {
   const handleFileChange = (e) => {
     addAttachmentDraftFiles(e.target.files);
     e.target.value = '';
+  };
+
+  // iOS's on-screen return key sends instead of inserting a line break in
+  // this compose box, so this button is the only way to add one there —
+  // inserts at the cursor (not just appended to the end) so it works
+  // mid-edit too, then restores focus and cursor position.
+  const insertNewlineAtCursor = () => {
+    const el = chatInputRef.current;
+    const start = el?.selectionStart ?? chatDraft.length;
+    const end = el?.selectionEnd ?? chatDraft.length;
+    const next = `${chatDraft.slice(0, start)}\n${chatDraft.slice(end)}`;
+    onChatChange(next);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.focus();
+      el.selectionStart = el.selectionEnd = start + 1;
+    });
   };
 
   return (
@@ -409,6 +436,14 @@ export default function ChatMode() {
           >
             <PlusIcon color="#C08BA0" width={14} height={14} />
           </button>
+          <button
+            className="sticker-btn"
+            title="换行（另起一条消息）"
+            style={{ background: 'rgba(255,255,255,0.7)' }}
+            onClick={insertNewlineAtCursor}
+          >
+            <NewlineIcon color="#C08BA0" width={15} height={15} />
+          </button>
           <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={handleFileChange} />
         </div>
         {attachmentError && (
@@ -419,12 +454,13 @@ export default function ChatMode() {
         )}
         <AttachmentDraftStrip />
         <div className="chat__input-row">
-          <input
+          <textarea
+            ref={chatInputRef}
             className="chat__input"
+            rows={1}
             value={chatDraft}
             onChange={(e) => onChatChange(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && sendChat()}
-            placeholder="说点什么…"
+            placeholder="说点什么…（换行后点发送，每行会分开发送）"
           />
           <button className="chat__send" onClick={sendChat}>
             <svg width="18" height="18" viewBox="0 0 16 16" fill="none">

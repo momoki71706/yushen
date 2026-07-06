@@ -582,6 +582,27 @@ export const useStore = create(
       set({ isReplying: false });
     }
   },
+  // Sends several plain-text lines as separate consecutive "me" bubbles in
+  // one request (reusing the same /chat/batch endpoint the attachment flow
+  // uses) — only one AI reply is generated afterward, reacting to all of
+  // them together, rather than firing once per line.
+  pushMultiMessage: async (lines) => {
+    const pendingPrefix = `pending-${Date.now()}`;
+    const optimistic = lines.map((text, i) => ({ id: `${pendingPrefix}-${i}`, from: 'me', text, kind: 'text', time: '' }));
+    set((s) => ({ messages: [...s.messages, ...optimistic], isReplying: true }));
+    try {
+      const { mine, replies } = await api.sendBatch(lines.map((text) => ({ text, kind: 'text' })));
+      set((s) => ({
+        messages: [...s.messages.filter((m) => !String(m.id).startsWith(pendingPrefix)), ...mine, ...replies],
+        isReplying: false,
+      }));
+    } catch (err) {
+      set((s) => ({
+        messages: s.messages.filter((m) => !String(m.id).startsWith(pendingPrefix)),
+        isReplying: false,
+      }));
+    }
+  },
   sendChat: () => get().sendComposedMessage(),
 
   // ---- attachments (real image/file uploads via the chat "+" button) ----
@@ -627,7 +648,15 @@ export const useStore = create(
     if (!draft.length) {
       if (!text) return;
       set({ chatDraft: '' });
-      get().pushMessage(text, 'text');
+      // A line break (Shift+Enter while composing) means "send these as
+      // separate bubbles" — mirrors how a split AI reply renders as several
+      // consecutive messages, but for what you typed instead.
+      const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+      if (lines.length > 1) {
+        get().pushMultiMessage(lines);
+      } else {
+        get().pushMessage(text, 'text');
+      }
       return;
     }
 
