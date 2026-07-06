@@ -440,6 +440,11 @@ export default function ChatMode() {
             className="sticker-btn"
             title="换行（另起一条消息）"
             style={{ background: 'rgba(255,255,255,0.7)' }}
+            // Tapping a button normally steals focus from whatever text field
+            // was focused first, which is what was dismissing the keyboard —
+            // preventing the default here keeps the textarea focused so the
+            // keyboard never closes in the first place.
+            onMouseDown={(e) => e.preventDefault()}
             onClick={insertNewlineAtCursor}
           >
             <NewlineIcon color="#C08BA0" width={15} height={15} />
