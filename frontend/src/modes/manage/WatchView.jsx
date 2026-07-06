@@ -119,9 +119,7 @@ export default function WatchView() {
           onTap: () => setSubview('heartRate'),
         },
         { label: '睡眠', value: `${todayData.sleepHours.toFixed(1)} 小时`, ratio: todayData.sleepHours / 9, color: '#CBB9C0', detail: `${todayData.sleepStart || '?'} → ${todayData.sleepEnd || '?'}` },
-        ...(todayData.exerciseMinutes
-          ? [{ label: '锻炼时长', value: `${todayData.exerciseMinutes} 分钟`, ratio: todayData.exerciseMinutes / 60, color: '#C9B9CE', detail: `${todayData.exerciseMinutes} 分钟` }]
-          : []),
+        { label: '锻炼时长', value: `${todayData.exerciseMinutes || 0} 分钟`, ratio: (todayData.exerciseMinutes || 0) / 60, color: '#C9B9CE', detail: `${todayData.exerciseMinutes || 0} 分钟` },
       ]
     : [];
 
