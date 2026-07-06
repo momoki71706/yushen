@@ -24,12 +24,24 @@ function stripTimestampMarkers(text) {
   return text.replace(TIMESTAMP_MARKER, '');
 }
 
+// Forces the split rather than leaving it to the model's own judgment call
+// (which the 【分段发送】 system-prompt instruction can only ever nudge, not
+// guarantee) — breaks on sentence-ending punctuation (。！？ or a literal
+// newline), so a reply covering several distinct thoughts always renders as
+// separate bubbles even if the model never used MESSAGE_SPLIT_MARKER at all.
+// Commas and other mid-sentence punctuation are left alone, so one clause
+// doesn't get chopped away from the rest of its sentence.
+const SENTENCE_BOUNDARY = /[^。!?！？\n]+[。!?！？]*/g;
+
+function splitIntoSentences(text) {
+  return (text.match(SENTENCE_BOUNDARY) || []).map((s) => s.trim()).filter(Boolean);
+}
+
 export function splitReplyIntoBubbles(text) {
   const cleaned = stripTimestampMarkers(String(text || ''));
   const parts = cleaned
     .split(MESSAGE_SPLIT_MARKER)
-    .map((p) => p.trim())
-    .filter(Boolean);
+    .flatMap((p) => splitIntoSentences(p));
   return parts.length ? parts : [cleaned.trim() || FALLBACK_REPLY];
 }
 
