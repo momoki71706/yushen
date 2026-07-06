@@ -121,11 +121,21 @@ export default function ChatMode() {
 
   const listRef = useRef(null);
   const fileInputRef = useRef(null);
+  const chatInputRef = useRef(null);
   const lastMessageIdRef = useRef(undefined);
   const scrollToBottom = () => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   };
+
+  // Grows the compose box up to a cap as the user adds lines (Shift+Enter),
+  // then shrinks back to one line once a message actually sends.
+  useEffect(() => {
+    const el = chatInputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [chatDraft]);
   // A photo bubble finishing its load after the initial scroll-to-bottom
   // grows the list's height without anything re-triggering the scroll,
   // which is what left the view stuck partway up instead of at the true
@@ -419,12 +429,19 @@ export default function ChatMode() {
         )}
         <AttachmentDraftStrip />
         <div className="chat__input-row">
-          <input
+          <textarea
+            ref={chatInputRef}
             className="chat__input"
+            rows={1}
             value={chatDraft}
             onChange={(e) => onChatChange(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && sendChat()}
-            placeholder="说点什么…"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChat();
+              }
+            }}
+            placeholder="说点什么…（Shift+Enter 换行，每行会分开发送）"
           />
           <button className="chat__send" onClick={sendChat}>
             <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
