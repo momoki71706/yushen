@@ -460,7 +460,7 @@ export default function ChatMode() {
             rows={1}
             value={chatDraft}
             onChange={(e) => onChatChange(e.target.value)}
-            placeholder="说点什么…（换行后点发送，每行会分开发送）"
+            placeholder="说点什么…"
           />
           <button className="chat__send" onClick={sendChat}>
             <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
