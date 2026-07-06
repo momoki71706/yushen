@@ -105,6 +105,7 @@ function getHealthContext() {
     `心率：均${row.heart_rate_avg}（${row.heart_rate_min}-${row.heart_rate_max}）` +
     `${row.heart_rate_resting ? `，静息${row.heart_rate_resting}` : ''}${row.heart_rate_active ? `，运动${row.heart_rate_active}` : ''}\n` +
     `经期：${row.is_period ? '是' : '否'}` +
+    `${row.exercise_minutes ? `\n锻炼时长：${row.exercise_minutes}分钟` : ''}` +
     `${row.note ? `\n备注：${row.note}` : ''}` +
     `\n（不一定每次都要提，只在自然、相关的时候才结合这些数据说话）`
   );
@@ -129,7 +130,7 @@ export function getComposedSystemPrompt(extraInstruction) {
   const chatSummary = (getSetting('chatSummary', '') || '').trim();
   if (chatSummary) parts.push(`【更早之前的对话摘要】\n${chatSummary}`);
   parts.push(
-    `【当前时间】\n${getTimeContext()}\n（对话记录里每条消息前面的 [x月x日 周x 时:分] 是那条消息实际发送的时间，只是给你自己看的参考标记，用来判断隔了多久、该不该接着聊同一个话题——你自己的回复里绝对不能出现这种方括号时间格式，也不要把这个格式抄进你说的话里当开场白。如果真的需要提一下时间，就用日常说话的方式自然带一句（比如"这么晚了""都下午了"），而不是报时间数字或者用方括号。大多数时候根本不用提。）`
+    `【当前时间】\n${getTimeContext()}\n（对话记录里每条消息前面的【x月x日 周x 时:分】是系统自动加的时间戳，跟这条【当前时间】一样，只是给你自己看的参考标记，不是小晴或你自己真正打出来的字——用来判断隔了多久、该不该接着聊同一个话题。这个标记只应该出现在系统给你看的记录里，绝对不能出现在你自己发出去的那句话里，哪怕聊天记录里几乎每条消息前面都带着它、看起来像是"大家都这么开头"，你也不能照着抄一遍当开场白，因为对小晴来说她收到的每条消息本来就不会带这种标记。如果真的需要提一下时间，就用日常说话的方式自然带一句（比如"这么晚了""都下午了"），而不是报时间数字或者用【】。大多数时候根本不用提。）`
   );
   const healthContext = getHealthContext();
   if (healthContext) parts.push(healthContext);

@@ -36,6 +36,7 @@ function serializeHealthLog(row) {
     heartRateMax: row.heart_rate_max,
     heartRateResting: row.heart_rate_resting || null,
     heartRateActive: row.heart_rate_active || null,
+    exerciseMinutes: row.exercise_minutes || null,
     isPeriod: !!row.is_period,
     note: row.note,
   };
@@ -59,8 +60,8 @@ router.post('/token/regenerate', (req, res) => {
 
 // ---- HealthKit snapshot ingest (one row per day, upserted) ----
 const upsertHealthLog = db.prepare(`
-  INSERT INTO health_logs (date_iso, sleep_start, sleep_end, sleep_minutes, steps, heart_rate_avg, heart_rate_min, heart_rate_max, heart_rate_resting, heart_rate_active, is_period, note)
-  VALUES (@date, @sleep_start, @sleep_end, @sleep_minutes, @steps, @heart_rate_avg, @heart_rate_min, @heart_rate_max, @heart_rate_resting, @heart_rate_active, @is_period, @note)
+  INSERT INTO health_logs (date_iso, sleep_start, sleep_end, sleep_minutes, steps, heart_rate_avg, heart_rate_min, heart_rate_max, heart_rate_resting, heart_rate_active, exercise_minutes, is_period, note)
+  VALUES (@date, @sleep_start, @sleep_end, @sleep_minutes, @steps, @heart_rate_avg, @heart_rate_min, @heart_rate_max, @heart_rate_resting, @heart_rate_active, @exercise_minutes, @is_period, @note)
   ON CONFLICT(date_iso) DO UPDATE SET
     sleep_start = excluded.sleep_start,
     sleep_end = excluded.sleep_end,
@@ -71,6 +72,7 @@ const upsertHealthLog = db.prepare(`
     heart_rate_max = excluded.heart_rate_max,
     heart_rate_resting = excluded.heart_rate_resting,
     heart_rate_active = excluded.heart_rate_active,
+    exercise_minutes = excluded.exercise_minutes,
     is_period = excluded.is_period,
     note = excluded.note
 `);
@@ -89,6 +91,7 @@ router.post('/push', requireToken, (req, res) => {
     heart_rate_max: Number(b.heart_rate_max) || 0,
     heart_rate_resting: b.heart_rate_resting ? Number(b.heart_rate_resting) : null,
     heart_rate_active: b.heart_rate_active ? Number(b.heart_rate_active) : null,
+    exercise_minutes: b.exercise_minutes ? Number(b.exercise_minutes) : null,
     is_period: b.is_period ? 1 : 0,
     note: b.note || '',
   });

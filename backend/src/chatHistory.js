@@ -18,12 +18,18 @@ export function describeForHistory(row) {
 // getComposedSystemPrompt's time block), not how much time has passed
 // since any earlier turn, which made proactive/follow-up messages keep
 // riffing on a topic from an hour+ ago as if it just came up.
+// Uses the same full-width 【】 the system prompt reserves for its own
+// section headers (【当前时间】etc.) rather than plain [] — the model has
+// only ever been trained by this app's own prompts to treat 【】 as a meta/
+// system marker, never as something a real chat message would start with,
+// so it's far less likely to imitate the marker verbatim in its replies
+// than it was with a plain bracket that looks like ordinary punctuation.
 function timestampPrefix(createdAt) {
   if (!createdAt) return '';
   const t = beijingFromUtcString(createdAt);
   const hh = String(t.getUTCHours()).padStart(2, '0');
   const mm = String(t.getUTCMinutes()).padStart(2, '0');
-  return `[${t.getUTCMonth() + 1}月${t.getUTCDate()}日 ${weekdayLabel(t)} ${hh}:${mm}] `;
+  return `【${t.getUTCMonth() + 1}月${t.getUTCDate()}日 ${weekdayLabel(t)} ${hh}:${mm}】`;
 }
 
 // Turns one chat_messages row into a history entry the AI can actually see.

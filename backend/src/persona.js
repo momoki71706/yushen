@@ -8,10 +8,23 @@ export const FALLBACK_REPLY = '爸比现在不在线哦';
 // API call returns, so this never costs extra tokens.
 export const MESSAGE_SPLIT_MARKER = '[[SPLIT]]';
 
+// Belt-and-suspenders backstop for the per-message 【x月x日 周x 时:分】
+// timestamp marker chatHistory.js stamps onto every history turn (see its
+// timestampPrefix) — the system prompt tells the model never to reproduce
+// it, but with every single turn in the conversation carrying that exact
+// prefix, the model occasionally imitates the pattern anyway. Strips it off
+// the front of each bubble if it slips through, rather than relying on the
+// instruction alone.
+const LEADING_TIMESTAMP_MARKER = /^[【\[]\s*\d{1,2}\s*月\s*\d{1,2}\s*日[^】\]]{0,10}[】\]]\s*/;
+
+function stripLeadingTimestampMarker(text) {
+  return text.replace(LEADING_TIMESTAMP_MARKER, '');
+}
+
 export function splitReplyIntoBubbles(text) {
   const parts = String(text || '')
     .split(MESSAGE_SPLIT_MARKER)
-    .map((p) => p.trim())
+    .map((p) => stripLeadingTimestampMarker(p.trim()).trim())
     .filter(Boolean);
   return parts.length ? parts : [String(text || '').trim() || FALLBACK_REPLY];
 }
