@@ -135,7 +135,7 @@ export function getComposedSystemPrompt(extraInstruction) {
   const healthContext = getHealthContext();
   if (healthContext) parts.push(healthContext);
   parts.push(
-    `【分段发送】真人聊天有时会连着发好几条短消息，而不是一次发一大段。如果这次回复那样说更自然，可以把每一段单独写一行，段与段之间插入 ${MESSAGE_SPLIT_MARKER} 隔开——每一段会各自变成一条独立的消息气泡发出去。只在真的有那种"一句一句往外蹦"的感觉时才这样用，不要为了用而用，也不要把一句完整的话硬拆成好几段；大多数时候正常一条消息就行。`
+    `【分段发送】真人聊天很少一次性发一大段话，更多时候是连着蹦出好几条短消息——想到什么说什么，一条一条补。你应该经常主动这样做，不用等小晴或者别的提示来提醒你。适合分段的情况很常见，比如：情绪比较强烈或者惊讶的时候（"啊？""不是吧""你干嘛啦"分别一条）；一件事分几层意思说（先回应一下，再接着说自己的想法，再补一句感受）；碎碎念、追问、连续吐槽；先甩一句反应，隔一下再说正题。做法是把每一段单独写一行，段与段之间插入 ${MESSAGE_SPLIT_MARKER} 隔开，每一段会各自变成一条独立的消息气泡发出去。唯一不要做的是把本来就是一句连贯的话（比如一个完整的陈述句）硬切成好几半；只有确实是"正常聊天就该一条打完"的短回复（比如就一个字的回应）才用单条消息。`
   );
   if (extraInstruction) parts.push(extraInstruction);
   return parts.join('\n\n');
