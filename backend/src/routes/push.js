@@ -44,8 +44,8 @@ function clampInt(value, min, max, fallback) {
 function readPushSettings() {
   return {
     enabled: getSetting('proactiveMessagesEnabled', '0') === '1',
-    idleThresholdMinutes: clampInt(getSetting('proactiveIdleThresholdMinutes', String(PUSH_DEFAULTS.idleThresholdMinutes)), 30, 2880, PUSH_DEFAULTS.idleThresholdMinutes),
-    minGapMinutes: clampInt(getSetting('proactiveMinGapMinutes', String(PUSH_DEFAULTS.minGapMinutes)), 30, 2880, PUSH_DEFAULTS.minGapMinutes),
+    idleThresholdMinutes: clampInt(getSetting('proactiveIdleThresholdMinutes', String(PUSH_DEFAULTS.idleThresholdMinutes)), 15, 2880, PUSH_DEFAULTS.idleThresholdMinutes),
+    minGapMinutes: clampInt(getSetting('proactiveMinGapMinutes', String(PUSH_DEFAULTS.minGapMinutes)), 15, 2880, PUSH_DEFAULTS.minGapMinutes),
     quietHourStart: clampInt(getSetting('proactiveQuietHourStart', String(PUSH_DEFAULTS.quietHourStart)), 0, 23, PUSH_DEFAULTS.quietHourStart),
     quietHourEnd: clampInt(getSetting('proactiveQuietHourEnd', String(PUSH_DEFAULTS.quietHourEnd)), 0, 23, PUSH_DEFAULTS.quietHourEnd),
     diaryNotifyEnabled: getSetting('diaryNotifyEnabled', '0') === '1',
@@ -59,8 +59,8 @@ router.get('/settings', (req, res) => {
 router.patch('/settings', (req, res) => {
   const { enabled, idleThresholdMinutes, minGapMinutes, quietHourStart, quietHourEnd, diaryNotifyEnabled } = req.body || {};
   if (enabled !== undefined) setSetting('proactiveMessagesEnabled', enabled ? '1' : '0');
-  if (idleThresholdMinutes !== undefined) setSetting('proactiveIdleThresholdMinutes', String(clampInt(idleThresholdMinutes, 30, 2880, PUSH_DEFAULTS.idleThresholdMinutes)));
-  if (minGapMinutes !== undefined) setSetting('proactiveMinGapMinutes', String(clampInt(minGapMinutes, 30, 2880, PUSH_DEFAULTS.minGapMinutes)));
+  if (idleThresholdMinutes !== undefined) setSetting('proactiveIdleThresholdMinutes', String(clampInt(idleThresholdMinutes, 15, 2880, PUSH_DEFAULTS.idleThresholdMinutes)));
+  if (minGapMinutes !== undefined) setSetting('proactiveMinGapMinutes', String(clampInt(minGapMinutes, 15, 2880, PUSH_DEFAULTS.minGapMinutes)));
   if (quietHourStart !== undefined) setSetting('proactiveQuietHourStart', String(clampInt(quietHourStart, 0, 23, PUSH_DEFAULTS.quietHourStart)));
   if (quietHourEnd !== undefined) setSetting('proactiveQuietHourEnd', String(clampInt(quietHourEnd, 0, 23, PUSH_DEFAULTS.quietHourEnd)));
   if (diaryNotifyEnabled !== undefined) setSetting('diaryNotifyEnabled', diaryNotifyEnabled ? '1' : '0');

@@ -53,7 +53,7 @@ function WheelColumn({ options, value, onChange }) {
 // A native-feeling scroll wheel for picking a duration as 小时+分钟 (minutes
 // snap to quarter-hours) rather than a single stepper — used by the two
 // proactive-message timing settings in PushSettingsPanel.
-export default function HoursMinutesPicker({ totalMinutes, onChange, min = 30, max = 2880 }) {
+export default function HoursMinutesPicker({ totalMinutes, onChange, min = 15, max = 2880 }) {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
 
