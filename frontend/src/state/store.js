@@ -1429,6 +1429,7 @@ export const useStore = create(
   presets: [],
   presetEditId: null, // null = list, 'new' = creating, number = editing
   presetDraft: null,
+  presetSaveError: '',
   openPresetPanel: () => {
     set({ presetPanelOpen: true, presetEditId: null, presetDraft: null });
     get().loadPresets();
@@ -1440,28 +1441,38 @@ export const useStore = create(
   },
   openPresetEditor: (id) => {
     if (id === 'new') {
-      set({ presetEditId: 'new', presetDraft: { category: '默认', name: '', content: '', enabled: true } });
+      set({ presetEditId: 'new', presetDraft: { category: '默认', name: '', content: '', enabled: true }, presetSaveError: '' });
       return;
     }
     const p = get().presets.find((x) => x.id === id);
     if (!p) return;
-    set({ presetEditId: id, presetDraft: { category: p.category, name: p.name, content: p.content, enabled: p.enabled } });
+    set({ presetEditId: id, presetDraft: { category: p.category, name: p.name, content: p.content, enabled: p.enabled }, presetSaveError: '' });
   },
-  closePresetEditor: () => set({ presetEditId: null, presetDraft: null }),
+  closePresetEditor: () => set({ presetEditId: null, presetDraft: null, presetSaveError: '' }),
   onPresetDraftChange: (field, value) => set((s) => ({ presetDraft: { ...s.presetDraft, [field]: value } })),
   savePresetDraft: async () => {
     const { presetEditId, presetDraft } = get();
-    if (!presetDraft.name.trim() || !presetDraft.content.trim()) return;
+    // Silently no-op-ing here used to look exactly like a dead button —
+    // tapping 保存 with either field blank did genuinely nothing, no
+    // error, nothing saved, and there was no way to tell why.
+    if (!presetDraft.name.trim() || !presetDraft.content.trim()) {
+      set({ presetSaveError: '名称和内容都要填才能保存' });
+      return;
+    }
     const payload = {
       category: presetDraft.category.trim() || '默认',
       name: presetDraft.name.trim(),
       content: presetDraft.content.trim(),
       enabled: presetDraft.enabled,
     };
-    if (presetEditId === 'new') await api.addPreset(payload);
-    else await api.updatePreset(presetEditId, payload);
-    set({ presetEditId: null, presetDraft: null });
-    get().loadPresets();
+    try {
+      if (presetEditId === 'new') await api.addPreset(payload);
+      else await api.updatePreset(presetEditId, payload);
+      set({ presetEditId: null, presetDraft: null, presetSaveError: '' });
+      get().loadPresets();
+    } catch (err) {
+      set({ presetSaveError: err.message || '保存失败，稍后再试' });
+    }
   },
   togglePresetEnabled: async (id) => {
     const p = get().presets.find((x) => x.id === id);

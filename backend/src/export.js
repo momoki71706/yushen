@@ -31,6 +31,26 @@ function buildDiarySection() {
   return { section: `## 日记\n\n${lines.join('\n\n')}\n`, maxId: rows[rows.length - 1].id };
 }
 
+const FAVORITE_TYPE_LABEL = { chat: '聊天', diary: '日记', letter: '信件', tip: '小提示' };
+
+// Favorites are self-contained (title/snippet/sourceTime are copied in at
+// favorite-time, not looked up from the original chat/diary/letter row),
+// so this section still has something to export even if the original
+// message it came from has since been deleted or otherwise lost.
+function buildFavoritesSection() {
+  const lastId = Number(getSetting('lastExportedFavoriteId', '0')) || 0;
+  const rows = db.prepare('SELECT * FROM favorites WHERE id > ? ORDER BY id ASC').all(lastId);
+  if (!rows.length) return { section: '', maxId: lastId };
+
+  const lines = rows.map((r) => {
+    const when = formatBeijingDateTime(beijingFromUtcString(r.created_at));
+    const label = FAVORITE_TYPE_LABEL[r.type] || r.type;
+    const title = r.title ? `${md(r.title)}\n` : '';
+    return `**${when}** ｜ ${label}\n${title}${md(r.snippet)}`;
+  });
+  return { section: `## 收藏\n\n${lines.join('\n\n')}\n`, maxId: rows[rows.length - 1].id };
+}
+
 // Only letters that are actually unlockable get exported — a letter due
 // in a month is meant to stay a surprise, so pulling its body into a
 // downloadable backup file early would defeat that. Since unlockable
@@ -55,8 +75,9 @@ export function generateExport() {
   const chat = buildChatSection();
   const diary = buildDiarySection();
   const letters = buildLetterSection();
+  const favorites = buildFavoritesSection();
 
-  const sections = [chat.section, diary.section, letters.section].filter(Boolean);
+  const sections = [favorites.section, chat.section, diary.section, letters.section].filter(Boolean);
   const nowLabel = formatBeijingDateTime(beijingNow());
   const header = `# 小晴与屿深 · 回忆导出\n\n导出时间：${nowLabel}（北京时间）\n本次导出：上次导出之后的新内容\n`;
 
@@ -70,6 +91,7 @@ export function generateExport() {
   if (hasContent) {
     setSetting('lastExportedChatId', String(chat.maxId));
     setSetting('lastExportedDiaryId', String(diary.maxId));
+    setSetting('lastExportedFavoriteId', String(favorites.maxId));
     if (letters.ids.length) {
       const placeholders = letters.ids.map(() => '?').join(',');
       db.prepare(`UPDATE letters SET exported = 1 WHERE id IN (${placeholders})`).run(...letters.ids);

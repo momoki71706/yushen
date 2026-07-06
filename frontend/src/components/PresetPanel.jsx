@@ -78,6 +78,7 @@ function PresetEditor() {
   const onPresetDraftChange = useStore((s) => s.onPresetDraftChange);
   const savePresetDraft = useStore((s) => s.savePresetDraft);
   const deletePresetAction = useStore((s) => s.deletePresetAction);
+  const presetSaveError = useStore((s) => s.presetSaveError);
 
   if (!presetDraft) return null;
   const isNew = presetEditId === 'new';
@@ -130,6 +131,7 @@ function PresetEditor() {
         placeholder="比如「小晴喜欢被叫做宝宝」「不要用括号描述动作」"
       />
 
+      {presetSaveError && <div className="sidebar-error-text">{presetSaveError}</div>}
       <div className="provider-editor-actions">
         <button className="ai-key-save-btn" style={{ flex: 1 }} onClick={savePresetDraft}>保存</button>
         {!isNew && (

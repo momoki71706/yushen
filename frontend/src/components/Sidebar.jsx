@@ -1,4 +1,5 @@
 import { useStore } from '../state/store';
+import { API_BASE_URL } from '../api/client';
 import { EnvelopeOutlineIcon, PencilIcon, CheckIcon, TrashIcon } from './Icons';
 
 function SparkIcon() {
@@ -218,6 +219,14 @@ export default function Sidebar() {
           <div className="export-chooser">
             <button className="export-chooser-option" onClick={exportMemoriesAction}>导出本次回忆</button>
             <button className="export-chooser-option" onClick={exportLastMemoriesAction}>导出上次回忆</button>
+            <a
+              className="export-chooser-option"
+              href={`${API_BASE_URL}/backup/download`}
+              onClick={closeExportChooser}
+              style={{ textDecoration: 'none', textAlign: 'center', display: 'block' }}
+            >
+              下载完整数据备份
+            </a>
             <button className="export-chooser-cancel" onClick={closeExportChooser}>取消</button>
           </div>
         )}
