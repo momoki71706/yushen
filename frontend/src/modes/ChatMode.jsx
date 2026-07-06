@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../state/store';
 import { attachmentUrl } from '../api/client';
-import { BowIcon, StarIcon, PlusIcon, RefreshIcon, ChevronDownIcon, PencilIcon, TrashIcon, FileIcon, CloseIcon, ReadStatusIcon } from '../components/Icons';
+import { BowIcon, StarIcon, PlusIcon, NewlineIcon, RefreshIcon, ChevronDownIcon, PencilIcon, TrashIcon, FileIcon, CloseIcon, ReadStatusIcon } from '../components/Icons';
 import ModelSwitcherPopover from '../components/ModelSwitcherPopover';
 import FavoriteHeart from '../components/FavoriteHeart';
 
@@ -196,6 +196,23 @@ export default function ChatMode() {
   const handleFileChange = (e) => {
     addAttachmentDraftFiles(e.target.files);
     e.target.value = '';
+  };
+
+  // iOS's on-screen return key sends instead of inserting a line break in
+  // this compose box, so this button is the only way to add one there —
+  // inserts at the cursor (not just appended to the end) so it works
+  // mid-edit too, then restores focus and cursor position.
+  const insertNewlineAtCursor = () => {
+    const el = chatInputRef.current;
+    const start = el?.selectionStart ?? chatDraft.length;
+    const end = el?.selectionEnd ?? chatDraft.length;
+    const next = `${chatDraft.slice(0, start)}\n${chatDraft.slice(end)}`;
+    onChatChange(next);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.focus();
+      el.selectionStart = el.selectionEnd = start + 1;
+    });
   };
 
   return (
@@ -418,6 +435,14 @@ export default function ChatMode() {
             disabled={attachmentUploading}
           >
             <PlusIcon color="#C08BA0" width={14} height={14} />
+          </button>
+          <button
+            className="sticker-btn"
+            title="换行（另起一条消息）"
+            style={{ background: 'rgba(255,255,255,0.7)' }}
+            onClick={insertNewlineAtCursor}
+          >
+            <NewlineIcon color="#C08BA0" width={15} height={15} />
           </button>
           <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={handleFileChange} />
         </div>
