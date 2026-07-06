@@ -573,9 +573,9 @@ export const useStore = create(
       isReplying: true,
     }));
     try {
-      const { mine, reply } = await api.sendMessage(text, kind, attachment);
+      const { mine, replies } = await api.sendMessage(text, kind, attachment);
       set((s) => ({
-        messages: [...s.messages.filter((m) => !String(m.id).startsWith('pending-')), mine, reply],
+        messages: [...s.messages.filter((m) => !String(m.id).startsWith('pending-')), mine, ...replies],
         isReplying: false,
       }));
     } catch (err) {
@@ -658,9 +658,9 @@ export const useStore = create(
       });
       const items = uploaded.map((u, i) => ({ text: '', kind: draft[i].kind, attachment: u }));
       if (text) items.push({ text, kind: 'text' });
-      const { mine, reply } = await api.sendBatch(items);
+      const { mine, replies } = await api.sendBatch(items);
       set((s) => ({
-        messages: [...s.messages.filter((m) => !String(m.id).startsWith(pendingPrefix)), ...mine, reply],
+        messages: [...s.messages.filter((m) => !String(m.id).startsWith(pendingPrefix)), ...mine, ...replies],
         isReplying: false,
       }));
     } catch (err) {
@@ -714,9 +714,11 @@ export const useStore = create(
       regeneratingIds: pairedReply ? [...s.regeneratingIds, pairedReply.id] : s.regeneratingIds,
     }));
     try {
-      const { reply, isNew } = await api.regenerateChatRound(id);
+      const { replies, isNew } = await api.regenerateChatRound(id);
       set((s) => ({
-        messages: isNew ? [...s.messages, reply] : s.messages.map((m) => (m.id === reply.id ? reply : m)),
+        messages: isNew
+          ? [...s.messages, ...replies]
+          : s.messages.map((m) => (m.id === replies[0].id ? replies[0] : m)),
       }));
     } catch {
       // eligibility already checked client-side; a stale mismatch here just no-ops

@@ -56,7 +56,12 @@ export default function WatchView() {
     ? [
         { label: '睡眠', value: `${todayData.sleepHours.toFixed(1)} 小时`, ratio: todayData.sleepHours / 9, color: '#CBB9C0' },
         { label: '步数', value: `${todayData.steps.toLocaleString()} 步`, ratio: todayData.steps / 12000, color: '#D9CBD3' },
-        { label: '心率', value: `${todayData.heartRateAvg} bpm`, ratio: todayData.heartRateAvg / 100, color: '#EDD9E1' },
+        {
+          label: '心率',
+          value: `${todayData.heartRateAvg} bpm${todayData.heartRateMin && todayData.heartRateMax ? `（${todayData.heartRateMin}-${todayData.heartRateMax}）` : ''}`,
+          ratio: todayData.heartRateAvg / 100,
+          color: '#EDD9E1',
+        },
       ]
     : [];
 

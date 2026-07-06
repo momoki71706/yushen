@@ -1,5 +1,6 @@
 import { db, getSetting } from './db.js';
 import { beijingNow, formatBeijingClock, weekdayLabel } from './time.js';
+import { MESSAGE_SPLIT_MARKER } from './persona.js';
 
 function serialize(row) {
   return {
@@ -112,6 +113,9 @@ export function getComposedSystemPrompt(extraInstruction) {
   );
   const healthContext = getHealthContext();
   if (healthContext) parts.push(healthContext);
+  parts.push(
+    `【分段发送】真人聊天有时会连着发好几条短消息，而不是一次发一大段。如果这次回复那样说更自然，可以把每一段单独写一行，段与段之间插入 ${MESSAGE_SPLIT_MARKER} 隔开——每一段会各自变成一条独立的消息气泡发出去。只在真的有那种"一句一句往外蹦"的感觉时才这样用，不要为了用而用，也不要把一句完整的话硬拆成好几段；大多数时候正常一条消息就行。`
+  );
   if (extraInstruction) parts.push(extraInstruction);
   return parts.join('\n\n');
 }

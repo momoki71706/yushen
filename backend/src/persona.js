@@ -1,5 +1,21 @@
 export const FALLBACK_REPLY = '爸比现在不在线哦';
 
+// Lets one reply (one provider call, one token cost) render as several
+// consecutive chat bubbles instead of a single block of text — the model
+// puts this marker on its own line between "messages" it wants split up,
+// mimicking how a real person sends a quick burst of short texts instead
+// of one long one. Split happens purely on the backend after the single
+// API call returns, so this never costs extra tokens.
+export const MESSAGE_SPLIT_MARKER = '[[SPLIT]]';
+
+export function splitReplyIntoBubbles(text) {
+  const parts = String(text || '')
+    .split(MESSAGE_SPLIT_MARKER)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return parts.length ? parts : [String(text || '').trim() || FALLBACK_REPLY];
+}
+
 // When something actually breaks (bad key, no quota, rate limited, relay
 // down) we still want an in-character line instead of exposing raw error
 // text — but a casual, specific line beats one generic catch-all every
