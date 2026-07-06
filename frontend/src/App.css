@@ -37,6 +37,14 @@
   z-index: 0;
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
+  /* iOS Safari occasionally drops a background-image on an absolutely
+     positioned layer under GPU memory pressure — this page stacks a lot
+     of backdrop-filter blur elements on top of it, which makes that more
+     likely. Forcing this onto its own compositor layer works around it. */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
 }
 
 .phone__noise {
