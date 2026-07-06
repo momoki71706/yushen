@@ -11,22 +11,26 @@ export const MESSAGE_SPLIT_MARKER = '[[SPLIT]]';
 // Belt-and-suspenders backstop for the per-message 【x月x日 周x 时:分】
 // timestamp marker chatHistory.js stamps onto every history turn (see its
 // timestampPrefix) — the system prompt tells the model never to reproduce
-// it, but with every single turn in the conversation carrying that exact
-// prefix, the model occasionally imitates the pattern anyway. Strips it off
-// the front of each bubble if it slips through, rather than relying on the
-// instruction alone.
-const LEADING_TIMESTAMP_MARKER = /^[【\[]\s*\d{1,2}\s*月\s*\d{1,2}\s*日[^】\]]{0,10}[】\]]\s*/;
+// it, but with every turn in the conversation carrying that exact prefix,
+// the model sometimes imitates the pattern anyway — not just at the very
+// start of a reply, but anywhere it ends up paraphrasing/echoing back
+// something from the visible history (each restated fragment picking up
+// its own copy of the marker). So this strips every occurrence anywhere in
+// the text, not just a leading one, rather than relying on the instruction
+// (or an anchored regex) alone.
+const TIMESTAMP_MARKER = /[【\[]\s*\d{1,2}\s*月\s*\d{1,2}\s*日[^】\]]{0,10}[】\]]\s*/g;
 
-function stripLeadingTimestampMarker(text) {
-  return text.replace(LEADING_TIMESTAMP_MARKER, '');
+function stripTimestampMarkers(text) {
+  return text.replace(TIMESTAMP_MARKER, '');
 }
 
 export function splitReplyIntoBubbles(text) {
-  const parts = String(text || '')
+  const cleaned = stripTimestampMarkers(String(text || ''));
+  const parts = cleaned
     .split(MESSAGE_SPLIT_MARKER)
-    .map((p) => stripLeadingTimestampMarker(p.trim()).trim())
+    .map((p) => p.trim())
     .filter(Boolean);
-  return parts.length ? parts : [String(text || '').trim() || FALLBACK_REPLY];
+  return parts.length ? parts : [cleaned.trim() || FALLBACK_REPLY];
 }
 
 // When something actually breaks (bad key, no quota, rate limited, relay
