@@ -3,6 +3,7 @@ import { beijingNow, formatBeijingClock } from './time.js';
 import { writeLedgerNag, writeLedgerCardMessage } from './ledgerAi.js';
 import { sendPushToAll, pushConfigured } from './push.js';
 import { classifyReplyForRetry, estimateTokens } from './persona.js';
+import { proactiveMessagingEnabled, withinProactiveMinGap, recordProactiveMessageSent } from './proactive.js';
 
 const CHECK_INTERVAL_MS = 60 * 1000;
 const NAG_WINDOW_START_HOUR = 20;
@@ -62,6 +63,12 @@ export async function maybeNagAboutLedger() {
     const fireEpoch = ensureNagFireEpoch(bNow, todayISO);
     if (Date.now() < fireEpoch) return;
 
+    // Same "unprompted them-message" family as the idle-chat/follow-up
+    // schedulers — respects the master toggle (previously ignored it
+    // entirely) and shares their cooldown so a nag can't land back-to-back
+    // with one of those.
+    if (!proactiveMessagingEnabled() || withinProactiveMinGap()) return;
+
     const hasEntryToday = db.prepare('SELECT 1 FROM ledger_entries WHERE date_iso = ? LIMIT 1').get(todayISO);
     if (hasEntryToday) {
       setSetting('lastLedgerNagDate', todayISO);
@@ -74,6 +81,7 @@ export async function maybeNagAboutLedger() {
 
     insertChatNag.run(result.text, formatBeijingClock(), estimateTokens(result.text));
     setSetting('lastLedgerNagDate', todayISO);
+    recordProactiveMessageSent();
     if (pushConfigured) await sendPushToAll({ title: '屿深', body: result.text });
   } catch (err) {
     console.error('[ledger] nag scheduler error:', err.message);
