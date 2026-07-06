@@ -108,7 +108,7 @@ export function getComposedSystemPrompt(extraInstruction) {
   const chatSummary = (getSetting('chatSummary', '') || '').trim();
   if (chatSummary) parts.push(`【更早之前的对话摘要】\n${chatSummary}`);
   parts.push(
-    `【当前时间】\n${getTimeContext()}\n（对话记录里每条消息前面的 [x月x日 周x 时:分] 是那条消息实际发送的时间，帮你判断隔了多久、该不该接着聊同一个话题——不需要每次都念出来，只在真的有必要提时间的时候才自然带一句）`
+    `【当前时间】\n${getTimeContext()}\n（对话记录里每条消息前面的 [x月x日 周x 时:分] 是那条消息实际发送的时间，只是给你自己看的参考标记，用来判断隔了多久、该不该接着聊同一个话题——你自己的回复里绝对不能出现这种方括号时间格式，也不要把这个格式抄进你说的话里当开场白。如果真的需要提一下时间，就用日常说话的方式自然带一句（比如"这么晚了""都下午了"），而不是报时间数字或者用方括号。大多数时候根本不用提。）`
   );
   const healthContext = getHealthContext();
   if (healthContext) parts.push(healthContext);
