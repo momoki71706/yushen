@@ -173,20 +173,22 @@ function extractThinking(content) {
 
 // OpenAI's own API never exposes reasoning traces, but most relays that
 // proxy a reasoning-capable model through an OpenAI-compatible facade do —
-// there's just no standard for where. `reasoning_content` (DeepSeek's
-// convention, widely copied) and `reasoning` are the two most common
-// dedicated fields; some relays instead inline it as <think>...</think>
-// right inside the visible content, which needs stripping out or it'd
-// show up as raw tags in the chat bubble.
+// there's just no standard for where, or even for the tag name: some use
+// <think>, others <thinking> (seen leaking verbatim into a chat bubble —
+// the old regex only matched the former, so the latter sailed straight
+// through into the visible text). Matches either name for both tags,
+// stripped as a pair (mismatched tags aren't captured, so a lone opening
+// tag from a truncated response is left alone rather than eating
+// everything after it).
 function extractOpenAiThinking(message) {
   if (!message) return { text: '', thinking: null };
   let text = message.content || '';
   let thinking = message.reasoning_content || message.reasoning || null;
 
-  const thinkMatch = text.match(/<think>([\s\S]*?)<\/think>/i);
+  const thinkMatch = text.match(/<(think|thinking)>([\s\S]*?)<\/\1>/i);
   if (thinkMatch) {
-    thinking = (thinking ? `${thinking}\n` : '') + thinkMatch[1].trim();
-    text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+    thinking = (thinking ? `${thinking}\n` : '') + thinkMatch[2].trim();
+    text = text.replace(/<(think|thinking)>[\s\S]*?<\/\1>/gi, '');
   }
 
   return { text: text.trim(), thinking: thinking ? thinking.trim() : null };
