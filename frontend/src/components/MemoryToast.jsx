@@ -1,5 +1,5 @@
 import { useStore } from '../state/store';
-import { TrashIcon } from './Icons';
+import { CloseIcon } from './Icons';
 
 // Self-dismisses after 8s (see pollMemoryLog in store.js) — a lightweight
 // in-app panel for when one or more memories just got auto-saved to the
@@ -20,7 +20,7 @@ export default function MemoryToast() {
         ))}
       </div>
       <button className="memory-toast__dismiss" onClick={dismissMemoryToast}>
-        <TrashIcon color="#fff" width={13} height={13} />
+        <CloseIcon color="#6B6268" width={11} height={11} />
       </button>
     </div>
   );

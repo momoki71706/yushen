@@ -180,10 +180,10 @@ export function DiaryBigIcon() {
   );
 }
 
-export function CloseIcon() {
+export function CloseIcon({ color = '#6B6268', width = 11, height = 11 }) {
   return (
-    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-      <path d="M1 1L10 10M10 1L1 10" stroke="#6B6268" strokeWidth="1.6" strokeLinecap="round" />
+    <svg width={width} height={height} viewBox="0 0 11 11" fill="none">
+      <path d="M1 1L10 10M10 1L1 10" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }
