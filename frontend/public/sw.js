@@ -21,6 +21,7 @@ self.addEventListener('push', (event) => {
         icon: '/icon-192.png',
         badge: '/icon-192.png',
         tag: 'yushen-proactive',
+        renotify: true,
       }),
       self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
         clientList.forEach((client) => client.postMessage({ type: 'proactive-message' }));
