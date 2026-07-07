@@ -7,6 +7,7 @@ import { getContextMessageLimit } from '../contextSettings.js';
 import { enrichHistory } from '../chatHistory.js';
 import { logMemoryToolTrace } from '../memoryScheduler.js';
 import { splitReplyIntoBubbles } from '../persona.js';
+import { insertTheirsMessages } from '../chatInsert.js';
 
 const router = Router();
 
@@ -63,9 +64,6 @@ async function recentHistory(beforeId, { inclusive = false } = {}) {
 
 const insertMineStmt = db.prepare(
   'INSERT INTO chat_messages (from_who, text, kind, time_label, attachment_url, attachment_name, attachment_mime, attachment_size) VALUES (?,?,?,?,?,?,?,?)'
-);
-const insertTheirsStmt = db.prepare(
-  'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens, thinking, tool_calls) VALUES (?,?,?,?,?,?,?)'
 );
 
 // A batch send or a split reply renders as several consecutive same-sender
@@ -126,28 +124,6 @@ function insertMineRow({ text, kind, attachment }) {
   return db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(info.lastInsertRowid);
 }
 
-// One reply can render as several consecutive bubbles (see persona.js's
-// MESSAGE_SPLIT_MARKER) — still a single provider call/token cost, just
-// inserted as multiple chat_messages rows. Tokens/thinking/tool trace are
-// only meaningful once per reply, so they're attached to the last bubble;
-// earlier ones carry null.
-function insertTheirsRows(reply) {
-  const bubbles = splitReplyIntoBubbles(reply.text);
-  return bubbles.map((text, i) => {
-    const isLast = i === bubbles.length - 1;
-    const info = insertTheirsStmt.run(
-      'them',
-      text,
-      'text',
-      formatBeijingClock(),
-      isLast ? reply.tokens : null,
-      isLast ? reply.thinking || null : null,
-      isLast && reply.toolTrace?.length ? JSON.stringify(reply.toolTrace) : null
-    );
-    return db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(info.lastInsertRowid);
-  });
-}
-
 router.post('/', async (req, res) => {
   const { text, kind, attachment } = req.body;
   const isAttachment = kind === 'image' || kind === 'file';
@@ -156,7 +132,7 @@ router.post('/', async (req, res) => {
 
   const mine = insertMineRow({ text, kind, attachment });
   const reply = await getYushenReply(await recentHistory());
-  const theirs = insertTheirsRows(reply);
+  const theirs = insertTheirsMessages(reply);
   logMemoryToolTrace(reply.toolTrace);
 
   res.json({ mine: serializeMessage(mine), replies: theirs.map(serializeMessage) });
@@ -177,7 +153,7 @@ router.post('/batch', async (req, res) => {
   if (!mineRows.length) return res.status(400).json({ error: 'no valid items' });
 
   const reply = await getYushenReply(await recentHistory());
-  const theirs = insertTheirsRows(reply);
+  const theirs = insertTheirsMessages(reply);
   logMemoryToolTrace(reply.toolTrace);
 
   res.json({ mine: mineRows.map(serializeMessage), replies: theirs.map(serializeMessage) });
@@ -197,7 +173,7 @@ router.post('/batch', async (req, res) => {
 function replaceTheirsGroup(groupIds, reply) {
   if (isTrailingGroup(groupIds)) {
     deleteRows(groupIds);
-    const inserted = insertTheirsRows(reply);
+    const inserted = insertTheirsMessages(reply);
     return { replies: inserted.map(serializeMessage), removedIds: groupIds };
   }
   const joinedText = splitReplyIntoBubbles(reply.text).join('\n');
@@ -271,7 +247,7 @@ router.post('/:id/regenerate-round', async (req, res) => {
     return res.json(replaceTheirsGroup(groupIds, reply));
   }
 
-  const inserted = insertTheirsRows(reply);
+  const inserted = insertTheirsMessages(reply);
   res.json({ replies: inserted.map(serializeMessage), removedIds: [] });
 });
 

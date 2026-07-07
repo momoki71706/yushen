@@ -4,6 +4,7 @@ import { writeDiaryEntry, reactToDiaryEntry, commentOnDiaryByRequest, moodColorF
 import { sendPushToAll, pushConfigured } from './push.js';
 import { FALLBACK_REPLY, classifyReplyForRetry, estimateTokens } from './persona.js';
 import { proactiveMessagingEnabled, withinProactiveMinGap, recordProactiveMessageSent } from './proactive.js';
+import { insertTheirsMessages } from './chatInsert.js';
 
 // A diary comment/feedback attempt gets retried on the next couple of
 // checks (one retry per minute-ish tick) before giving up for good — unlike
@@ -100,9 +101,6 @@ export async function maybeWriteDiary() {
 const insertReactionComment = db.prepare(
   `INSERT INTO diary_comments (entry_id, author, text, time_label, read_by_me) VALUES (?, 'them', ?, ?, 0)`
 );
-const insertChatFollowUp = db.prepare(
-  'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens) VALUES (?,?,?,?,?)'
-);
 
 // Simulates "didn't see it right away" — a diary entry you post gets its
 // AI reaction some random minutes later (within REACT_DELAY_MAX_MINUTES,
@@ -146,9 +144,9 @@ export async function maybeReactToDiaries() {
           proactiveMessagingEnabled() &&
           !withinProactiveMinGap()
         ) {
-          insertChatFollowUp.run('them', reaction.chatFollowUp, 'text', formatBeijingClock(), estimateTokens(reaction.chatFollowUp));
+          const inserted = insertTheirsMessages({ text: reaction.chatFollowUp, tokens: estimateTokens(reaction.chatFollowUp) });
           recordProactiveMessageSent();
-          if (pushConfigured) await sendPushToAll({ title: '屿深', body: reaction.chatFollowUp });
+          if (pushConfigured) await sendPushToAll({ title: '屿深', body: inserted.map((r) => r.text).join(' ') });
         }
       } catch (err) {
         console.error(`[diary] reaction failed for entry #${entry.id}:`, err.message);
@@ -194,7 +192,7 @@ export async function maybeFulfillDiaryReviewRequests() {
         insertReactionComment.run(entry.id, result.comment, formatBeijingClock());
         await notifyDiaryComment(result.comment);
         if (result.chatFeedback && !classifyReplyForRetry(result.chatFeedback).bad) {
-          insertChatFollowUp.run('them', result.chatFeedback, 'text', formatBeijingClock(), estimateTokens(result.chatFeedback));
+          insertTheirsMessages({ text: result.chatFeedback, tokens: estimateTokens(result.chatFeedback) });
         }
       } catch (err) {
         console.error(`[diary] review request failed for #${req.id}:`, err.message);

@@ -1,11 +1,12 @@
 import { db, getSetting, setSetting } from './db.js';
 import { getProviderWithKeys, getReplyViaProvider, trimTrailingAssistantTurns } from './providers.js';
-import { formatBeijingClock, beijingNow } from './time.js';
+import { beijingNow } from './time.js';
 import { sendPushToAll, pushConfigured } from './push.js';
 import { classifyReplyForRetry, withReplyRetry } from './persona.js';
 import { getContextMessageLimit } from './contextSettings.js';
 import { enrichHistory } from './chatHistory.js';
 import { getProactivePresetContent } from './presets.js';
+import { insertTheirsMessages } from './chatInsert.js';
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often the scheduler wakes up to check
 
@@ -92,13 +93,11 @@ async function maybeSendProactiveMessage() {
     // an internal error line ("钥匙好像失效了") as if it were a real message.
     if (classifyReplyForRetry(reply.text).bad) return;
 
-    db.prepare(
-      'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens, thinking) VALUES (?,?,?,?,?,?)'
-    ).run('them', reply.text, 'text', formatBeijingClock(), reply.tokens, reply.thinking || null);
+    const inserted = insertTheirsMessages(reply);
 
     recordProactiveMessageSent();
 
-    await sendPushToAll({ title: '屿深', body: reply.text });
+    await sendPushToAll({ title: '屿深', body: inserted.map((r) => r.text).join(' ') });
   } catch (err) {
     console.error('[proactive] error:', err.message);
   }
