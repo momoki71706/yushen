@@ -2,7 +2,7 @@ import { getSetting } from './db.js';
 import { getProviderWithKeys, getReplyViaProvider, pickKey } from './providers.js';
 import { getReplyViaClaudeCode } from './claudeCode.js';
 import { FALLBACK_REPLY, classifyAiError, estimateTokens, withReplyRetry } from './persona.js';
-import { getEnabledTools, runAnthropicToolLoop, runOpenAiToolLoop } from './mcp.js';
+import { runAnthropicToolLoop, runOpenAiToolLoop } from './mcp.js';
 import { getLocalTools } from './localTools.js';
 
 // An empty reply or a canned "something broke" line that turns out to be
@@ -34,9 +34,15 @@ async function attemptYushenReply(history) {
 
     // Local tools (e.g. schedule_message) are always available — they're
     // core app behavior, not an external integration, so they shouldn't
-    // depend on the MCP toggle. MCP-server tools are added on top of that
-    // only when the user has actually turned MCP on.
-    const tools = [...getLocalTools(), ...(mcpEnabled ? await getEnabledTools() : [])];
+    // depend on the MCP toggle. MCP-server tools (a memory server, in
+    // practice) are deliberately NOT attached here even when MCP is on —
+    // any tool call, from either side, forces a second real round-trip to
+    // the provider (see runAnthropicToolLoop/runOpenAiToolLoop's loop), so
+    // letting the model spontaneously reach for the memory tool mid-chat
+    // was silently doubling the real cost of whatever reply prompted it.
+    // Saving memories now only ever happens through the periodic threshold
+    // review in memoryScheduler.js, which is its own dedicated call.
+    const tools = getLocalTools();
 
     if (tools.length) {
       try {

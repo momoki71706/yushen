@@ -1529,7 +1529,7 @@
   height: 26px;
   border-radius: 50%;
   border: none;
-  background: #C4645E;
+  background: rgba(58, 50, 54, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
