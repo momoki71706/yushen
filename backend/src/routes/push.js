@@ -28,6 +28,7 @@ router.post('/unsubscribe', (req, res) => {
 const PUSH_DEFAULTS = {
   idleThresholdMinutes: 240, // conversation has to be quiet this long before a proactive message is even considered
   minGapMinutes: 180, // don't send more than one proactive message this often, regardless of idle time
+  recheckMinutes: 60, // once past the idle threshold, re-ask the model "should I say something" at most this often
   quietHourStart: 0, // no proactive messages between quietHourStart and quietHourEnd (Beijing time)
   quietHourEnd: 8,
 };
@@ -46,6 +47,7 @@ function readPushSettings() {
     enabled: getSetting('proactiveMessagesEnabled', '0') === '1',
     idleThresholdMinutes: clampInt(getSetting('proactiveIdleThresholdMinutes', String(PUSH_DEFAULTS.idleThresholdMinutes)), 15, 2880, PUSH_DEFAULTS.idleThresholdMinutes),
     minGapMinutes: clampInt(getSetting('proactiveMinGapMinutes', String(PUSH_DEFAULTS.minGapMinutes)), 15, 2880, PUSH_DEFAULTS.minGapMinutes),
+    recheckMinutes: clampInt(getSetting('proactiveRecheckMinutes', String(PUSH_DEFAULTS.recheckMinutes)), 15, 2880, PUSH_DEFAULTS.recheckMinutes),
     quietHourStart: clampInt(getSetting('proactiveQuietHourStart', String(PUSH_DEFAULTS.quietHourStart)), 0, 23, PUSH_DEFAULTS.quietHourStart),
     quietHourEnd: clampInt(getSetting('proactiveQuietHourEnd', String(PUSH_DEFAULTS.quietHourEnd)), 0, 23, PUSH_DEFAULTS.quietHourEnd),
     diaryNotifyEnabled: getSetting('diaryNotifyEnabled', '0') === '1',
@@ -57,10 +59,11 @@ router.get('/settings', (req, res) => {
 });
 
 router.patch('/settings', (req, res) => {
-  const { enabled, idleThresholdMinutes, minGapMinutes, quietHourStart, quietHourEnd, diaryNotifyEnabled } = req.body || {};
+  const { enabled, idleThresholdMinutes, minGapMinutes, recheckMinutes, quietHourStart, quietHourEnd, diaryNotifyEnabled } = req.body || {};
   if (enabled !== undefined) setSetting('proactiveMessagesEnabled', enabled ? '1' : '0');
   if (idleThresholdMinutes !== undefined) setSetting('proactiveIdleThresholdMinutes', String(clampInt(idleThresholdMinutes, 15, 2880, PUSH_DEFAULTS.idleThresholdMinutes)));
   if (minGapMinutes !== undefined) setSetting('proactiveMinGapMinutes', String(clampInt(minGapMinutes, 15, 2880, PUSH_DEFAULTS.minGapMinutes)));
+  if (recheckMinutes !== undefined) setSetting('proactiveRecheckMinutes', String(clampInt(recheckMinutes, 15, 2880, PUSH_DEFAULTS.recheckMinutes)));
   if (quietHourStart !== undefined) setSetting('proactiveQuietHourStart', String(clampInt(quietHourStart, 0, 23, PUSH_DEFAULTS.quietHourStart)));
   if (quietHourEnd !== undefined) setSetting('proactiveQuietHourEnd', String(clampInt(quietHourEnd, 0, 23, PUSH_DEFAULTS.quietHourEnd)));
   if (diaryNotifyEnabled !== undefined) setSetting('diaryNotifyEnabled', diaryNotifyEnabled ? '1' : '0');

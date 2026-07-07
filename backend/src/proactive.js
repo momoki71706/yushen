@@ -10,12 +10,6 @@ import { insertTheirsMessages } from './chatInsert.js';
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000; // how often the scheduler wakes up to check
 
-// Once idle time has crossed the user's own threshold, re-asking the model
-// on every single 15-minute tick would mean a real API call every 15
-// minutes for as long as she stays quiet — this caps it to at most one real
-// "should I say something" call per this interval, regardless of how many
-// scheduler ticks happen in between.
-const KEEPALIVE_RECHECK_MS = 30 * 60 * 1000;
 const RECENT_ACTIVITY_WINDOW_MS = 6 * 60 * 60 * 1000;
 
 // Defaults for the settings below live in routes/push.js (source of truth
@@ -27,6 +21,14 @@ function getIdleThresholdMs() {
 }
 function getMinGapMs() {
   return Number(getSetting('proactiveMinGapMinutes', '180')) * 60000;
+}
+// Once idle time has crossed the user's own threshold, re-asking the model
+// on every single 15-minute tick would mean a real API call every 15
+// minutes for as long as she stays quiet — this caps it to at most one real
+// "should I say something" call per this interval, regardless of how many
+// scheduler ticks happen in between.
+function getRecheckMs() {
+  return Number(getSetting('proactiveRecheckMinutes', '60')) * 60000;
 }
 
 // Shared across every scheduler that can send an unprompted "them" chat
@@ -120,7 +122,7 @@ async function maybeSendProactiveMessage() {
     if (idleMs < getIdleThresholdMs()) return;
 
     const lastCheckAt = getSetting('lastKeepaliveCheckAt', '');
-    if (lastCheckAt && Date.now() - new Date(lastCheckAt).getTime() < KEEPALIVE_RECHECK_MS) return;
+    if (lastCheckAt && Date.now() - new Date(lastCheckAt).getTime() < getRecheckMs()) return;
 
     if (withinProactiveMinGap()) return;
 
@@ -129,7 +131,7 @@ async function maybeSendProactiveMessage() {
     if (!provider) return;
 
     // Recorded before the call (not just on an actual send) — this is what
-    // throttles KEEPALIVE_RECHECK_MS, so a string of "not right now"
+    // the recheck-interval setting throttles, so a string of "not right now"
     // decisions doesn't itself burn a real call every 15 minutes.
     setSetting('lastKeepaliveCheckAt', new Date().toISOString());
 
