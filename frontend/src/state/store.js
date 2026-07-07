@@ -6,6 +6,21 @@ import { subscribeToPush, unsubscribeFromPush, isPushSupported } from '../push';
 const MOOD_PALETTE = { 开心: '#EDD9E1', 平静: '#E0D2D9', 难过: '#C9AEB9', 兴奋: '#E7D6CE', 疲惫: '#CBB9C0' };
 const WEATHER_PALETTE = { 晴: '#EFE3D3', 多云: '#DED3D8', 雨: '#CDBFC5', 雪: '#F3EDEF', 风: '#D9CBD1' };
 
+// A regenerate response replaces a whole message group at once: some ids
+// disappear (removedIds), and `replies` is either updated rows sharing an
+// id already in the list (a collapsed-in-place historical regenerate) or
+// brand-new rows with fresh ids (a trailing-group regenerate that expanded
+// into a different number of bubbles) — see routes/chat.js's
+// replaceTheirsGroup for which case produces which.
+function mergeReplacedMessages(messages, replies, removedIds) {
+  const removed = new Set(removedIds || []);
+  const kept = messages.filter((m) => !removed.has(m.id));
+  const keptIds = new Set(kept.map((m) => m.id));
+  const toAppend = replies.filter((r) => !keptIds.has(r.id));
+  const merged = kept.map((m) => replies.find((r) => r.id === m.id) || m);
+  return [...merged, ...toAppend];
+}
+
 function tomorrowISO() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
@@ -715,8 +730,8 @@ export const useStore = create(
     if (get().regeneratingIds.includes(id)) return;
     set((s) => ({ regeneratingIds: [...s.regeneratingIds, id] }));
     try {
-      const updated = await api.regenerateMessage(id);
-      set((s) => ({ messages: s.messages.map((m) => (m.id === id ? updated : m)) }));
+      const { replies, removedIds } = await api.regenerateMessage(id);
+      set((s) => ({ messages: mergeReplacedMessages(s.messages, replies, removedIds) }));
     } finally {
       set((s) => ({ regeneratingIds: s.regeneratingIds.filter((x) => x !== id) }));
     }
@@ -743,12 +758,8 @@ export const useStore = create(
       regeneratingIds: pairedReply ? [...s.regeneratingIds, pairedReply.id] : s.regeneratingIds,
     }));
     try {
-      const { replies, isNew } = await api.regenerateChatRound(id);
-      set((s) => ({
-        messages: isNew
-          ? [...s.messages, ...replies]
-          : s.messages.map((m) => (m.id === replies[0].id ? replies[0] : m)),
-      }));
+      const { replies, removedIds } = await api.regenerateChatRound(id);
+      set((s) => ({ messages: mergeReplacedMessages(s.messages, replies, removedIds) }));
     } catch {
       // eligibility already checked client-side; a stale mismatch here just no-ops
     } finally {
@@ -790,9 +801,10 @@ export const useStore = create(
   confirmDeleteMessage: async () => {
     const { deleteConfirmMessageId } = get();
     if (!deleteConfirmMessageId) return;
-    await api.deleteChatMessage(deleteConfirmMessageId);
+    const { deletedIds } = await api.deleteChatMessage(deleteConfirmMessageId);
+    const removed = new Set(deletedIds?.length ? deletedIds : [deleteConfirmMessageId]);
     set((s) => ({
-      messages: s.messages.filter((m) => m.id !== deleteConfirmMessageId),
+      messages: s.messages.filter((m) => !removed.has(m.id)),
       deleteConfirmMessageId: null,
     }));
   },
