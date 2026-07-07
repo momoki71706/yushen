@@ -122,6 +122,7 @@ export const useStore = create(
   pushToggleError: '',
   pushIdleThresholdMinutes: 240,
   pushMinGapMinutes: 180,
+  pushRecheckMinutes: 60,
   pushQuietHourStart: 0,
   pushQuietHourEnd: 8,
   diaryNotifyEnabled: false,
@@ -138,6 +139,7 @@ export const useStore = create(
         pushEnabled: s.enabled,
         pushIdleThresholdMinutes: s.idleThresholdMinutes,
         pushMinGapMinutes: s.minGapMinutes,
+        pushRecheckMinutes: s.recheckMinutes,
         pushQuietHourStart: s.quietHourStart,
         pushQuietHourEnd: s.quietHourEnd,
         diaryNotifyEnabled: s.diaryNotifyEnabled,
@@ -185,8 +187,8 @@ export const useStore = create(
     set({ [stateKey]: next });
     await api.updatePushSettings({ [key]: next });
   },
-  // key is 'idleThresholdMinutes' | 'minGapMinutes' — driven by the
-  // HoursMinutesPicker scroll wheels rather than a stepper.
+  // key is 'idleThresholdMinutes' | 'minGapMinutes' | 'recheckMinutes' —
+  // driven by the HoursMinutesPicker scroll wheels rather than a stepper.
   setPushMinutesSetting: async (key, minutes) => {
     const stateKey = `push${key[0].toUpperCase()}${key.slice(1)}`;
     if (get()[stateKey] === minutes) return;

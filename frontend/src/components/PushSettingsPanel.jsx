@@ -11,6 +11,7 @@ export default function PushSettingsPanel() {
   const togglePushEnabled = useStore((s) => s.togglePushEnabled);
   const pushIdleThresholdMinutes = useStore((s) => s.pushIdleThresholdMinutes);
   const pushMinGapMinutes = useStore((s) => s.pushMinGapMinutes);
+  const pushRecheckMinutes = useStore((s) => s.pushRecheckMinutes);
   const pushQuietHourStart = useStore((s) => s.pushQuietHourStart);
   const pushQuietHourEnd = useStore((s) => s.pushQuietHourEnd);
   const adjustPushSetting = useStore((s) => s.adjustPushSetting);
@@ -60,6 +61,15 @@ export default function PushSettingsPanel() {
           <HoursMinutesPicker
             totalMinutes={pushMinGapMinutes}
             onChange={(m) => setPushMinutesSetting('minGapMinutes', m)}
+          />
+        </div>
+
+        <div className="watch-card" style={{ margin: '0 0 14px' }}>
+          <div className="watch-card-title">过了门槛后多久重新判断一次</div>
+          <div className="screen-threshold-sub">安静超过上面的门槛后，隔多久再让他重新想一次要不要说话</div>
+          <HoursMinutesPicker
+            totalMinutes={pushRecheckMinutes}
+            onChange={(m) => setPushMinutesSetting('recheckMinutes', m)}
           />
         </div>
 
