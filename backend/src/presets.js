@@ -5,11 +5,10 @@ import { MESSAGE_SPLIT_MARKER } from './persona.js';
 // Reserved category name: presets filed under this are deliberately kept
 // OUT of the normal always-on system prompt (getComposedSystemPrompt's
 // base fold below excludes it) and instead only surface as the
-// extraInstruction for the proactive idle-chat and read-unanswered
-// follow-up schedulers — see getProactivePresetContent(). This is what
-// lets 主动发消息 have its own user-authored instructions instead of the
-// hardcoded paragraph that used to live in proactive.js/chatFollowUp.js,
-// without that same text leaking into every ordinary chat reply too.
+// extraInstruction for the proactive idle-chat scheduler — see
+// getProactivePresetContent(). This is what lets 主动发消息 have its own
+// user-authored instructions instead of a hardcoded paragraph, without
+// that same text leaking into every ordinary chat reply too.
 export const PROACTIVE_PRESET_CATEGORY = '主动消息';
 
 export function getProactivePresetContent() {
