@@ -414,7 +414,6 @@ function seedIfEmpty() {
     lastDiaryWriteDate: '',
     diaryWriteFireAt: '',
     lastReadChatMessageId: '0',
-    chatFollowUpCount: '0',
     lastLedgerNagDate: '',
     ledgerNagFireDate: '',
     ledgerNagFireAt: '',

@@ -32,17 +32,14 @@ router.get('/', (req, res) => {
   res.json(rows.map(serializeMessage));
 });
 
-// Read/unread checkmark next to message bubbles reads off the same
-// watermark the follow-up scheduler uses — this just exposes it so the
-// frontend doesn't have to guess when mark-read last fired.
+// Read/unread checkmark next to message bubbles — this just exposes the
+// watermark so the frontend doesn't have to guess when mark-read last fired.
 router.get('/read-status', (req, res) => {
   res.json({ lastReadChatMessageId: Number(getSetting('lastReadChatMessageId', '0')) || 0 });
 });
 
 // Called by the frontend whenever the chat screen is actually showing
-// current messages — feeds the read-but-unanswered follow-up scheduler
-// (chatFollowUp.js), which otherwise has no way to know whether a message
-// sitting unreplied has actually been seen yet.
+// current messages, advancing the read watermark used by the checkmark above.
 router.patch('/mark-read', (req, res) => {
   const row = db.prepare('SELECT MAX(id) AS maxId FROM chat_messages').get();
   setSetting('lastReadChatMessageId', String(row?.maxId || 0));

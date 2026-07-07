@@ -19,7 +19,6 @@ import { startScheduledMessageChecker } from './scheduledMessages.js';
 import { startMemoryScheduler } from './memoryScheduler.js';
 import { startDiaryScheduler } from './diaryScheduler.js';
 import { startLetterScheduler } from './letterScheduler.js';
-import { startChatFollowUpScheduler } from './chatFollowUp.js';
 import { startLedgerScheduler } from './ledgerScheduler.js';
 import { startPhoneActivityScheduler } from './phoneActivityScheduler.js';
 
@@ -56,7 +55,6 @@ app.listen(port, () => {
   startMemoryScheduler();
   startDiaryScheduler();
   startLetterScheduler();
-  startChatFollowUpScheduler();
   startLedgerScheduler();
   startPhoneActivityScheduler();
 });
