@@ -71,6 +71,44 @@ const insertTheirsStmt = db.prepare(
   'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens, thinking, tool_calls) VALUES (?,?,?,?,?,?,?)'
 );
 
+// A batch send or a split reply renders as several consecutive same-sender
+// rows (see persona.js's forced sentence-splitting) — the frontend only
+// shows time/tokens/regenerate/delete controls on the last bubble of that
+// run (see ChatMode.jsx's isLastInGroup), so "regenerate"/"delete" acting
+// on that one row needs to actually operate on the whole run underneath it,
+// not just the single row the button happens to live on. This walks both
+// directions from `id` to find every contiguous id sharing its sender,
+// stopping at the first row (if any) that belongs to someone else.
+function getGroupIds(id) {
+  const target = db.prepare('SELECT id, from_who FROM chat_messages WHERE id = ?').get(id);
+  if (!target) return null;
+  const ids = [target.id];
+  let cursor = target.id;
+  while (true) {
+    const prev = db.prepare('SELECT id, from_who FROM chat_messages WHERE id < ? ORDER BY id DESC LIMIT 1').get(cursor);
+    if (!prev || prev.from_who !== target.from_who) break;
+    ids.unshift(prev.id);
+    cursor = prev.id;
+  }
+  cursor = target.id;
+  while (true) {
+    const nxt = db.prepare('SELECT id, from_who FROM chat_messages WHERE id > ? ORDER BY id ASC LIMIT 1').get(cursor);
+    if (!nxt || nxt.from_who !== target.from_who) break;
+    ids.push(nxt.id);
+    cursor = nxt.id;
+  }
+  return ids;
+}
+
+function isTrailingGroup(groupIds) {
+  return !db.prepare('SELECT id FROM chat_messages WHERE id > ? LIMIT 1').get(groupIds[groupIds.length - 1]);
+}
+
+function deleteRows(ids) {
+  if (!ids.length) return;
+  db.prepare(`DELETE FROM chat_messages WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+}
+
 // Returns the inserted row, or null if the item is invalid (no text on a
 // plain-text item, or no attachment on an image/file item) — callers skip
 // nulls rather than failing the whole request over one bad entry.
@@ -150,30 +188,49 @@ router.post('/batch', async (req, res) => {
   maybeCompressChatHistory();
 });
 
-// Re-runs one specific past AI reply using the conversation as it stood
-// right before that reply, and overwrites just that message in place —
-// everything after it in the conversation is left untouched.
-router.post('/:id/regenerate', async (req, res) => {
-  const id = Number(req.params.id);
-  const target = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(id);
-  if (!target) return res.status(404).json({ error: 'message not found' });
-  if (target.from_who !== 'them') return res.status(400).json({ error: 'only AI replies can be regenerated' });
-
-  const reply = await getYushenReply(await recentHistory(id));
-  // This endpoint overwrites one specific existing row in place, so a
-  // split-marker reply is collapsed back into one continuous message
-  // rather than expanded into new rows.
+// Replaces a whole "them" bubble group (see getGroupIds) with a freshly
+// regenerated reply. If the group sits at the very tail of the conversation
+// (nothing newer exists), it's safe to delete it outright and insert a
+// fresh set of bubbles — regenerating can change how many bubbles the reply
+// splits into, and there's nothing after it whose order that would disturb.
+// Otherwise (a historical mid-conversation regenerate) the new reply is
+// collapsed into the group's first row in place and any extra old rows in
+// the group are dropped, so later messages already in the conversation keep
+// their original position instead of getting reordered.
+function replaceTheirsGroup(groupIds, reply) {
+  if (isTrailingGroup(groupIds)) {
+    deleteRows(groupIds);
+    const inserted = insertTheirsRows(reply);
+    return { replies: inserted.map(serializeMessage), removedIds: groupIds };
+  }
   const joinedText = splitReplyIntoBubbles(reply.text).join('\n');
   db.prepare('UPDATE chat_messages SET text = ?, tokens = ?, thinking = ?, tool_calls = ? WHERE id = ?').run(
     joinedText,
     reply.tokens,
     reply.thinking || null,
     reply.toolTrace?.length ? JSON.stringify(reply.toolTrace) : null,
-    id
+    groupIds[0]
   );
+  const rest = groupIds.slice(1);
+  deleteRows(rest);
+  const updated = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(groupIds[0]);
+  return { replies: [serializeMessage(updated)], removedIds: rest };
+}
+
+// Re-runs one specific past AI reply using the conversation as it stood
+// right before it — regenerating from the button on the last bubble of a
+// split reply now resets the whole group of bubbles that reply rendered as,
+// not just that one row.
+router.post('/:id/regenerate', async (req, res) => {
+  const id = Number(req.params.id);
+  const target = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(id);
+  if (!target) return res.status(404).json({ error: 'message not found' });
+  if (target.from_who !== 'them') return res.status(400).json({ error: 'only AI replies can be regenerated' });
+
+  const groupIds = getGroupIds(id);
+  const reply = await getYushenReply(await recentHistory(groupIds[0]));
   logMemoryToolTrace(reply.toolTrace);
-  const updated = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(id);
-  res.json(serializeMessage(updated));
+  res.json(replaceTheirsGroup(groupIds, reply));
 });
 
 // Edits the text of one of your own past messages (the AI's replies are
@@ -196,7 +253,7 @@ router.patch('/:id', (req, res) => {
 // text. If that turn never got a reply (e.g. a request that failed after
 // your message was already saved), one is created instead of overwritten.
 // Only defined for the ordinary shapes: your message is the newest one in
-// the conversation, or it's immediately followed by the one reply that
+// the conversation, or it's immediately followed by the reply group that
 // answered it — anything stranger is left alone rather than guessed at.
 router.post('/:id/regenerate-round', async (req, res) => {
   const id = Number(req.params.id);
@@ -213,30 +270,25 @@ router.post('/:id/regenerate-round', async (req, res) => {
   logMemoryToolTrace(reply.toolTrace);
 
   if (next) {
-    // Overwriting one existing row — same collapse-back-to-one-message
-    // rule as /:id/regenerate.
-    const joinedText = splitReplyIntoBubbles(reply.text).join('\n');
-    db.prepare('UPDATE chat_messages SET text = ?, tokens = ?, thinking = ?, tool_calls = ? WHERE id = ?').run(
-      joinedText,
-      reply.tokens,
-      reply.thinking || null,
-      reply.toolTrace?.length ? JSON.stringify(reply.toolTrace) : null,
-      next.id
-    );
-    const updated = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(next.id);
-    return res.json({ replies: [serializeMessage(updated)], isNew: false });
+    const groupIds = getGroupIds(next.id);
+    return res.json(replaceTheirsGroup(groupIds, reply));
   }
 
   const inserted = insertTheirsRows(reply);
-  res.json({ replies: inserted.map(serializeMessage), isNew: true });
+  res.json({ replies: inserted.map(serializeMessage), removedIds: [] });
 });
 
-// Deletes a single message (either side) — removing it from chat_messages
-// also removes it from every future context-building query, so it's gone
-// from the AI's context the same moment it's gone from the screen.
+// Deletes a message (either side) — removing it from chat_messages also
+// removes it from every future context-building query, so it's gone from
+// the AI's context the same moment it's gone from the screen. Deleting the
+// button-bearing last bubble of a batch send or split reply removes the
+// whole contiguous group underneath it (see getGroupIds), not just that
+// one row, since the group only ever reads as one sent/received turn.
 router.delete('/:id', (req, res) => {
-  db.prepare('DELETE FROM chat_messages WHERE id = ?').run(req.params.id);
-  res.json({ ok: true });
+  const groupIds = getGroupIds(Number(req.params.id));
+  if (!groupIds) return res.json({ ok: true, deletedIds: [] });
+  deleteRows(groupIds);
+  res.json({ ok: true, deletedIds: groupIds });
 });
 
 // Wipes the whole conversation and its rolling summary. Mainly useful
