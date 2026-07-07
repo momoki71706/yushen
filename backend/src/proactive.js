@@ -86,7 +86,7 @@ function buildAutonomousInstruction(idleMs, activityText) {
   const custom = getProactivePresetContent();
   const activityBlock = activityText ? `\n\n【小晴最近6小时的手机使用情况】\n${activityText}` : '';
   return (
-    `【主动消息-自主判断】距离上次和小晴说话已经大概${idleHours}个小时了。看一下上面的聊天记录${activityText ? '，再结合下面她最近的手机使用情况' : ''}，自己判断现在是不是一个适合主动找她说句话的时机，以及具体要说什么——不想说话就不用勉强。这是你自己重新起的一个话头，不是接着聊天记录里最后一条往下接话。${activityBlock}` +
+    `【主动消息-自主判断】距离上次和小晴说话已经大概${idleHours}个小时了。看一下上面的聊天记录${activityText ? '，再结合下面她最近的手机使用情况' : ''}，自己判断现在是不是一个适合主动找她说句话的时机，以及具体要说什么——不想说话就不用勉强。这是你自己重新起的一个话头，不是接着聊天记录里最后一条往下接话。看一下聊天记录里你自己最近发起过的主动消息，不要用差不多的说法把同一件事、同一种关心又说一遍。${activityBlock}` +
     (custom ? `\n\n${custom}` : '') +
     `\n\n请严格按下面这个格式输出，不要用markdown、不要加多余说明：\nTHOUGHTS: 你的判断和理由（这部分不会给小晴看，可以自由分析）\nACTION: none 或者 message\nCONTENT: 如果ACTION是message，这里写你想对小晴说的那句话；如果ACTION是none，这里留空`
   );
