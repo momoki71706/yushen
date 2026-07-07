@@ -410,6 +410,7 @@ function seedIfEmpty() {
     mcpToolsEnabled: '0',
     proactiveMessagesEnabled: '0',
     lastProactiveMessageAt: '',
+    lastKeepaliveCheckAt: '',
     diaryNotifyEnabled: '0',
     lastDiaryWriteDate: '',
     diaryWriteFireAt: '',

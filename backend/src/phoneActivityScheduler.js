@@ -1,8 +1,9 @@
 import { db, getSetting, setSetting } from './db.js';
 import { getProviderWithKeys, getReplyViaProvider } from './providers.js';
-import { formatBeijingClock, beijingNow } from './time.js';
+import { beijingNow } from './time.js';
 import { sendPushToAll, pushConfigured } from './push.js';
 import { classifyReplyForRetry, withReplyRetry, estimateTokens } from './persona.js';
+import { insertTheirsMessages } from './chatInsert.js';
 
 // Checked often enough that a burst of late-night app-opens gets noticed
 // within a few minutes, not left until the next quarter-hour.
@@ -48,13 +49,11 @@ async function maybeNudgeLateNightPhoneUse() {
     const reply = await withReplyRetry(() => getReplyViaProvider(history, provider, buildNudgeInstruction(appNames, rows.length)));
     if (classifyReplyForRetry(reply.text).bad) return;
 
-    db.prepare(
-      'INSERT INTO chat_messages (from_who, text, kind, time_label, tokens, thinking) VALUES (?,?,?,?,?,?)'
-    ).run('them', reply.text, 'text', formatBeijingClock(), reply.tokens ?? estimateTokens(reply.text), reply.thinking || null);
+    const inserted = insertTheirsMessages({ ...reply, tokens: reply.tokens ?? estimateTokens(reply.text) });
 
     setSetting('lastPhoneNudgeAt', new Date().toISOString());
     setSetting('lastPhoneNudgeActivityId', String(rows[rows.length - 1].id));
-    if (pushConfigured) await sendPushToAll({ title: '屿深', body: reply.text });
+    if (pushConfigured) await sendPushToAll({ title: '屿深', body: inserted.map((r) => r.text).join(' ') });
   } catch (err) {
     console.error('[phone-activity] error:', err.message);
   }

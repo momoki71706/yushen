@@ -1,9 +1,10 @@
 import { db, getSetting, setSetting } from './db.js';
-import { beijingNow, formatBeijingClock } from './time.js';
+import { beijingNow } from './time.js';
 import { writeLedgerNag, writeLedgerCardMessage } from './ledgerAi.js';
 import { sendPushToAll, pushConfigured } from './push.js';
 import { classifyReplyForRetry, estimateTokens } from './persona.js';
 import { proactiveMessagingEnabled, withinProactiveMinGap, recordProactiveMessageSent } from './proactive.js';
+import { insertTheirsMessages } from './chatInsert.js';
 
 const CHECK_INTERVAL_MS = 60 * 1000;
 const NAG_WINDOW_START_HOUR = 20;
@@ -47,10 +48,6 @@ function ensureNagFireEpoch(bNow, todayISO) {
   return fireEpoch;
 }
 
-const insertChatNag = db.prepare(
-  "INSERT INTO chat_messages (from_who, text, kind, time_label, tokens) VALUES ('them', ?, 'text', ?, ?)"
-);
-
 // Between 20:00-22:00, if today hasn't produced a single ledger_entries row
 // yet, has him ask about it in chat once — same "pick one random moment in
 // the window, resolve once per day" shape as diaryScheduler's daily write.
@@ -79,10 +76,10 @@ export async function maybeNagAboutLedger() {
     if (!result) return; // no provider configured yet — keep waiting
     if (result.failed || classifyReplyForRetry(result.text || '').bad) return; // retry on the next tick
 
-    insertChatNag.run(result.text, formatBeijingClock(), estimateTokens(result.text));
+    const inserted = insertTheirsMessages({ text: result.text, tokens: estimateTokens(result.text) });
     setSetting('lastLedgerNagDate', todayISO);
     recordProactiveMessageSent();
-    if (pushConfigured) await sendPushToAll({ title: '屿深', body: result.text });
+    if (pushConfigured) await sendPushToAll({ title: '屿深', body: inserted.map((r) => r.text).join(' ') });
   } catch (err) {
     console.error('[ledger] nag scheduler error:', err.message);
   }
