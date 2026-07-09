@@ -2,7 +2,7 @@ import { getSetting } from './db.js';
 import { getProviderWithKeys, getReplyViaProvider, pickKey } from './providers.js';
 import { getReplyViaClaudeCode } from './claudeCode.js';
 import { FALLBACK_REPLY, classifyAiError, estimateTokens, withReplyRetry } from './persona.js';
-import { runAnthropicToolLoop, runOpenAiToolLoop } from './mcp.js';
+import { runAnthropicToolLoop, runOpenAiToolLoop, getEnabledTools } from './mcp.js';
 import { getLocalTools } from './localTools.js';
 
 // An empty reply or a canned "something broke" line that turns out to be
@@ -34,15 +34,13 @@ async function attemptYushenReply(history) {
 
     // Local tools (e.g. schedule_message) are always available — they're
     // core app behavior, not an external integration, so they shouldn't
-    // depend on the MCP toggle. MCP-server tools (a memory server, in
-    // practice) are deliberately NOT attached here even when MCP is on —
-    // any tool call, from either side, forces a second real round-trip to
-    // the provider (see runAnthropicToolLoop/runOpenAiToolLoop's loop), so
-    // letting the model spontaneously reach for the memory tool mid-chat
-    // was silently doubling the real cost of whatever reply prompted it.
-    // Saving memories now only ever happens through the periodic threshold
-    // review in memoryScheduler.js, which is its own dedicated call.
-    const tools = getLocalTools();
+    // depend on the MCP toggle. MCP-server tools are attached whenever the
+    // MCP toggle is on — note any tool call, from either side, forces a
+    // second real round-trip to the provider (see
+    // runAnthropicToolLoop/runOpenAiToolLoop's loop), so the model reaching
+    // for an MCP tool mid-chat (e.g. saving a memory) does cost a second
+    // real call on top of whatever reply prompted it, same as it always has.
+    const tools = [...getLocalTools(), ...(mcpEnabled ? await getEnabledTools() : [])];
 
     if (tools.length) {
       try {
