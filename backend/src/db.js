@@ -421,6 +421,12 @@ function seedIfEmpty() {
     ledgerCardMessage: '',
     ledgerCardMessageDate: '',
     ledgerCardMessageFireAts: '[]',
+    deviceControlEnabled: '0',
+    deviceMaxIntensity: '60',
+    deviceBridgeToken: '',
+    deviceDesiredIntensity: '0',
+    deviceCommandExpiresAt: '',
+    deviceBridgeLastSeenAt: '',
   };
   const getSetting = db.prepare('SELECT value FROM settings WHERE key = ?');
   const setSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');

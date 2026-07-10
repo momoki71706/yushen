@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { api } from '../api/client';
+import { api, API_BASE_URL } from '../api/client';
 import { subscribeToPush, unsubscribeFromPush, isPushSupported } from '../push';
 
 const MOOD_PALETTE = { 开心: '#EDD9E1', 平静: '#E0D2D9', 难过: '#C9AEB9', 兴奋: '#E7D6CE', 疲惫: '#CBB9C0' };
@@ -528,6 +528,93 @@ export const useStore = create(
       set({ healthToken: token, healthTokenRegenConfirmOpen: false });
     } finally {
       set({ healthTokenLoading: false });
+    }
+  },
+
+  // ---- 亲密控制 sidebar panel: master switch, ceiling, manual slider, bridge setup ----
+  devicePanelOpen: false,
+  deviceEnabled: false,
+  deviceMaxIntensity: 60,
+  deviceIntensity: 0,
+  deviceBridgeOnline: false,
+  deviceBridgeToken: '',
+  deviceManualIntensity: 0, // the slider position the user is dragging
+  deviceApiBase: API_BASE_URL,
+  _devicePollTimer: null,
+  openDevicePanel: () => {
+    set({ devicePanelOpen: true });
+    get().loadDeviceStatus();
+    get().loadDeviceBridgeToken();
+    // While the panel is open, refresh status so the "桥接在线" dot and live
+    // intensity track reality (the bridge polls independently of the app).
+    const timer = setInterval(() => get().loadDeviceStatus(), 2000);
+    set({ _devicePollTimer: timer });
+  },
+  closeDevicePanel: () => {
+    const t = get()._devicePollTimer;
+    if (t) clearInterval(t);
+    set({ devicePanelOpen: false, _devicePollTimer: null });
+  },
+  loadDeviceStatus: async () => {
+    try {
+      const s = await api.getDeviceStatus();
+      set({
+        deviceEnabled: s.enabled,
+        deviceMaxIntensity: s.maxIntensity,
+        deviceIntensity: s.intensity,
+        deviceBridgeOnline: s.bridgeOnline,
+      });
+    } catch {
+      // backend not reachable yet
+    }
+  },
+  loadDeviceBridgeToken: async () => {
+    try {
+      const { token } = await api.getDeviceBridgeInfo();
+      set({ deviceBridgeToken: token });
+    } catch {
+      // ignore
+    }
+  },
+  toggleDeviceEnabled: async () => {
+    const next = !get().deviceEnabled;
+    set({ deviceEnabled: next });
+    try {
+      const s = await api.updateDeviceSettings({ enabled: next });
+      set({ deviceEnabled: s.enabled, deviceIntensity: s.intensity });
+    } catch {
+      set({ deviceEnabled: !next });
+    }
+  },
+  setDeviceMaxIntensity: async (value) => {
+    set({ deviceMaxIntensity: value });
+    try {
+      await api.updateDeviceSettings({ maxIntensity: value });
+    } catch {
+      // ignore; next status refresh corrects it
+    }
+  },
+  // The manual slider: setting it sends a rolling command that auto-expires,
+  // so leaving the slider up keeps it going only as long as we keep nudging;
+  // the panel re-sends while the user holds a non-zero value.
+  setDeviceManualIntensity: async (value) => {
+    set({ deviceManualIntensity: value });
+    try {
+      if (value <= 0) {
+        await api.stopDevice();
+      } else {
+        await api.sendDeviceCommand({ intensity: value, durationSeconds: 3 });
+      }
+    } catch {
+      // ignore
+    }
+  },
+  stopDeviceManual: async () => {
+    set({ deviceManualIntensity: 0 });
+    try {
+      await api.stopDevice();
+    } catch {
+      // ignore
     }
   },
 

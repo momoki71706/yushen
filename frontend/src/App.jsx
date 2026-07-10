@@ -14,6 +14,7 @@ import PresetPanel from './components/PresetPanel';
 import ContextPanel from './components/ContextPanel';
 import PushSettingsPanel from './components/PushSettingsPanel';
 import HealthDataPanel from './components/HealthDataPanel';
+import DevicePanel from './components/DevicePanel';
 import ClearChatConfirm from './components/ClearChatConfirm';
 import ImageViewer from './components/ImageViewer';
 import MemoryPanel from './components/MemoryPanel';
@@ -102,6 +103,7 @@ function App() {
         <ContextPanel />
         <PushSettingsPanel />
         <HealthDataPanel />
+        <DevicePanel />
         <ClearChatConfirm />
         <ImageViewer />
         <MemoryPanel />
