@@ -98,6 +98,20 @@ function ContextIcon() {
   );
 }
 
+function HeartControlIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M8 13.5S2 10 2 5.8C2 4 3.4 2.6 5.1 2.6C6.2 2.6 7.2 3.2 8 4.2C8.8 3.2 9.8 2.6 10.9 2.6C12.6 2.6 14 4 14 5.8C14 10 8 13.5 8 13.5Z"
+        stroke="#8C6A72"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
 const MENU_ITEMS = [
   { label: '主题装扮', bg: '#EDD9E1' },
   { label: '纪念日管理', bg: '#D9CBD3' },
@@ -118,6 +132,7 @@ export default function Sidebar() {
   const pushEnabled = useStore((s) => s.pushEnabled);
   const openPushSettings = useStore((s) => s.openPushSettings);
   const openHealthDataPanel = useStore((s) => s.openHealthDataPanel);
+  const openDevicePanel = useStore((s) => s.openDevicePanel);
   const openContextPanel = useStore((s) => s.openContextPanel);
   const openMemoryPanel = useStore((s) => s.openMemoryPanel);
   const openAiSettings = useStore((s) => s.openAiSettings);
@@ -271,6 +286,13 @@ export default function Sidebar() {
             <WatchIcon />
           </div>
           <div className="sidebar-menu-label">健康数据接入</div>
+          <ChevronRight />
+        </button>
+        <button className="sidebar-menu-item" onClick={openDevicePanel}>
+          <div className="sidebar-menu-icon" style={{ background: '#E3C7CE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <HeartControlIcon />
+          </div>
+          <div className="sidebar-menu-label">亲密控制</div>
           <ChevronRight />
         </button>
         <button className="sidebar-menu-item" onClick={openClearChatConfirm}>

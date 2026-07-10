@@ -159,6 +159,13 @@ export const api = {
   deleteHabit: (id) => request(`/habits/${id}`, { method: 'DELETE' }),
   toggleHabitCheckin: (id, dateISO) => request(`/habits/${id}/checkin`, { method: 'POST', body: JSON.stringify({ dateISO }) }),
 
+  getDeviceStatus: () => request('/device/status'),
+  updateDeviceSettings: (payload) => request('/device/settings', { method: 'PATCH', body: JSON.stringify(payload) }),
+  sendDeviceCommand: (payload) => request('/device/command', { method: 'POST', body: JSON.stringify(payload) }),
+  stopDevice: () => request('/device/stop', { method: 'POST' }),
+  getDeviceBridgeInfo: () => request('/device/bridge-info'),
+  regenerateDeviceBridgeToken: () => request('/device/bridge-info/regenerate', { method: 'POST' }),
+
   getHealthToken: () => request('/health-data/token'),
   regenerateHealthToken: () => request('/health-data/token/regenerate', { method: 'POST' }),
   getHealthLogs: () => request('/health-data'),
