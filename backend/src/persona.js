@@ -24,6 +24,18 @@ function stripTimestampMarkers(text) {
   return text.replace(TIMESTAMP_MARKER, '');
 }
 
+// Some relays/models bleed the raw chat-format role markers into the reply
+// text — e.g. emitting "Human: 好了" (playing the user's next turn) or
+// prefixing their own line with "Assistant:". Strip these labels wherever
+// they appear at the start of the text or a line, keeping whatever real
+// content follows, so the conversation never shows the plumbing. Matches
+// the English turn markers plus the two personas' names.
+const ROLE_LABEL = /(^|\n)[ \t]*(Human|Assistant|User|System|AI|小晴|屿深)[ \t]*[:：][ \t]*/gi;
+
+function stripRoleLabels(text) {
+  return text.replace(ROLE_LABEL, '$1');
+}
+
 // Forces the split rather than leaving it to the model's own judgment call
 // (which the 【分段发送】 system-prompt instruction can only ever nudge, not
 // guarantee) — breaks on sentence-ending punctuation (。！？ or a literal
@@ -38,7 +50,7 @@ function splitIntoSentences(text) {
 }
 
 export function splitReplyIntoBubbles(text) {
-  const cleaned = stripTimestampMarkers(String(text || ''));
+  const cleaned = stripRoleLabels(stripTimestampMarkers(String(text || '')));
   const parts = cleaned
     .split(MESSAGE_SPLIT_MARKER)
     .flatMap((p) => splitIntoSentences(p));
