@@ -359,3 +359,22 @@ export function NavPlayIcon({ color }) {
     </svg>
   );
 }
+
+export function NavStrawberryIcon({ color }) {
+  return (
+    <svg width="19" height="19" viewBox="0 0 19 19" fill="none">
+      {/* leafy crown */}
+      <path d="M9.5 3.2C8.4 2.2 6.9 2 6.9 2C6.9 2 7.3 3.3 8.3 4M9.5 3.2C10.6 2.2 12.1 2 12.1 2C12.1 2 11.7 3.3 10.7 4M9.5 3.2V4.4"
+        stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      {/* berry body */}
+      <path d="M9.5 4.6C12.7 4.6 15 6.6 15 9.4C15 12.9 12.2 16.4 9.5 16.4C6.8 16.4 4 12.9 4 9.4C4 6.6 6.3 4.6 9.5 4.6Z"
+        stroke={color} strokeWidth="1.6" strokeLinejoin="round" />
+      {/* seeds */}
+      <circle cx="7.6" cy="8.4" r="0.7" fill={color} />
+      <circle cx="11.4" cy="8.4" r="0.7" fill={color} />
+      <circle cx="9.5" cy="10.6" r="0.7" fill={color} />
+      <circle cx="7.4" cy="11.8" r="0.7" fill={color} />
+      <circle cx="11.6" cy="11.8" r="0.7" fill={color} />
+    </svg>
+  );
+}

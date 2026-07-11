@@ -28,6 +28,7 @@ import LetterMode from './modes/LetterMode';
 import ManageMode from './modes/manage/ManageMode';
 import CalendarMode from './modes/calendar/CalendarMode';
 import PlayMode from './modes/play/PlayMode';
+import SmultronMode from './modes/SmultronMode';
 
 function App() {
   const init = useStore((s) => s.init);
@@ -90,6 +91,7 @@ function App() {
           {activeTab === 'manage' && <ManageMode />}
           {activeTab === 'calendar' && <CalendarMode />}
           {activeTab === 'play' && <PlayMode />}
+          {activeTab === 'smultron' && <SmultronMode />}
         </div>
 
         <BottomNav />

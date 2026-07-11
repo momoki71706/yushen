@@ -138,8 +138,11 @@ const toOpenAiTool = (t) => ({
 // available tools out in plain language in the system prompt makes
 // proactive tool use far more reliable than relying on the tools[]
 // parameter alone.
-function buildToolAwareSystemPrompt(tools, extraInstruction) {
-  const base = getComposedSystemPrompt(extraInstruction);
+function buildToolAwareSystemPrompt(tools, extraInstruction, systemBase) {
+  // systemBase lets a caller (e.g. the Smultronställe story section) supply
+  // a completely different persona/prompt instead of the chat one, while
+  // still getting the tool-list appendix that makes tool use reliable.
+  const base = systemBase != null ? systemBase : getComposedSystemPrompt(extraInstruction);
   if (!tools.length) return base;
   const toolList = tools.map((t) => `- ${t.qualifiedName}：${t.description || '（无描述）'}`).join('\n');
   return `${base}\n\n【可用工具】\n你现在可以主动调用以下工具，只要对话内容和某个工具相关（比如对方让你查记忆、记点什么事、看看之前聊过什么），就应该直接调用对应工具，不要因为不确定而跳过或者只凭自己猜测回答：\n${toolList}`;
@@ -181,12 +184,13 @@ function mcpContentToText(content) {
 // attached, execute any tool_use blocks against the originating MCP
 // server, feed results back, and repeat until Claude returns a plain
 // text reply or the iteration cap is hit.
-export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tools, extraInstruction) {
+export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tools, extraInstruction, opts = {}) {
   if (!apiKey) return { text: FALLBACK_REPLY, tokens: estimateTokens(FALLBACK_REPLY) };
 
   const anthropic = new Anthropic({ apiKey, ...(baseURL ? { baseURL } : {}) });
   const anthropicTools = tools.map(toAnthropicTool);
-  const systemPrompt = buildToolAwareSystemPrompt(tools, extraInstruction);
+  const systemPrompt = buildToolAwareSystemPrompt(tools, extraInstruction, opts.systemBase);
+  const maxTokens = opts.maxTokens || THINKING_BUDGET_TOKENS + 600;
   const messages = history.map((m) => ({
     role: m.from === 'me' ? 'user' : 'assistant',
     content: toAnthropicMessageContent(m),
@@ -201,7 +205,7 @@ export async function runAnthropicToolLoop(history, apiKey, model, baseURL, tool
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const response = await anthropic.messages.create({
       model: model || 'claude-sonnet-5',
-      max_tokens: THINKING_BUDGET_TOKENS + 600,
+      max_tokens: maxTokens,
       system: systemPrompt,
       messages,
       tools: anthropicTools,
@@ -246,12 +250,13 @@ function joinUrl(base, path) {
 
 // Same agentic loop, but speaking OpenAI's function-calling format
 // (tools/tool_calls/role:"tool") for OpenAI-compatible relay providers.
-export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools, extraInstruction) {
+export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools, extraInstruction, opts = {}) {
   if (!apiKey) return { text: FALLBACK_REPLY, tokens: estimateTokens(FALLBACK_REPLY) };
 
   const openAiTools = tools.map(toOpenAiTool);
+  const maxTokens = opts.maxTokens || 400;
   const messages = [
-    { role: 'system', content: buildToolAwareSystemPrompt(tools, extraInstruction) },
+    { role: 'system', content: buildToolAwareSystemPrompt(tools, extraInstruction, opts.systemBase) },
     ...history.map((m) => ({ role: m.from === 'me' ? 'user' : 'assistant', content: toOpenAiMessageContent(m) })),
   ];
 
@@ -267,7 +272,7 @@ export async function runOpenAiToolLoop(history, apiKey, baseUrl, model, tools, 
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: model || 'claude-sonnet-5',
-        max_tokens: 400,
+        max_tokens: maxTokens,
         messages,
         tools: openAiTools,
       }),

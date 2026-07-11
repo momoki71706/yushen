@@ -14,6 +14,7 @@ import memoryRouter from './routes/memory.js';
 import favoritesRouter from './routes/favorites.js';
 import healthRouter from './routes/health.js';
 import deviceRouter from './routes/device.js';
+import smultronRouter from './routes/smultron.js';
 import backupRouter from './routes/backup.js';
 import { startProactiveScheduler } from './proactive.js';
 import { startScheduledMessageChecker } from './scheduledMessages.js';
@@ -42,6 +43,7 @@ app.use('/api/memory', memoryRouter);
 app.use('/api/favorites', favoritesRouter);
 app.use('/api/health-data', healthRouter);
 app.use('/api/device', deviceRouter);
+app.use('/api/smultron', smultronRouter);
 app.use('/api/backup', backupRouter);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
