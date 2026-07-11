@@ -427,6 +427,7 @@ function seedIfEmpty() {
     deviceDesiredIntensity: '0',
     deviceCommandExpiresAt: '',
     deviceBridgeLastSeenAt: '',
+    messageSplitEnabled: '1',
   };
   const getSetting = db.prepare('SELECT value FROM settings WHERE key = ?');
   const setSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');

@@ -35,10 +35,11 @@ export function readContextSettings() {
   return {
     contextMessageLimit: getContextMessageLimit(),
     memorySaveMessageThreshold: getMemorySaveMessageThreshold(),
+    messageSplitEnabled: getSetting('messageSplitEnabled', '1') === '1',
   };
 }
 
-export function setContextSettings({ contextMessageLimit, memorySaveMessageThreshold }) {
+export function setContextSettings({ contextMessageLimit, memorySaveMessageThreshold, messageSplitEnabled }) {
   if (contextMessageLimit !== undefined) {
     setSetting('contextMessageLimit', String(clampInt(contextMessageLimit, 10, 100, DEFAULT_CONTEXT_MESSAGE_LIMIT)));
   }
@@ -47,6 +48,9 @@ export function setContextSettings({ contextMessageLimit, memorySaveMessageThres
       'memorySaveMessageThreshold',
       String(clampInt(memorySaveMessageThreshold, 1, 300, DEFAULT_MEMORY_SAVE_MESSAGE_THRESHOLD))
     );
+  }
+  if (messageSplitEnabled !== undefined) {
+    setSetting('messageSplitEnabled', messageSplitEnabled ? '1' : '0');
   }
   return readContextSettings();
 }

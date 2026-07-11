@@ -1622,6 +1622,7 @@ export const useStore = create(
   contextPanelOpen: false,
   contextMessageLimit: 30,
   memorySaveMessageThreshold: 30,
+  messageSplitEnabled: true,
   openContextPanel: () => {
     set({ contextPanelOpen: true });
     get().loadContextSettings();
@@ -1630,9 +1631,22 @@ export const useStore = create(
   loadContextSettings: async () => {
     try {
       const s = await api.getContextSettings();
-      set({ contextMessageLimit: s.contextMessageLimit, memorySaveMessageThreshold: s.memorySaveMessageThreshold });
+      set({
+        contextMessageLimit: s.contextMessageLimit,
+        memorySaveMessageThreshold: s.memorySaveMessageThreshold,
+        messageSplitEnabled: s.messageSplitEnabled,
+      });
     } catch {
       // backend not reachable yet — leave defaults
+    }
+  },
+  toggleMessageSplit: async () => {
+    const next = !get().messageSplitEnabled;
+    set({ messageSplitEnabled: next });
+    try {
+      await api.updateContextSettings({ messageSplitEnabled: next });
+    } catch {
+      set({ messageSplitEnabled: !next });
     }
   },
   // key is 'contextMessageLimit' or 'memorySaveMessageThreshold'

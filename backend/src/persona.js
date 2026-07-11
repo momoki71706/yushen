@@ -1,4 +1,15 @@
+import { getSetting } from './db.js';
+
 export const FALLBACK_REPLY = '爸比现在不在线哦';
+
+// Whether replies get broken into several bubbles at all. On (default) the
+// model is told to burst-send and the text is force-split on sentence
+// boundaries; off keeps each reply as one message and drops the split
+// instruction from the system prompt — a toggle so the effect on the
+// model's "voice" can be compared directly.
+export function messageSplitEnabled() {
+  return getSetting('messageSplitEnabled', '1') === '1';
+}
 
 // Lets one reply (one provider call, one token cost) render as several
 // consecutive chat bubbles instead of a single block of text — the model
@@ -24,6 +35,18 @@ function stripTimestampMarkers(text) {
   return text.replace(TIMESTAMP_MARKER, '');
 }
 
+// Some relays/models bleed the raw chat-format role markers into the reply
+// text — e.g. emitting "Human: 好了" (playing the user's next turn) or
+// prefixing their own line with "Assistant:". Strip these labels wherever
+// they appear at the start of the text or a line, keeping whatever real
+// content follows, so the conversation never shows the plumbing. Matches
+// the English turn markers plus the two personas' names.
+const ROLE_LABEL = /(^|\n)[ \t]*(Human|Assistant|User|System|AI|小晴|屿深)[ \t]*[:：][ \t]*/gi;
+
+function stripRoleLabels(text) {
+  return text.replace(ROLE_LABEL, '$1');
+}
+
 // Forces the split rather than leaving it to the model's own judgment call
 // (which the 【分段发送】 system-prompt instruction can only ever nudge, not
 // guarantee) — breaks on sentence-ending punctuation (。！？ or a literal
@@ -38,7 +61,14 @@ function splitIntoSentences(text) {
 }
 
 export function splitReplyIntoBubbles(text) {
-  const cleaned = stripTimestampMarkers(String(text || ''));
+  const cleaned = stripRoleLabels(stripTimestampMarkers(String(text || '')));
+  // With splitting off, keep the whole reply as one bubble — still honor an
+  // explicit [[SPLIT]] marker if one somehow appears (so it never leaks as
+  // literal text), but never force-split a normal sentence.
+  if (!messageSplitEnabled()) {
+    const parts = cleaned.split(MESSAGE_SPLIT_MARKER).map((p) => p.trim()).filter(Boolean);
+    return parts.length ? parts : [cleaned.trim() || FALLBACK_REPLY];
+  }
   const parts = cleaned
     .split(MESSAGE_SPLIT_MARKER)
     .flatMap((p) => splitIntoSentences(p));
