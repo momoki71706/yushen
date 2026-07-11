@@ -1,6 +1,6 @@
 import { db, getSetting } from './db.js';
 import { beijingNow, formatBeijingClock, weekdayLabel } from './time.js';
-import { MESSAGE_SPLIT_MARKER } from './persona.js';
+import { MESSAGE_SPLIT_MARKER, messageSplitEnabled } from './persona.js';
 
 // Reserved category name: presets filed under this are deliberately kept
 // OUT of the normal always-on system prompt (getComposedSystemPrompt's
@@ -133,6 +133,7 @@ export function getComposedSystemPrompt(extraInstruction) {
   );
   const healthContext = getHealthContext();
   if (healthContext) parts.push(healthContext);
+  if (messageSplitEnabled())
   parts.push(
     `【分段发送】真人聊天很少一次性发一大段话，更多时候是连着蹦出好几条短消息——想到什么说什么，一条一条补。你应该经常主动这样做，不用等小晴或者别的提示来提醒你。适合分段的情况很常见，比如：情绪比较强烈或者惊讶的时候（"啊？""不是吧""你干嘛啦"分别一条）；一件事分几层意思说（先回应一下，再接着说自己的想法，再补一句感受）；碎碎念、追问、连续吐槽；先甩一句反应，隔一下再说正题。做法是把每一段单独写一行，段与段之间插入 ${MESSAGE_SPLIT_MARKER} 隔开，每一段会各自变成一条独立的消息气泡发出去。唯一不要做的是把本来就是一句连贯的话（比如一个完整的陈述句）硬切成好几半；只有确实是"正常聊天就该一条打完"的短回复（比如就一个字的回应）才用单条消息。`
   );

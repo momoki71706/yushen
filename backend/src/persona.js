@@ -1,4 +1,15 @@
+import { getSetting } from './db.js';
+
 export const FALLBACK_REPLY = '爸比现在不在线哦';
+
+// Whether replies get broken into several bubbles at all. On (default) the
+// model is told to burst-send and the text is force-split on sentence
+// boundaries; off keeps each reply as one message and drops the split
+// instruction from the system prompt — a toggle so the effect on the
+// model's "voice" can be compared directly.
+export function messageSplitEnabled() {
+  return getSetting('messageSplitEnabled', '1') === '1';
+}
 
 // Lets one reply (one provider call, one token cost) render as several
 // consecutive chat bubbles instead of a single block of text — the model
@@ -51,6 +62,13 @@ function splitIntoSentences(text) {
 
 export function splitReplyIntoBubbles(text) {
   const cleaned = stripRoleLabels(stripTimestampMarkers(String(text || '')));
+  // With splitting off, keep the whole reply as one bubble — still honor an
+  // explicit [[SPLIT]] marker if one somehow appears (so it never leaks as
+  // literal text), but never force-split a normal sentence.
+  if (!messageSplitEnabled()) {
+    const parts = cleaned.split(MESSAGE_SPLIT_MARKER).map((p) => p.trim()).filter(Boolean);
+    return parts.length ? parts : [cleaned.trim() || FALLBACK_REPLY];
+  }
   const parts = cleaned
     .split(MESSAGE_SPLIT_MARKER)
     .flatMap((p) => splitIntoSentences(p));
