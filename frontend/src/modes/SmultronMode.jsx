@@ -20,7 +20,15 @@ export default function SmultronMode() {
   const instructionSheetOpen = useStore((s) => s.smultronInstructionSheetOpen);
 
   const scrollRef = useRef(null);
+  const lastStoryRef = useRef(null);
   const activeWindow = windows.find((w) => w.id === activeId);
+
+  // Index of the most recent generated passage, so we can jump the view to
+  // its start rather than the bottom.
+  let lastStoryIndex = -1;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    if (entries[i].role === 'story') { lastStoryIndex = i; break; }
+  }
 
   useEffect(() => {
     loadSmultron();
@@ -29,7 +37,20 @@ export default function SmultronMode() {
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    if (generating) {
+      // Follow the "正在书写…" line down while it's working.
+      el.scrollTop = el.scrollHeight;
+      return;
+    }
+    // A fresh passage just landed — bring its opening line to the top of the
+    // view so you read from the start instead of having to scroll up.
+    const node = lastStoryRef.current;
+    if (node) {
+      el.scrollTop += node.getBoundingClientRect().top - el.getBoundingClientRect().top - 12;
+    } else {
+      el.scrollTop = el.scrollHeight;
+    }
   }, [entries, generating]);
 
   return (
@@ -53,11 +74,11 @@ export default function SmultronMode() {
             先点「设定」给这个窗口写好开场设定会更好。
           </div>
         )}
-        {entries.map((e) =>
+        {entries.map((e, i) =>
           e.role === 'instruction' ? (
             <div key={e.id} className="smultron__instruction">▸ {e.text}</div>
           ) : (
-            <div key={e.id} className="smultron__story">{e.text}</div>
+            <div key={e.id} className="smultron__story" ref={i === lastStoryIndex ? lastStoryRef : null}>{e.text}</div>
           )
         )}
         {generating && <div className="smultron__generating">屿深正在书写…</div>}
