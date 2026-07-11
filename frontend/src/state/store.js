@@ -645,9 +645,24 @@ export const useStore = create(
   isReplying: false,
   chatLastReadId: 0,
   chatScrollTop: null, // last known scroll position — restored on remount instead of always snapping to bottom
+  // Called on boot and on every refocus/visibility change, so a single
+  // network blip (common on a cross-region link) must not blank the chat.
+  // Retries a couple times with backoff, and on total failure keeps whatever
+  // messages are already on screen rather than clearing them.
   loadMessages: async () => {
-    const messages = await api.getMessages();
-    set({ messages });
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const messages = await api.getMessages();
+        set({ messages });
+        return;
+      } catch (err) {
+        if (attempt === 2) {
+          console.warn('[chat] failed to load messages, keeping current view:', err.message);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+      }
+    }
   },
   loadChatReadStatus: async () => {
     const { lastReadChatMessageId } = await api.getChatReadStatus();

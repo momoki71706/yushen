@@ -11,6 +11,17 @@ import { insertTheirsMessages } from '../chatInsert.js';
 
 const router = Router();
 
+// One row with a corrupt tool_calls value must not 500 the whole /chat
+// fetch (which would blank the entire chat log) — bad JSON just becomes null.
+function safeParse(value) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
 function serializeMessage(row) {
   return {
     id: row.id,
@@ -21,7 +32,7 @@ function serializeMessage(row) {
     createdAt: row.created_at,
     tokens: row.tokens,
     thinking: row.thinking || null,
-    toolCalls: row.tool_calls ? JSON.parse(row.tool_calls) : null,
+    toolCalls: safeParse(row.tool_calls),
     attachment: row.attachment_url
       ? { url: row.attachment_url, name: row.attachment_name, mime: row.attachment_mime, size: row.attachment_size }
       : null,
