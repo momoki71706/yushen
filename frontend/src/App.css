@@ -2287,7 +2287,12 @@
 }
 .smultron__story {
   font-size: 15.5px; line-height: 1.95; color: var(--color-text);
-  white-space: pre-wrap; margin-bottom: 18px; letter-spacing: 0.2px;
+  white-space: pre-wrap; margin-bottom: 16px; letter-spacing: 0.2px;
+  background: rgba(255, 255, 255, 0.44);
+  backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 10px; padding: 14px 16px;
+  scroll-margin-top: 12px;
 }
 .smultron__generating { text-align: center; color: #B07A8E; font-size: 13px; padding: 10px 0; font-style: italic; }
 .smultron__error { color: #C4645E; font-size: 13px; padding: 6px 18px; }
