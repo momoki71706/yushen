@@ -29,7 +29,13 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  getMessages: () => request('/chat'),
+  getMessages: ({ before, limit } = {}) => {
+    const p = new URLSearchParams();
+    if (before) p.set('before', before);
+    if (limit) p.set('limit', limit);
+    const qs = p.toString();
+    return request(`/chat${qs ? `?${qs}` : ''}`);
+  },
   sendMessage: (text, kind = 'text', attachment = null) =>
     request('/chat', { method: 'POST', body: JSON.stringify({ text, kind, attachment }) }),
   sendBatch: (items) => request('/chat/batch', { method: 'POST', body: JSON.stringify({ items }) }),

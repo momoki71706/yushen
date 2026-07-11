@@ -39,9 +39,19 @@ function serializeMessage(row) {
   };
 }
 
+// Paginated so a long history doesn't ship the whole thing every load (the
+// day-to-day view only ever needs the most recent messages). No `before`
+// returns the newest `limit`; `before=<id>` returns the `limit` messages
+// just older than that id, for loading earlier history on scroll-up. Rows
+// come back oldest→newest within the page either way. A short page (fewer
+// than `limit`) is how the client knows there's nothing older left.
 router.get('/', (req, res) => {
-  const rows = db.prepare('SELECT * FROM chat_messages ORDER BY id ASC').all();
-  res.json(rows.map(serializeMessage));
+  const limit = Math.max(1, Math.min(Number(req.query.limit) || 40, 200));
+  const before = Number(req.query.before) || 0;
+  const rows = before
+    ? db.prepare('SELECT * FROM chat_messages WHERE id < ? ORDER BY id DESC LIMIT ?').all(before, limit)
+    : db.prepare('SELECT * FROM chat_messages ORDER BY id DESC LIMIT ?').all(limit);
+  res.json(rows.reverse().map(serializeMessage));
 });
 
 // Read/unread checkmark next to message bubbles — this just exposes the
