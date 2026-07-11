@@ -3,6 +3,10 @@ import { persist } from 'zustand/middleware';
 import { api, API_BASE_URL } from '../api/client';
 import { subscribeToPush, unsubscribeFromPush, isPushSupported } from '../push';
 
+// How many chat messages a page holds — the day-to-day view only shows
+// recent ones; older history loads on scroll-up (see loadOlderMessages).
+const CHAT_PAGE_SIZE = 40;
+
 const MOOD_PALETTE = { 开心: '#EDD9E1', 平静: '#E0D2D9', 难过: '#C9AEB9', 兴奋: '#E7D6CE', 疲惫: '#CBB9C0' };
 const WEATHER_PALETTE = { 晴: '#EFE3D3', 多云: '#DED3D8', 雨: '#CDBFC5', 雪: '#F3EDEF', 风: '#D9CBD1' };
 
@@ -641,6 +645,8 @@ export const useStore = create(
 
   // ---- chat ----
   messages: [],
+  hasMoreOlder: false, // whether earlier history exists beyond what's loaded
+  loadingOlder: false,
   chatDraft: '',
   isReplying: false,
   chatLastReadId: 0,
@@ -652,8 +658,8 @@ export const useStore = create(
   loadMessages: async () => {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const messages = await api.getMessages();
-        set({ messages });
+        const messages = await api.getMessages({ limit: CHAT_PAGE_SIZE });
+        set({ messages, hasMoreOlder: messages.length >= CHAT_PAGE_SIZE });
         return;
       } catch (err) {
         if (attempt === 2) {
@@ -662,6 +668,28 @@ export const useStore = create(
         }
         await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
       }
+    }
+  },
+  // Loads one older page and prepends it. Returns the count added so the
+  // chat view can keep the scroll anchored on the same message instead of
+  // jumping when content grows above it.
+  loadOlderMessages: async () => {
+    const state = get();
+    if (state.loadingOlder || !state.hasMoreOlder) return 0;
+    const oldest = state.messages.find((m) => typeof m.id === 'number');
+    if (!oldest) return 0;
+    set({ loadingOlder: true });
+    try {
+      const older = await api.getMessages({ before: oldest.id, limit: CHAT_PAGE_SIZE });
+      set((s) => ({
+        messages: [...older, ...s.messages],
+        hasMoreOlder: older.length >= CHAT_PAGE_SIZE,
+        loadingOlder: false,
+      }));
+      return older.length;
+    } catch {
+      set({ loadingOlder: false });
+      return 0;
     }
   },
   loadChatReadStatus: async () => {

@@ -85,6 +85,7 @@ function AttachmentDraftStrip() {
 
 export default function ChatMode() {
   const messages = useStore((s) => s.messages);
+  const loadingOlder = useStore((s) => s.loadingOlder);
   const isReplying = useStore((s) => s.isReplying);
   const markChatRead = useStore((s) => s.markChatRead);
   const chatLastReadId = useStore((s) => s.chatLastReadId);
@@ -149,10 +150,32 @@ export default function ChatMode() {
   // Persist scroll position (imperatively, not via a subscribed selector —
   // this only ever gets read back on the next mount) so switching tabs
   // away and back restores wherever you were instead of snapping to the
-  // bottom every time.
+  // bottom every time. Also the trigger for lazy-loading earlier history:
+  // near the top, pull an older page and re-anchor the scroll on whatever
+  // was in view so prepending content doesn't make the list jump.
+  const loadingOlderRef = useRef(false);
   const handleScroll = () => {
     const el = listRef.current;
-    if (el) useStore.setState({ chatScrollTop: el.scrollTop });
+    if (!el) return;
+    useStore.setState({ chatScrollTop: el.scrollTop });
+    if (el.scrollTop < 80 && !loadingOlderRef.current) {
+      const store = useStore.getState();
+      if (!store.hasMoreOlder || store.loadingOlder) return;
+      loadingOlderRef.current = true;
+      const prevHeight = el.scrollHeight;
+      const prevTop = el.scrollTop;
+      store.loadOlderMessages().then((added) => {
+        if (added) {
+          requestAnimationFrame(() => {
+            const node = listRef.current;
+            if (node) node.scrollTop = node.scrollHeight - prevHeight + prevTop;
+            loadingOlderRef.current = false;
+          });
+        } else {
+          loadingOlderRef.current = false;
+        }
+      });
+    }
   };
   useEffect(() => {
     const el = listRef.current;
@@ -218,6 +241,11 @@ export default function ChatMode() {
   return (
     <div className="chat">
       <div className="chat__list" ref={listRef} onScroll={handleScroll}>
+        {loadingOlder && (
+          <div style={{ textAlign: 'center', padding: '8px 0', fontSize: 12, color: 'var(--color-text-faint)' }}>
+            加载更早的消息…
+          </div>
+        )}
         {messages.map((msg, i) => {
           const mine = msg.from === 'me';
           const tokens = !mine ? msg.tokens : null;
