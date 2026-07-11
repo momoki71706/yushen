@@ -93,7 +93,10 @@ export const useStore = create(
   homeMode: 'chat',
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   closeSidebar: () => set({ sidebarOpen: false }),
-  setActiveTab: (tab) => set({ activeTab: tab, sidebarOpen: false }),
+  setActiveTab: (tab) => {
+    set({ activeTab: tab, sidebarOpen: false });
+    if (tab === 'smultron') get().loadSmultron();
+  },
   setHomeMode: (mode) => set({ homeMode: mode }),
 
   // ---- settings / nickname ----
@@ -621,6 +624,161 @@ export const useStore = create(
       // ignore
     }
   },
+
+  // ---- Smultronställe (野草莓之地): long-form story section ----
+  smultronWindows: [],
+  smultronActiveId: 0,
+  smultronEntries: [],
+  smultronPresets: [],
+  smultronGenerating: false,
+  smultronInput: '',
+  smultronError: '',
+  smultronSyncMessage: '',
+  smultronWindowSheetOpen: false,
+  smultronPresetSheetOpen: false,
+  smultronInstructionSheetOpen: false,
+  loadSmultron: async () => {
+    try {
+      const { windows, activeId } = await api.getSmultronWindows();
+      if (!windows.length) {
+        const w = await api.createSmultronWindow('野草莓之地');
+        set({ smultronWindows: [w], smultronActiveId: w.id, smultronEntries: [] });
+      } else {
+        const active = windows.some((w) => w.id === activeId) ? activeId : windows[0].id;
+        set({ smultronWindows: windows, smultronActiveId: active });
+        await get().loadSmultronEntries(active);
+      }
+      get().loadSmultronPresets();
+    } catch {
+      // backend not reachable yet
+    }
+  },
+  loadSmultronEntries: async (id) => {
+    try {
+      set({ smultronEntries: await api.getSmultronEntries(id) });
+    } catch {
+      // ignore
+    }
+  },
+  loadSmultronPresets: async () => {
+    try {
+      set({ smultronPresets: await api.getSmultronPresets() });
+    } catch {
+      // ignore
+    }
+  },
+  setSmultronInput: (v) => set({ smultronInput: v }),
+  // instruction '' means "continue" (no new directive)
+  smultronGenerate: async (instructionArg) => {
+    const { smultronActiveId, smultronInput, smultronGenerating } = get();
+    if (smultronGenerating || !smultronActiveId) return;
+    const instruction = instructionArg !== undefined ? instructionArg : smultronInput.trim();
+    set({ smultronGenerating: true, smultronError: '', ...(instructionArg === undefined ? { smultronInput: '' } : {}) });
+    if (instruction) {
+      set((s) => ({ smultronEntries: [...s.smultronEntries, { id: `pending-${Date.now()}`, role: 'instruction', text: instruction }] }));
+    }
+    try {
+      await api.smultronGenerate(smultronActiveId, instruction);
+    } catch (err) {
+      set({ smultronError: err.message || '生成失败' });
+    } finally {
+      await get().loadSmultronEntries(smultronActiveId);
+      set({ smultronGenerating: false });
+    }
+  },
+  smultronRegenerate: async () => {
+    const { smultronActiveId, smultronGenerating } = get();
+    if (smultronGenerating || !smultronActiveId) return;
+    set({ smultronGenerating: true, smultronError: '' });
+    try {
+      await api.smultronRegenerate(smultronActiveId);
+    } catch (err) {
+      set({ smultronError: err.message || '生成失败' });
+    } finally {
+      await get().loadSmultronEntries(smultronActiveId);
+      set({ smultronGenerating: false });
+    }
+  },
+  switchSmultronWindow: async (id) => {
+    set({ smultronActiveId: id, smultronWindowSheetOpen: false, smultronEntries: [] });
+    try {
+      await api.activateSmultronWindow(id);
+    } catch {
+      // ignore
+    }
+    get().loadSmultronEntries(id);
+  },
+  addSmultronWindow: async () => {
+    const w = await api.createSmultronWindow('新窗口');
+    set((s) => ({ smultronWindows: [...s.smultronWindows, w], smultronActiveId: w.id, smultronEntries: [], smultronWindowSheetOpen: false }));
+  },
+  renameSmultronWindow: async (id, name) => {
+    const w = await api.updateSmultronWindow(id, { name });
+    set((s) => ({ smultronWindows: s.smultronWindows.map((x) => (x.id === id ? w : x)) }));
+  },
+  deleteSmultronWindow: async (id) => {
+    await api.deleteSmultronWindow(id);
+    const { windows, activeId } = await api.getSmultronWindows();
+    set({ smultronWindows: windows, smultronActiveId: activeId });
+    if (activeId) get().loadSmultronEntries(activeId);
+    else set({ smultronEntries: [] });
+  },
+  saveSmultronInstruction: async (text) => {
+    const id = get().smultronActiveId;
+    const w = await api.updateSmultronWindow(id, { instruction: text });
+    set((s) => ({ smultronWindows: s.smultronWindows.map((x) => (x.id === id ? w : x)), smultronInstructionSheetOpen: false }));
+  },
+  smultronSyncMemory: async () => {
+    const id = get().smultronActiveId;
+    set({ smultronSyncMessage: '正在同步到记忆库…' });
+    try {
+      const res = await api.smultronSyncMemory(id);
+      set({ smultronSyncMessage: res.text ? `已同步：${res.text.slice(0, 40)}` : '已同步到记忆库' });
+    } catch (err) {
+      set({ smultronSyncMessage: `同步失败：${err.message}` });
+    }
+    setTimeout(() => set({ smultronSyncMessage: '' }), 6000);
+  },
+  smultronExport: async () => {
+    const id = get().smultronActiveId;
+    try {
+      const { content, filename } = await api.smultronExport(id);
+      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      set({ smultronError: err.message });
+    }
+  },
+  addSmultronPreset: async (payload) => {
+    await api.createSmultronPreset(payload);
+    get().loadSmultronPresets();
+  },
+  updateSmultronPreset: async (id, payload) => {
+    await api.updateSmultronPreset(id, payload);
+    get().loadSmultronPresets();
+  },
+  deleteSmultronPreset: async (id) => {
+    await api.deleteSmultronPreset(id);
+    get().loadSmultronPresets();
+  },
+  applySmultronPreset: async (content) => {
+    const id = get().smultronActiveId;
+    const w = await api.updateSmultronWindow(id, { instruction: content });
+    set((s) => ({ smultronWindows: s.smultronWindows.map((x) => (x.id === id ? w : x)), smultronPresetSheetOpen: false }));
+  },
+  openSmultronWindowSheet: () => set({ smultronWindowSheetOpen: true }),
+  closeSmultronWindowSheet: () => set({ smultronWindowSheetOpen: false }),
+  openSmultronPresetSheet: () => { get().loadSmultronPresets(); set({ smultronPresetSheetOpen: true }); },
+  closeSmultronPresetSheet: () => set({ smultronPresetSheetOpen: false }),
+  openSmultronInstructionSheet: () => set({ smultronInstructionSheetOpen: true }),
+  closeSmultronInstructionSheet: () => set({ smultronInstructionSheetOpen: false }),
 
   screenReminderEnabled: true,
   toggleScreenReminder: () => set((s) => ({ screenReminderEnabled: !s.screenReminderEnabled })),

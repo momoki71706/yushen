@@ -1,5 +1,5 @@
 import { useStore } from '../state/store';
-import { NavHomeIcon, NavManageIcon, NavCalendarIcon, NavPlayIcon } from './Icons';
+import { NavHomeIcon, NavManageIcon, NavCalendarIcon, NavPlayIcon, NavStrawberryIcon } from './Icons';
 
 const ACTIVE = '#C4879E';
 const INACTIVE = '#847A80';
@@ -9,6 +9,7 @@ const TABS = [
   { key: 'manage', label: '管理', Icon: NavManageIcon },
   { key: 'calendar', label: '日历', Icon: NavCalendarIcon },
   { key: 'play', label: '娱乐', Icon: NavPlayIcon },
+  { key: 'smultron', label: 'Smultron', Icon: NavStrawberryIcon },
 ];
 
 export default function BottomNav() {

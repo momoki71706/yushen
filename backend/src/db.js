@@ -262,6 +262,32 @@ CREATE TABLE IF NOT EXISTS phone_activity (
   app_name TEXT NOT NULL,
   opened_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Smultronställe (野草莓之地): long-form story-generation section. Separate
+-- from chat entirely — each "window" is an independent story thread with its
+-- own governing instruction; instruction_presets is the reusable library.
+CREATE TABLE IF NOT EXISTS smultron_windows (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL DEFAULT '新窗口',
+  instruction TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS smultron_entries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  window_id INTEGER NOT NULL,
+  role TEXT NOT NULL,            -- 'instruction' (yours) | 'story' (generated)
+  text TEXT NOT NULL,
+  tokens INTEGER,
+  thinking TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS smultron_presets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `);
 
 // Additive column migrations — CREATE TABLE IF NOT EXISTS above doesn't
